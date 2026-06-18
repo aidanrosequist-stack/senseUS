@@ -1,16 +1,20 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
 const ANONYMOUS_NAMES = [
-  'Aspen', 'Birch', 'Cedar', 'Echo', 'Fern', 'Harbor', 'Indigo', 'Juniper',
-  'Lake', 'Maple', 'Nova', 'Onyx', 'Pine', 'Quill', 'River', 'Sage',
-  'Tide', 'Vale', 'Willow', 'Zephyr'
+  'Alex R.', 'Jordan M.', 'Casey T.', 'Morgan B.', 'Riley S.',
+  'Sam P.', 'Taylor W.', 'Quinn A.', 'Drew H.', 'Blake N.',
+  'Avery K.', 'Rowan L.', 'Sage D.', 'River C.', 'Phoenix J.',
+  'Amara T.', 'Rohan B.', 'Lena W.', 'Mateo R.', 'Kai M.'
 ]
 
 export function useRegistration() {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
-  const [step, setStep] = useState('phone') // phone -> code -> details -> done
+  const [step, setStep] = useState('phone')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -52,7 +56,7 @@ export function useRegistration() {
     }
   }
 
-  async function completeRegistration({ birthYear, displayNameType, firstName, lastName }) {
+  async function completeRegistration({ birthYear, displayPreference, firstName, lastName }) {
     setLoading(true)
     setError(null)
     try {
@@ -62,27 +66,24 @@ export function useRegistration() {
         return
       }
 
-      let displayName = ''
-      let anonymousColor = null
+      let lastInitial = null
+      let anonName = null
 
-      if (displayNameType === 'first_last') {
-        displayName = `${firstName} ${lastName.charAt(0)}.`
-      } else if (displayNameType === 'first_only') {
-        displayName = firstName
-      } else if (displayNameType === 'anonymous') {
-        displayName = ANONYMOUS_NAMES[Math.floor(Math.random() * ANONYMOUS_NAMES.length)]
-        anonymousColor = '#52B788'
+      if (displayPreference === 'full') {
+        lastInitial = lastName ? lastName.charAt(0).toUpperCase() : null
+      } else if (displayPreference === 'anon') {
+        anonName = ANONYMOUS_NAMES[Math.floor(Math.random() * ANONYMOUS_NAMES.length)]
       }
 
-      const { error: insertError } = await supabase.from('users').insert({
+      const { error: insertError } = await supabase.from('profiles').insert({
         id: userData.user.id,
-        phone,
+        first_name: firstName,
+        last_initial: lastInitial,
+        display_preference: displayPreference,
+        anon_name: anonName,
         birth_year: birthYear,
-        display_name_type: displayNameType,
-        display_name: displayName,
-        anonymous_color: anonymousColor,
-        is_verified: true,
       })
+
       if (insertError) {
         setError(insertError.message)
         return

@@ -3,15 +3,15 @@ import { IconThumbUp, IconThumbDown, IconBulb, IconMessageCircle } from '@tabler
 
 const COLORS = {
   yes: '#6d8a1c',
-  leaning_yes: '#d9c01a',
-  leaning_no: '#c2731f',
+  ly: '#d9c01a',
+  ln: '#c2731f',
   no: '#c21f1f',
 }
 
 const LABELS = {
   yes: 'YES',
-  leaning_yes: 'LEANING YES',
-  leaning_no: 'LEANING NO',
+  ly: 'LEANING YES',
+  ln: 'LEANING NO',
   no: 'NO',
 }
 
@@ -76,9 +76,9 @@ export default function VoteCard({ question, onVote, onSkip }) {
 
   function zoneFromDelta(dx) {
     if (dx < -THRESH_FULL) return 'no'
-    if (dx < -THRESH_LEAN) return 'leaning_no'
+    if (dx < -THRESH_LEAN) return 'ln'
     if (dx > THRESH_FULL) return 'yes'
-    if (dx > THRESH_LEAN) return 'leaning_yes'
+    if (dx > THRESH_LEAN) return 'ly'
     return null
   }
 
@@ -281,7 +281,7 @@ onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
           </button>
 
           <button
-            onClick={() => handleButtonVote('leaning_yes')}
+            onClick={() => handleButtonVote('ly')}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: '#faf6d0', border: '1.5px solid #7a6b0e', borderRadius: '9px', padding: '10px 4px', cursor: 'pointer' }}
           >
             <span style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#d9c01a', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'rotate(45deg)' }}>
@@ -291,7 +291,7 @@ onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
           </button>
 
           <button
-            onClick={() => handleButtonVote('leaning_no')}
+            onClick={() => handleButtonVote('ln')}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: '#f9ead8', border: '1.5px solid #7a4513', borderRadius: '9px', padding: '10px 4px', cursor: 'pointer' }}
           >
             <span style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#c2731f', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'rotate(45deg)' }}>
@@ -323,7 +323,7 @@ onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
 
         <button
           onClick={() => console.log('view conversation')}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', background: 'transparent', border: '1.5px solid #D1D5DB', borderRadius: '8px', color: '#6B7280', fontSize: '16px', fontWeight: 500, cursor: 'pointer', padding: '8px' }}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', background: '#FFFFFF', border: '1.5px solid #D1D5DB', borderRadius: '8px', color: '#6B7280', fontSize: '13px', fontWeight: 500, cursor: 'pointer', padding: '8px' }}
         >
           <IconMessageCircle size={16} color="#6B7280" />
           View the Conversation

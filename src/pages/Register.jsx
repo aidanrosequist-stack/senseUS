@@ -12,7 +12,7 @@ export default function Register() {
 
   const [birthYear, setBirthYear] = useState('')
   const [isOver18, setIsOver18] = useState(false)
-  const [displayNameType, setDisplayNameType] = useState('first_last')
+  const [displayPreference, setDisplayPreference] = useState('full')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
 
@@ -20,32 +20,34 @@ export default function Register() {
   const meetsAgeRequirement = birthYear && (currentYear - parseInt(birthYear, 10)) >= 18
 
   return (
-    <div className="max-w-md mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-6" style={{ color: '#2D3DCA' }}>
+    <div style={{ maxWidth: '420px', margin: '0 auto', padding: '2rem 1.5rem' }}>
+      <h1 style={{ fontSize: '22px', fontWeight: 600, marginBottom: '1.5rem', color: '#2D3DCA' }}>
         Join senseUS
       </h1>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>
+        <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f9d8d8', color: '#7a1313', borderRadius: '8px', fontSize: '13px' }}>
+          {error}
+        </div>
       )}
 
       {step === 'phone' && (
-        <div className="space-y-4">
-          <label className="block">
-            <span className="text-sm font-medium">Phone number</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <label style={{ fontSize: '13px', fontWeight: 500 }}>
+            Phone number
             <input
               type="tel"
               placeholder="+15551234567"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="mt-1 block w-full border rounded p-2"
+              autoComplete="tel"
+              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box' }}
             />
           </label>
           <button
             onClick={sendCode}
             disabled={loading || !phone}
-            className="w-full py-2 rounded text-white font-medium disabled:opacity-50"
-            style={{ backgroundColor: '#2D3DCA' }}
+            style={{ width: '100%', padding: '11px', borderRadius: '8px', background: '#2D3DCA', color: 'white', border: 'none', fontSize: '14px', fontWeight: 500, cursor: 'pointer', opacity: loading || !phone ? 0.5 : 1 }}
           >
             {loading ? 'Sending...' : 'Send verification code'}
           </button>
@@ -53,22 +55,23 @@ export default function Register() {
       )}
 
       {step === 'code' && (
-        <div className="space-y-4">
-          <label className="block">
-            <span className="text-sm font-medium">Enter the 6-digit code</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <label style={{ fontSize: '13px', fontWeight: 500 }}>
+            Enter the 6-digit code
             <input
               type="text"
+              inputMode="numeric"
               placeholder="123456"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="mt-1 block w-full border rounded p-2"
+              autoComplete="one-time-code"
+              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box' }}
             />
           </label>
           <button
             onClick={checkCode}
             disabled={loading || !code}
-            className="w-full py-2 rounded text-white font-medium disabled:opacity-50"
-            style={{ backgroundColor: '#2D3DCA' }}
+            style={{ width: '100%', padding: '11px', borderRadius: '8px', background: '#2D3DCA', color: 'white', border: 'none', fontSize: '14px', fontWeight: 500, cursor: 'pointer', opacity: loading || !code ? 0.5 : 1 }}
           >
             {loading ? 'Verifying...' : 'Verify code'}
           </button>
@@ -76,85 +79,73 @@ export default function Register() {
       )}
 
       {step === 'details' && (
-        <div className="space-y-5">
-          <label className="block">
-            <span className="text-sm font-medium">Birth year</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <label style={{ fontSize: '13px', fontWeight: 500 }}>
+            Birth year
             <input
               type="number"
               placeholder="1990"
               value={birthYear}
               onChange={(e) => setBirthYear(e.target.value)}
-              className="mt-1 block w-full border rounded p-2"
+              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box' }}
             />
           </label>
 
           {birthYear && !meetsAgeRequirement && (
-            <p className="text-red-600 text-sm">
+            <p style={{ color: '#7a1313', fontSize: '13px', margin: 0 }}>
               You must be 18 or older to use senseUS.
             </p>
           )}
 
           {meetsAgeRequirement && (
             <>
-              <label className="flex items-start gap-2">
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px' }}>
                 <input
                   type="checkbox"
                   checked={isOver18}
                   onChange={(e) => setIsOver18(e.target.checked)}
-                  className="mt-1"
+                  style={{ marginTop: '2px' }}
                 />
-                <span className="text-sm">I confirm I am 18 years of age or older.</span>
+                I confirm I am 18 years of age or older.
               </label>
 
               <div>
-                <span className="text-sm font-medium block mb-2">How should your name appear?</span>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      checked={displayNameType === 'first_last'}
-                      onChange={() => setDisplayNameType('first_last')}
-                    />
-                    <span className="text-sm">First name + last initial</span>
+                <div style={{ fontSize: '13px', fontWeight: 500, marginBottom: '8px' }}>How should your name appear?</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <input type="radio" checked={displayPreference === 'full'} onChange={() => setDisplayPreference('full')} />
+                    First name + last initial (e.g. Mary K.)
                   </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      checked={displayNameType === 'first_only'}
-                      onChange={() => setDisplayNameType('first_only')}
-                    />
-                    <span className="text-sm">First name only</span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <input type="radio" checked={displayPreference === 'first_only'} onChange={() => setDisplayPreference('first_only')} />
+                    First name only
                   </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      checked={displayNameType === 'anonymous'}
-                      onChange={() => setDisplayNameType('anonymous')}
-                    />
-                    <span className="text-sm">Anonymous (random name assigned)</span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <input type="radio" checked={displayPreference === 'anon'} onChange={() => setDisplayPreference('anon')} />
+                    Anonymous (random name assigned)
                   </label>
                 </div>
               </div>
 
-              {(displayNameType === 'first_last' || displayNameType === 'first_only') && (
-                <div className="space-y-3">
-                  <label className="block">
-                    <span className="text-sm font-medium">First name</span>
+              {(displayPreference === 'full' || displayPreference === 'first_only') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 500 }}>
+                    First name
                     <input
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      className="mt-1 block w-full border rounded p-2"
+                      style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box' }}
                     />
                   </label>
-                  {displayNameType === 'first_last' && (
-                    <label className="block">
-                      <span className="text-sm font-medium">Last name</span>
+                  {displayPreference === 'full' && (
+                    <label style={{ fontSize: '13px', fontWeight: 500 }}>
+                      Last name
                       <input
                         type="text"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        className="mt-1 block w-full border rounded p-2"
+                        style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box' }}
                       />
                     </label>
                   )}
@@ -162,10 +153,14 @@ export default function Register() {
               )}
 
               <button
-                onClick={() => completeRegistration({ birthYear: parseInt(birthYear, 10), displayNameType, firstName, lastName })}
-                disabled={loading || !isOver18 || (displayNameType !== 'anonymous' && !firstName)}
-                className="w-full py-2 rounded text-white font-medium disabled:opacity-50"
-                style={{ backgroundColor: '#52B788' }}
+                onClick={() => completeRegistration({
+                  birthYear: parseInt(birthYear, 10),
+                  displayPreference,
+                  firstName,
+                  lastName,
+                })}
+                disabled={loading || !isOver18 || (displayPreference !== 'anon' && !firstName)}
+                style={{ width: '100%', padding: '11px', borderRadius: '8px', background: '#52B788', color: 'white', border: 'none', fontSize: '14px', fontWeight: 500, cursor: 'pointer', opacity: (loading || !isOver18 || (displayPreference !== 'anon' && !firstName)) ? 0.5 : 1 }}
               >
                 {loading ? 'Creating account...' : 'Complete registration'}
               </button>
@@ -175,11 +170,11 @@ export default function Register() {
       )}
 
       {step === 'done' && (
-        <div className="text-center space-y-2">
-          <p className="text-xl font-semibold" style={{ color: '#52B788' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: '20px', fontWeight: 600, color: '#52B788', marginBottom: '8px' }}>
             Welcome to senseUS!
           </p>
-          <p className="text-sm text-gray-600">Your account has been created.</p>
+          <p style={{ fontSize: '13px', color: '#6B7280' }}>Your account has been created.</p>
         </div>
       )}
     </div>

@@ -2,36 +2,36 @@ import { IconMessageCircle } from '@tabler/icons-react'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c',
-  leaning_yes: '#d9c01a',
-  leaning_no: '#c2731f',
+  ly: '#d9c01a',
+  ln: '#c2731f',
   no: '#c21f1f',
 }
 
 const VOTE_PILL_STYLES = {
   yes: { background: '#eef3e0', color: '#4d621d' },
-  leaning_yes: { background: '#faf6d0', color: '#7a6b0e' },
-  leaning_no: { background: '#f9ead8', color: '#7a4513' },
+  ly: { background: '#faf6d0', color: '#7a6b0e' },
+  ln: { background: '#f9ead8', color: '#7a4513' },
   no: { background: '#f9d8d8', color: '#7a1313' },
-  undecided: { background: '#E6F1FB', color: '#0C447C' },
+  dec: { background: '#E6F1FB', color: '#0C447C' },
 }
 
 const VOTE_LABELS = {
   yes: 'yes',
-  leaning_yes: 'leaning yes',
-  leaning_no: 'leaning no',
+  ly: 'leaning yes',
+  ln: 'leaning no',
   no: 'no',
-  undecided: 'undecided',
+  dec: 'undecided',
 }
 
 export default function ResultsCard({ question, userVote, tally, onJoinConversation, onNext }) {
   const total = tally.yes + tally.leaning_yes + tally.leaning_no + tally.no
-  const pctYes = total > 0 ? Math.round(((tally.yes + tally.leaning_yes) / total) * 100) : 0
+  const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : 0
   const pctNo = 100 - pctYes
 
   const segments = [
     { key: 'yes', value: tally.yes },
-    { key: 'leaning_yes', value: tally.leaning_yes },
-    { key: 'leaning_no', value: tally.leaning_no },
+    { key: 'ly', value: tally.ly },
+    { key: 'ln', value: tally.ln },
     { key: 'no', value: tally.no },
   ]
 
