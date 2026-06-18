@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" role="img">
+  <title>senseUS logo — light globe</title>
+  <desc>senseUS globe icon — light indigo fill, blue hemisphere arrows, forest green serif US</desc>
+
+  <defs>
+    <marker id="mb1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#2D3DCA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="mb2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#2D3DCA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <circle cx="200" cy="200" r="190" fill="#F0F2FF" stroke="#2D3DCA" stroke-width="2.5"/>
+  <ellipse cx="200" cy="200" rx="190" ry="52" fill="none" stroke="#2D3DCA" stroke-width="1.2" opacity="0.18"/>
+  <ellipse cx="200" cy="126" rx="140" ry="31" fill="none" stroke="#2D3DCA" stroke-width="1"   opacity="0.13"/>
+  <ellipse cx="200" cy="274" rx="140" ry="31" fill="none" stroke="#2D3DCA" stroke-width="1"   opacity="0.13"/>
+  <ellipse cx="200" cy="200" rx="52"  ry="190" fill="none" stroke="#2D3DCA" stroke-width="1"  opacity="0.13"/>
+
+  <path d="M 62,123 A 140,31 0 0,1 338,123"
+        fill="none" stroke="#2D3DCA" stroke-width="9" stroke-linecap="round"
+        marker-end="url(#mb1)"/>
+  <path d="M 338,277 A 140,31 0 0,1 62,277"
+        fill="none" stroke="#2D3DCA" stroke-width="9" stroke-linecap="round"
+        marker-end="url(#mb2)"/>
+
+  <text x="200" y="216"
+        font-family="Georgia, 'Times New Roman', Times, serif"
+        font-size="154" font-weight="700"
+        fill="#52B788"
+        text-anchor="middle"
+        dominant-baseline="middle">US</text>
+</svg>
