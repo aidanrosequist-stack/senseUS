@@ -3,6 +3,7 @@ import Home from './pages/Home'
 import Vote from './pages/Vote'
 import Profile from './pages/Profile'
 import Register from './pages/Register'
+import Privacy from './pages/Privacy'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/vote" element={<Vote />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/privacy" element={<Privacy />} />
       </Routes>
     </BrowserRouter>
   )
