@@ -21,13 +21,21 @@ export default function Mission() {
 
       <div style={{ fontSize: '16px', lineHeight: 1.8, color: '#1A1A1A' }}>
 
-        <p>We live in an era of manufactured consensus, what seems like purposeful division and perhaps even contention that is driven intentionally. Bots flood social media. Algorithms amplify outrage. Poll numbers get spun before the ink is dry. Nobody knows what people actually think anymore. We believe most people think for themselves; outside of party lines, beyond religious affiliations and more nuanced than any box that someone tries to put you in.</p>
+        <p>senseUS was founded because we were tired of not knowing the truth.  And it was founded as a PBC (Public Benefit Corporation), because we believed that senseUS could and <em>would</em> be of immense value to society.</p>
+            
+        <p>We're under the impression that we're living in an era of manufactured consensus. We think that some of the division of humanity doesn't really exist, and perhaps that contention that is driven intentionally. Bots have infected social media. Algorithms amplify outrage. Poll numbers get spun before the ink is dry.</p>
 
-        <p>senseUS aims to fix that.</p>
+        <p>And we believe that most people think for themselves; outside of party lines, beyond religious affiliations and are <em>way</em> more nuanced than any box that you could ever try to fit a human into.</p>
+        
+        <p>We believe that there is a real lack of data about humans, and senseUS aims to fix that.</p>
 
-        <p>We built a platform where every voice belongs to a verified human being. One person, one account, one vote. No bots. No fake accounts. No coordinated manipulation. Just real people answering real questions, honestly, and anonymously. Because we believe that your opinion matters. Not an algorithm's version of it. Not a bot's approximation of it. Yours. And we believe that you shouldn't be afraid to voice it; in fact, you should be <em>encouraged</em> to voice it.</p>
+        <p>We're all thrust into a society and are expected to get along, and we think the most important thing you can do to be a functioning member of that society is to voice your opinions and thoughts on senseUS. Because you shouldn't let anyone tell you how you feel; <em>you</em> should tell <em>everyone</em> how <em>you</em> feel, in a very constructive, data-driven way.</p>
+        
+        <p>We built a platform where every voice belongs to a verified human being. One person, one account, one voice. No bots. No fake accounts. No coordinated manipulation. Just real people answering real questions, honestly, and anonymously. Because we believe that your opinion matters. Not an algorithm's version of it. Not a bot's approximation of it. Yours. And we believe that you shouldn't be afraid to voice it; in fact, you should be <em>encouraged</em> to voice it.</p>
 
-        <p>We believe that knowing what humanity actually thinks, without interference, is foundational to a functioning democracy. It's infrastructure for truth.</p>
+        <p>And for the questions where you're still making up your mind, we've curated articles from across the spectrum: pro, neutral, and con; so your opinion, when you give it, is an informed one.</p>
+
+        <p>We believe that knowing what humanity actually thinks, without interference, is foundational to a functioning democracy.</p>
 
         <p>And besides, we're <em>really, really</em> curious what your answers are going to be to some of these.</p>
 
