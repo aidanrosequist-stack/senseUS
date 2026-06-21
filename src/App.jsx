@@ -5,6 +5,7 @@ import Profile from './pages/Profile'
 import Register from './pages/Register'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
+import Mission from './pages/Mission'
 
 function App() {
   return (
