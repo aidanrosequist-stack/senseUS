@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
@@ -73,9 +74,9 @@ export default function Home() {
           <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.7, margin: '0 0 10px' }}>
             senseUS is a verified opinion platform — one account per real human, no bots, no manipulation. Just honest answers to the questions that matter.
           </p>
-          <a href="/mission" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>
+          <Link to="/mission" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>
             Read our mission →
-          </a>
+          </Link>
         </div>
 
         {/* Waitlist card */}

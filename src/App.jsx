@@ -17,6 +17,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/mission" element={<Mission />} />
       </Routes>
     </BrowserRouter>
   )

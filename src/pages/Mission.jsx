@@ -1,11 +1,13 @@
+import { Link } from 'react-router-dom'
+
 export default function Mission() {
   return (
     <div style={{ maxWidth: '680px', margin: '0 auto', padding: '3rem 1.5rem', fontFamily: 'Georgia, serif', boxSizing: 'border-box' }}>
 
       <div style={{ marginBottom: '2.5rem' }}>
-        <a href="/" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', fontFamily: 'Arial, sans-serif' }}>
+        <Link to="/" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', fontFamily: 'Arial, sans-serif' }}>
           ← back
-        </a>
+        </Link>
       </div>
 
       <div style={{ marginBottom: '2rem' }}>
@@ -19,7 +21,7 @@ export default function Mission() {
 
       <div style={{ fontSize: '16px', lineHeight: 1.8, color: '#1A1A1A' }}>
 
-        <p>We live in an era of manufactured consensus — what seems like purposeful division and perhaps even contention that is driven intentionally. Bots flood social media. Algorithms amplify outrage. Poll numbers get spun before the ink is dry. Nobody knows what people actually think anymore. We believe most people think for themselves; outside of party lines, beyond religious affiliations and more nuanced than any box that someone tries to put you in.</p>
+        <p>We live in an era of manufactured consensus, what seems like purposeful division and perhaps even contention that is driven intentionally. Bots flood social media. Algorithms amplify outrage. Poll numbers get spun before the ink is dry. Nobody knows what people actually think anymore. We believe most people think for themselves; outside of party lines, beyond religious affiliations and more nuanced than any box that someone tries to put you in.</p>
 
         <p>senseUS aims to fix that.</p>
 
