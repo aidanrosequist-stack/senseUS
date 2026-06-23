@@ -51,6 +51,12 @@ export default function Register() {
           >
             {loading ? 'Sending...' : 'Send verification code'}
           </button>
+          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '6px 0 0', lineHeight: 1.5, textAlign: 'center' }}>
+            By entering your phone number, you agree to receive a one-time verification code via SMS. Message and data rates may apply.{' '}
+            <a href="/privacy" style={{ color: '#6B7280' }}>Privacy Policy</a>
+            {' '}·{' '}
+            <a href="/terms" style={{ color: '#6B7280' }}>Terms of Service</a>
+          </p>
         </div>
       )}
 
