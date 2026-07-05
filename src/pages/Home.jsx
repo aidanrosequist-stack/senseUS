@@ -56,7 +56,6 @@ export default function Home() {
           textAlign: 'center',
         }}
       >
-        {/* Logo */}
         <div style={{ marginBottom: '2.5rem' }}>
           <div style={{ fontSize: '36px', fontWeight: 500, color: '#2D3DCA', marginBottom: '4px' }}>
             sense<span style={{ fontWeight: 700 }}>US</span>
@@ -66,7 +65,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Pitch */}
         <div style={{ marginBottom: '2.5rem' }}>
           <p style={{ fontSize: '18px', fontWeight: 500, color: '#1A1A1A', lineHeight: 1.5, margin: '0 0 10px' }}>
             What do people actually think?
@@ -75,11 +73,10 @@ export default function Home() {
             senseUS is a verified opinion platform — one account per real human, no bots, no manipulation. Just honest answers to the questions that matter.
           </p>
           <Link to="/mission" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>
-            Read our mission →
+            Read our mission
           </Link>
         </div>
 
-        {/* Waitlist card */}
         <div
           style={{
             width: '100%',
@@ -147,13 +144,7 @@ export default function Home() {
                 gap: '6px',
               }}
             >
-              {submitted ? (
-                <>✓ you're on the list!</>
-              ) : loading ? (
-                'Adding you...'
-              ) : (
-                'Notify me at launch'
-              )}
+              {submitted ? '✓ you\'re on the list!' : loading ? 'Adding you...' : 'Notify me at launch'}
             </button>
           </div>
 
@@ -168,7 +159,6 @@ export default function Home() {
           </p>
         </div>
 
-{/* Support card */}
         <div
           style={{
             width: '100%',
@@ -185,7 +175,7 @@ export default function Home() {
             Believe in this mission? Support it here.
           </p>
           
-            href="https://lightwillprevail.com"
+            <a href="https://lightwillprevail.com"
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -199,11 +189,10 @@ export default function Home() {
               textDecoration: 'none',
             }}
           >
-            Visit lightwillprevail.com →
+            Visit lightwillprevail.com
           </a>
         </div>
 
-        {/* Footer */}
         <div style={{ width: '100%', marginTop: '1rem', textAlign: 'center' }}>
           <p style={{ fontSize: '12px', color: '#9CA3AF', lineHeight: 1.6, margin: '0 0 0.75rem' }}>
             senseUS is a verified human opinion platform operated by [ENTITY NAME], a Delaware Public Benefit Corporation. Our mission is to create a trusted, bot-free source of truth for public opinion.
@@ -217,6 +206,7 @@ export default function Home() {
             <a href="/mission" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Our Mission</a>
           </div>
         </div>
+
       </div>
     </div>
   )
