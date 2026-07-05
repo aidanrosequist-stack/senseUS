@@ -168,6 +168,41 @@ export default function Home() {
           </p>
         </div>
 
+{/* Support card */}
+        <div
+          style={{
+            width: '100%',
+            background: '#FFFFFF',
+            border: '0.5px solid #E5E7EB',
+            borderRadius: '16px',
+            padding: '1.25rem',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            marginBottom: '1.5rem',
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, margin: '0 0 10px' }}>
+            Believe in this mission? Support it here.
+          </p>
+          
+            href="https://lightwillprevail.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-block',
+              padding: '9px 20px',
+              background: '#52B788',
+              color: 'white',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 500,
+              textDecoration: 'none',
+            }}
+          >
+            Visit lightwillprevail.com →
+          </a>
+        </div>
+
         {/* Footer */}
         <div style={{ width: '100%', marginTop: '1rem', textAlign: 'center' }}>
           <p style={{ fontSize: '12px', color: '#9CA3AF', lineHeight: 1.6, margin: '0 0 0.75rem' }}>
