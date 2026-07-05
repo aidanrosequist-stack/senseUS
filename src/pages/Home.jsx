@@ -172,7 +172,7 @@ export default function Home() {
           }}
         >
           <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, margin: '0 0 10px' }}>
-            Believe in this mission? Support it here.
+            Believe in this mission? Help support it financially here:
           </p>
           
             <a href="https://lightwillprevail.com"
@@ -181,12 +181,13 @@ export default function Home() {
             style={{
               display: 'inline-block',
               padding: '9px 20px',
-              background: '#52B788',
-              color: 'white',
+              background: '#0D0D0D',
+              color: '#ff9900',
               borderRadius: '8px',
               fontSize: '13px',
               fontWeight: 500,
               textDecoration: 'none',
+              fontFamily: "'Rock Salt', cursive",
             }}
           >
             Visit lightwillprevail.com
