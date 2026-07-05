@@ -168,14 +168,19 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Footer links */}
-        <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
-          <a href="/privacy" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>
-            Privacy Policy
-          </a>
-          <a href="/terms" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>
-            Terms of Service
-          </a>
+        {/* Footer */}
+        <div style={{ width: '100%', marginTop: '1rem', textAlign: 'center' }}>
+          <p style={{ fontSize: '12px', color: '#9CA3AF', lineHeight: 1.6, margin: '0 0 0.75rem' }}>
+            senseUS is a verified human opinion platform operated by [ENTITY NAME], a Delaware Public Benefit Corporation. Our mission is to create a trusted, bot-free source of truth for public opinion.
+          </p>
+          <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '0 0 0.75rem' }}>
+            Contact us: <a href="mailto:hello@senseus.app" style={{ color: '#6B7280', textDecoration: 'none' }}>hello@senseus.app</a>
+          </p>
+          <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
+            <a href="/privacy" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Privacy Policy</a>
+            <a href="/terms" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Terms of Service</a>
+            <a href="/mission" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Our Mission</a>
+          </div>
         </div>
       </div>
     </div>

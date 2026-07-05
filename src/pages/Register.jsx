@@ -51,12 +51,14 @@ export default function Register() {
           >
             {loading ? 'Sending...' : 'Send verification code'}
           </button>
-          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '6px 0 0', lineHeight: 1.5, textAlign: 'center' }}>
-            By entering your phone number, you agree to receive a one-time verification code via SMS. Message and data rates may apply.{' '}
-            <a href="/privacy" style={{ color: '#6B7280' }}>Privacy Policy</a>
-            {' '}·{' '}
-            <a href="/terms" style={{ color: '#6B7280' }}>Terms of Service</a>
-          </p>
+          <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
+            <p style={{ fontSize: '12px', color: '#6B7280', margin: '0', lineHeight: 1.6, textAlign: 'center' }}>
+              By entering your phone number and clicking "Send verification code," you consent to receive a one-time SMS verification code from senseUS. Message and data rates may apply. You will not receive marketing messages.{' '}
+              <a href="/privacy" style={{ color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Privacy Policy</a>
+              {' '}·{' '}
+              <a href="/terms" style={{ color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Terms of Service</a>
+            </p>
+          </div>
         </div>
       )}
 
