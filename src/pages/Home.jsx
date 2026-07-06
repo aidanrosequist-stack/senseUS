@@ -63,6 +63,9 @@ export default function Home() {
           <div style={{ fontSize: '12px', color: '#6B7280', letterSpacing: '0.05em' }}>
             real humans. real opinions. real truth.
           </div>
+          <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '6px' }}>
+            A verified opinion platform by Gudboi Enterprises, LLC. <a href="/privacy" style={{ color: '#6B7280', textDecoration: 'none' }}>Privacy Policy</a> | <a href="/terms" style={{ color: '#6B7280', textDecoration: 'none' }}>Terms of Service</a>
+          </div>
         </div>
 
         <div style={{ marginBottom: '2.5rem' }}>

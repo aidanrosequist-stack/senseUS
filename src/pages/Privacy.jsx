@@ -15,7 +15,7 @@ export default function Privacy() {
       {[
         {
           title: '1. Who We Are',
-          content: `senseUS is operated by [ENTITY NAME], a Delaware Public Benefit Corporation ("we," "us," or "our"). Our platform at senseus.app allows verified human beings to share their opinions on questions of public interest. We can be reached at privacy@senseus.app.`
+          content: `senseUS is operated and owned by Gudboi Enterprises, LLC, but will be a Delaware Public Benefit Corporation eventually. ("we," "us," or "our"). Our platform at senseus.app allows verified human beings to share their opinions on questions of public interest. We can be reached at privacy@senseus.app.`
         },
         {
           title: '2. Our Commitment to Privacy',

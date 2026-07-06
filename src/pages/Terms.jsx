@@ -15,7 +15,7 @@ export default function Terms() {
       {[
         {
           title: '1. Agreement to These Terms',
-          content: 'By creating an account or using senseUS ("the platform"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use senseUS. senseUS is operated by [ENTITY NAME], a Delaware Public Benefit Corporation ("we," "us," or "our").'
+          content: 'By creating an account or using senseUS ("the platform"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use senseUS. senseUS is operated and owned by Gudboi Enterprises, LLC, but will be a Delaware Public Benefit Corporation eventually. ("we," "us," or "our").'
         },
         {
           title: '2. Eligibility',
