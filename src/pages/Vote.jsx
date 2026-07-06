@@ -1,30 +1,55 @@
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
+import { useQuestions } from '../hooks/useQuestions'
 import QuestionFlow from '../components/vote/QuestionFlow'
 
-const SAMPLE_QUESTIONS = [
-  {
-    id: '1',
-    category: 'deep',
-    text: 'Is it possible to truly know another person?',
-    votes: { yes: 203, ly: 441, ln: 188, no: 97 },
-    replyCount: 312,
-  },
-  {
-    id: '2',
-    category: 'fun',
-    text: 'Pineapple belongs on pizza.',
-    votes: { yes: 412, ly: 198, ln: 143, no: 201 },
-    replyCount: 87,
-  },
-  {
-    id: '3',
-    category: 'topical',
-    text: 'Do you trust artificial intelligence?',
-    votes: { yes: 188, ly: 302, ln: 255, no: 201 },
-    replyCount: 154,
-  },
-]
-
 export default function Vote() {
+  const { user } = useAuth()
+  const { questions, loading, error } = useQuestions(user?.id)
+  const navigate = useNavigate()
+
+  async function handleVote(questionId, choice, tally) {
+    if (!user) return
+
+    const total = tally.yes + tally.ly + tally.ln + tally.no
+    const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : 0
+    const pctNo = 100 - pctYes
+
+    const { error: voteError } = await supabase
+      .from('votes')
+      .upsert({
+        user_id: user.id,
+        question_id: questionId,
+        choice,
+        integrity_weight_at_vote: 1.0000,
+        pct_yes_at_vote: pctYes,
+        pct_no_at_vote: pctNo,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,question_id' })
+
+    if (voteError) console.error('Vote error:', voteError)
+
+    // Increment answers_count on profile
+    await supabase.rpc('increment_answers_count', { user_id: user.id })
+  }
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+        Loading questions...
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
+        Error loading questions. Please try again.
+      </div>
+    )
+  }
+
   return (
     <div
       style={{
@@ -51,7 +76,10 @@ export default function Vote() {
           background: '#FFFFFF',
         }}
       >
-        <QuestionFlow questions={SAMPLE_QUESTIONS} />
+        <QuestionFlow
+          questions={questions}
+          onVote={handleVote}
+        />
       </div>
     </div>
   )

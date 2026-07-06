@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import VoteCard from './VoteCard'
 import ResultsCard from './ResultsCard'
 
-export default function QuestionFlow({ questions }) {
+export default function QuestionFlow({ questions , onVote }) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [view, setView] = useState('voting') // 'voting' | 'results'
   const [userVote, setUserVote] = useState(null)
@@ -16,23 +16,25 @@ export default function QuestionFlow({ questions }) {
   }
 
   function handleVote(value) {
+    const tally = getTallyFor(currentQuestion)
+
     if (value === 'undecided') {
-      // Undecided doesn't affect the yes/no spectrum tally, just advance after a brief beat
       setUserVote('undecided')
-      const tally = getTallyFor(currentQuestion)
       setTallies((prev) => ({ ...prev, [currentQuestion.id]: tally }))
       setView('results')
       return
     }
 
-    const tally = getTallyFor(currentQuestion)
-    const updatedTally = { ...tally, [value]: tally[value] + 1 }
+    const updatedTally = { ...tally, [value]: (tally[value] || 0) + 1 }
     setTallies((prev) => ({ ...prev, [currentQuestion.id]: updatedTally }))
     setUserVote(value)
     setView('results')
-
-    // Once a vote is committed, this question can't be recovered via swipe-down
     skipHistory.current = []
+
+    // Write to Supabase
+    if (onVote) {
+      onVote(currentQuestion.id, value, tally)
+    }
   }
 
   function handleSkip() {
