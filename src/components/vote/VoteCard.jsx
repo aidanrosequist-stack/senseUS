@@ -25,6 +25,30 @@ function vibrate(pattern) {
   }
 }
 
+function playSound(type) {
+  if (localStorage.getItem('senseus_sound') === 'off') return
+  const ctx = new (window.AudioContext || window.webkitAudioContext)()
+  const oscillator = ctx.createOscillator()
+  const gainNode = ctx.createGain()
+  oscillator.connect(gainNode)
+  gainNode.connect(ctx.destination)
+
+  const configs = {
+    yes:        { frequency: 520, duration: 0.08, gain: 0.15 },
+    ly:         { frequency: 440, duration: 0.07, gain: 0.12 },
+    ln:         { frequency: 320, duration: 0.07, gain: 0.12 },
+    no:         { frequency: 240, duration: 0.08, gain: 0.15 },
+  }
+
+  const config = configs[type] || configs.yes
+  oscillator.frequency.setValueAtTime(config.frequency, ctx.currentTime)
+  oscillator.type = 'sine'
+  gainNode.gain.setValueAtTime(config.gain, ctx.currentTime)
+  gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + config.duration)
+  oscillator.start(ctx.currentTime)
+  oscillator.stop(ctx.currentTime + config.duration)
+}
+
 export default function VoteCard({ question, onVote, onSkip }) {
   const [zone, setZone] = useState(null)
   const [dragging, setDragging] = useState(false)
@@ -87,6 +111,7 @@ export default function VoteCard({ question, onVote, onSkip }) {
     if (newZone && newZone !== lastZone.current) {
       const isFull = newZone === 'yes' || newZone === 'no'
       vibrate(isFull ? 40 : 12)
+      playSound(newZone)
     }
     lastZone.current = newZone
   }
@@ -135,6 +160,7 @@ export default function VoteCard({ question, onVote, onSkip }) {
   function handleButtonVote(value) {
     const isFull = value === 'yes' || value === 'no'
     vibrate(isFull ? 40 : 12)
+    playSound(value)
     onVote(value)
   }
 
