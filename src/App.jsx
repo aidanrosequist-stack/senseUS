@@ -6,6 +6,7 @@ import Register from './pages/Register'
 import Privacy from './pages/Privacy'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
+import MakeUpMyMind from './pages/MakeUpMyMind'
 import ProtectedRoute from './components/ProtectedRoute'
 import Terms from './pages/Terms'
 import Mission from './pages/Mission'
@@ -20,6 +21,8 @@ function App() {
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/make-up-my-mind/:questionId" element={<ProtectedRoute><MakeUpMyMind /></ProtectedRoute>} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/mission" element={<Mission />} />

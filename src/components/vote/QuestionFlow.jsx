@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import VoteCard from './VoteCard'
 import ResultsCard from './ResultsCard'
 
 export default function QuestionFlow({ questions , onVote }) {
+  const navigate = useNavigate()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [view, setView] = useState('voting') // 'voting' | 'results'
   const [userVote, setUserVote] = useState(null)
@@ -92,7 +94,12 @@ export default function QuestionFlow({ questions , onVote }) {
       }}
     >
       {view === 'voting' && (
-        <VoteCard question={currentQuestion} onVote={handleVote} onSkip={handleSkip} />
+        <VoteCard
+          question={currentQuestion}
+          onVote={handleVote}
+          onSkip={handleSkip}
+          onMakeUpMyMind={() => navigate(`/make-up-my-mind/${currentQuestion.id}`)}
+        />
       )}
       {view === 'results' && (
         <ResultsCard

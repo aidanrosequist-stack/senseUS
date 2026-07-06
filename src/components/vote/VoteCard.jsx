@@ -49,7 +49,7 @@ function playSound(type) {
   oscillator.stop(ctx.currentTime + config.duration)
 }
 
-export default function VoteCard({ question, onVote, onSkip }) {
+export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind }) {
   const [zone, setZone] = useState(null)
   const [dragging, setDragging] = useState(false)
   const [hintSide, setHintSide] = useState(null) // 'left' | 'right' | null
@@ -166,7 +166,7 @@ export default function VoteCard({ question, onVote, onSkip }) {
 
   function handleMindMade() {
     vibrate(20)
-    onVote('undecided')
+    if (onMakeUpMyMind) onMakeUpMyMind()
   }
 
   const backgroundColor = zone ? COLORS[zone] : 'var(--bg, #FFFFFF)'
