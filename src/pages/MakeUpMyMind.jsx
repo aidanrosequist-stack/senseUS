@@ -39,8 +39,12 @@ export default function MakeUpMyMind() {
           .eq('is_active', true)
           .order('display_order', { ascending: true })
 
-        if (aError) throw aError
-        setArticles(articleData || [])
+        if (aError) {
+          console.warn('Articles error:', aError)
+          setArticles([])
+        } else {
+          setArticles(articleData || [])
+        }
       } catch (err) {
         setError(err.message)
       } finally {
@@ -74,7 +78,8 @@ export default function MakeUpMyMind() {
   }
 
   return (
-    <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', minHeight: '100dvh' }}>
+    <div style={{ minHeight: '100dvh', background: '#C7C7CC', padding: '14px', boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+    <div style={{ width: '100%', maxWidth: '480px', background: '#FFFFFF', borderRadius: '20px', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.22)', minHeight: 'calc(100dvh - 28px)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
@@ -85,6 +90,7 @@ export default function MakeUpMyMind() {
           ← back to vote
         </button>
       </div>
+      
 
       {/* Question */}
       <div style={{ marginBottom: '1.5rem' }}>
@@ -109,27 +115,27 @@ export default function MakeUpMyMind() {
         STANCE_ORDER.filter(s => grouped[s]).map(stance => {
           const config = STANCE_CONFIG[stance]
           return (
-            <div key={stance} style={{ marginBottom: '2rem' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: config.headerColor, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
-                {config.label}
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            <div key={stance} style={{ marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                 {grouped[stance].map(article => (
-                  
+                  <a
                     key={article.id}
                     href={article.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                      display: 'inline-block',
-                      padding: '8px 16px',
+                      display: 'block',
+                      padding: '12px 0',
                       background: config.background,
                       color: config.color,
                       borderRadius: '20px',
-                      fontSize: '13px',
+                      fontSize: '16px',
                       fontWeight: 500,
                       textDecoration: 'none',
                       fontFamily: 'Merriweather, serif',
+                      width: '75%',
+                      textAlign: 'center',
+                      marginBottom: '4px',
                     }}
                   >
                     {article.outlet_name}
@@ -148,21 +154,22 @@ export default function MakeUpMyMind() {
           style={{
             width: '100%',
             padding: '13px',
-            background: '#2D3DCA',
-            color: 'white',
-            border: 'none',
+            background: '#FFFFFF',
+            color: '#1A1A1A',
+            border: '1.5px solid #D1D5DB',
             borderRadius: '12px',
             fontSize: '14px',
             fontWeight: 700,
             cursor: 'pointer',
             fontFamily: 'Merriweather, serif',
-            boxShadow: '0 4px 16px rgba(45,61,202,0.3)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
           }}
         >
           ← return to vote
         </button>
       </div>
 
+    </div>
     </div>
   )
 }
