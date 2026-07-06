@@ -2,26 +2,26 @@ import { Link } from 'react-router-dom'
 
 export default function Mission() {
   return (
-    <div style={{ maxWidth: '680px', margin: '0 auto', padding: '3rem 1.5rem', fontFamily: 'Georgia, serif', boxSizing: 'border-box' }}>
+    <div style={{ maxWidth: '680px', margin: '0 auto', padding: '3rem 1.5rem', boxSizing: 'border-box' }}>
 
       <div style={{ marginBottom: '2.5rem' }}>
-        <Link to="/" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', fontFamily: 'Arial, sans-serif' }}>
+        <Link to="/" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', }}>
           ← back
         </Link>
       </div>
 
       <div style={{ marginBottom: '2rem' }}>
-        <div style={{ fontSize: '28px', fontWeight: 500, color: '#2D3DCA', fontFamily: 'Arial, sans-serif', marginBottom: '4px' }}>
+        <div style={{ fontSize: '28px', fontWeight: 500, color: '#2D3DCA', marginBottom: '4px' }}>
           sense<span style={{ fontWeight: 700 }}>US</span>
         </div>
-        <h1 style={{ fontSize: '22px', fontWeight: 500, color: '#1A1A1A', margin: '0', fontFamily: 'Arial, sans-serif' }}>
+         <h1 style={{ fontSize: '22px', fontWeight: 500, color: '#1A1A1A', margin: '0', }}>
           Our Mission
         </h1>
       </div>
 
       <div style={{ fontSize: '16px', lineHeight: 1.8, color: '#1A1A1A' }}>
 
-        <p>senseUS was founded because we were tired of not knowing the truth.  And it was founded as a PBC (Public Benefit Corporation), because we believed that senseUS could and <em>would</em> be of immense value to society.</p>
+        <p>senseUS was founded because we were tired of not knowing the truth.  And it is being founded as a PBC (Public Benefit Corporation), because we believed that senseUS could and <em>would</em> be of immense value to society.</p>
             
         <p>We're under the impression that we're living in an era of manufactured consensus. We think that some of the division of humanity doesn't really exist, and perhaps that contention that is driven intentionally. Bots have infected social media. Algorithms amplify outrage. Poll numbers get spun before the ink is dry.</p>
 
@@ -31,7 +31,7 @@ export default function Mission() {
 
         <p>So we built a platform where every voice belongs to a verified human being. One person, one account, one voice. No bots. No fake accounts. No coordinated manipulation. Just real people answering real questions, honestly, and anonymously. Because we believe that your opinion matters. Not an algorithm's version of it. Not a bot's approximation of it. Yours. And we believe that you shouldn't be afraid to voice it; in fact, you should be <em>encouraged</em> to voice it.</p>
         
-        <p>We're all thrust into a society and are expected to get along, and we think the most important thing you can do to be a functioning member of that society is to voice your opinions and thoughts on senseUS. Because you shouldn't let anyone tell you how you feel; <em>you</em> should tell <em>everyone</em> how <em>you</em> feel, in a very constructive, data-driven way.</p>
+        <p>We're all thrust into a society and are expected to get along, and we at senseUS think the most important thing you can do to be a functioning member of that society is to voice your opinions and thoughts on senseUS. Because you shouldn't let anyone tell you how you feel; <em>you</em> should tell <em>everyone</em> how <em>you</em> feel, in a very constructive, data-driven way.</p>
 
         <p>And for the questions where you're still making up your mind, we've curated articles from across the spectrum: pro, neutral, and con; so your opinion, when you give it, is an informed one.  We felt that, in addition to speaking your truth, senseUS should give you the opportunity to explore the truth as well.</p>
 
@@ -41,7 +41,7 @@ export default function Mission() {
 
         <p style={{ marginTop: '2.5rem' }}>Let the light prevail.</p>
 
-        <p style={{ marginTop: '1.5rem', fontSize: '15px', color: '#6B7280', fontFamily: 'Arial, sans-serif' }}>
+        <p style={{ marginTop: '1.5rem', fontSize: '15px', color: '#6B7280', }}>
           Sincerely,<br />
           <span style={{ color: '#1A1A1A', fontStyle: 'normal' }}>Aidan and Claude</span>
         </p>

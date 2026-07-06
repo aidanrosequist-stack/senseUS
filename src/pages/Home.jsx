@@ -70,7 +70,7 @@ export default function Home() {
             What do people actually think?
           </p>
           <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.7, margin: '0 0 10px' }}>
-            senseUS is a verified opinion platform — one account per real human, no bots, no manipulation. Just honest answers to the questions that matter.
+            senseUS is a verified opinion platform. One account per real human. No bots. No manipulation. Just honest Yes/No answers to the questions that matter, for the best humankind data we can provide.
           </p>
           <Link to="/mission" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>
             Read our mission
@@ -142,6 +142,7 @@ export default function Home() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '6px',
+                fontFamily: "'Merriweather', serif",
               }}
             >
               {submitted ? '✓ you\'re on the list!' : loading ? 'Adding you...' : 'Notify me at launch'}
@@ -196,7 +197,7 @@ export default function Home() {
 
         <div style={{ width: '100%', marginTop: '1rem', textAlign: 'center' }}>
           <p style={{ fontSize: '12px', color: '#9CA3AF', lineHeight: 1.6, margin: '0 0 0.75rem' }}>
-            senseUS is a verified human opinion platform operated by [ENTITY NAME], a Delaware Public Benefit Corporation. Our mission is to create a trusted, bot-free source of truth for public opinion.
+            senseUS is a verified human opinion platform. Our mission is to create a trusted, bot-free source of truth for public opinion.
           </p>
           <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '0 0 0.75rem' }}>
             Contact us: <a href="mailto:hello@senseus.app" style={{ color: '#6B7280', textDecoration: 'none' }}>hello@senseus.app</a>
