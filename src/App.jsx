@@ -4,6 +4,7 @@ import Vote from './pages/Vote'
 import Profile from './pages/Profile'
 import Register from './pages/Register'
 import Privacy from './pages/Privacy'
+import Login from './pages/Login'
 import Terms from './pages/Terms'
 import Mission from './pages/Mission'
 import HowItWorks from './pages/HowItWorks'
@@ -16,6 +17,7 @@ function App() {
         <Route path="/vote" element={<Vote />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/mission" element={<Mission />} />
