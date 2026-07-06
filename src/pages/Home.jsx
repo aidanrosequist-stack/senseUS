@@ -72,9 +72,14 @@ export default function Home() {
           <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.7, margin: '0 0 10px' }}>
             senseUS is a verified opinion platform. One account per real human. No bots. No manipulation. Just honest Yes/No answers to the questions that matter, for the best humankind data we can provide.
           </p>
-          <Link to="/mission" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>
-            Read our mission
-          </Link>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '4px' }}>
+            <Link to="/how-it-works" style={{ fontSize: '13px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none', border: '1.5px solid #2D3DCA', borderRadius: '8px', padding: '7px 14px' }}>
+              How it works
+            </Link>
+            <Link to="/mission" style={{ fontSize: '13px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none', border: '1.5px solid #2D3DCA', borderRadius: '8px', padding: '7px 14px' }}>
+              Our mission
+            </Link>
+          </div>
         </div>
 
         <div
