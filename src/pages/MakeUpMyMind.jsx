@@ -125,7 +125,7 @@ export default function MakeUpMyMind() {
                     rel="noopener noreferrer"
                     style={{
                       display: 'block',
-                      padding: '12px 0',
+                      padding: '8px 0',
                       background: config.background,
                       color: config.color,
                       borderRadius: '20px',
