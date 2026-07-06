@@ -6,6 +6,7 @@ import Register from './pages/Register'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import Mission from './pages/Mission'
+import HowItWorks from './pages/HowItWorks'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/mission" element={<Mission />} />
+        <Route path="/how-it-works" element={<HowItWorks />} />
       </Routes>
     </BrowserRouter>
   )
