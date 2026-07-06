@@ -53,11 +53,11 @@ export default function Terms() {
         },
         {
           title: '5. Your Votes',
-          content: 'Votes cast on senseUS are permanent. There is no edit, undo, or delete function for cast votes. This is a deliberate design decision fundamental to the integrity of our platform.',
+          content: 'You may change your vote on any question at any time. Every vote change is logged with a timestamp for transparency and integrity purposes. The most recent vote is the one that counts.',
           bullets: [
-            'Your vote is permanent and cannot be retracted',
-            'Your vote will be counted as part of our aggregate dataset indefinitely',
-            'Your vote may be included in anonymized aggregate data products licensed to business customers',
+            'Your most recent vote is what counts in aggregate results',
+            'All vote changes are logged anonymously with timestamps — this is part of our integrity system',
+            'Your votes and vote history may be included in anonymized aggregate data products licensed to business customers',
             'Your individual vote will never be identified or attributed to you in any external data product',
           ],
           after: 'Questions you skip ("make up my mind" without voting) are not votes and are not recorded as responses.'
