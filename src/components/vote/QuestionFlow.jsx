@@ -59,8 +59,8 @@ export default function QuestionFlow({ questions , onVote }) {
   }
 
   function handleJoinConversation() {
-    // Placeholder until comments/discussion feature is built
-    console.log('Join conversation for question', currentQuestion.id)
+    navigate(`/conversation/${currentQuestion.id}`)
+  }
   }
 
   if (currentIndex >= questions.length) {
@@ -99,6 +99,7 @@ export default function QuestionFlow({ questions , onVote }) {
           onVote={handleVote}
           onSkip={handleSkip}
           onMakeUpMyMind={() => navigate(`/make-up-my-mind/${currentQuestion.id}`)}
+          onViewConversation={() => navigate(`/conversation/${currentQuestion.id}`)}
         />
       )}
       {view === 'results' && (

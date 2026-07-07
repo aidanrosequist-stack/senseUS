@@ -49,7 +49,7 @@ function playSound(type) {
   oscillator.stop(ctx.currentTime + config.duration)
 }
 
-export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind }) {
+export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation }) {
   const [zone, setZone] = useState(null)
   const [dragging, setDragging] = useState(false)
   const [hintSide, setHintSide] = useState(null) // 'left' | 'right' | null
@@ -348,7 +348,7 @@ onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
         </button>
 
         <button
-          onClick={() => console.log('view conversation')}
+          onClick={() => onViewConversation && onViewConversation()}
           style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', background: '#FFFFFF', border: '1.5px solid #D1D5DB', borderRadius: '8px', color: '#6B7280', fontSize: '13px', fontWeight: 500, cursor: 'pointer', padding: '8px' }}
         >
           <IconMessageCircle size={16} color="#6B7280" />
