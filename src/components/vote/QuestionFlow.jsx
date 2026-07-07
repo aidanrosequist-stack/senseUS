@@ -61,7 +61,6 @@ export default function QuestionFlow({ questions , onVote }) {
   function handleJoinConversation() {
     navigate(`/conversation/${currentQuestion.id}`)
   }
-  }
 
   if (currentIndex >= questions.length) {
     return (
