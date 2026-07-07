@@ -1,13 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { IconCards, IconBell, IconUser } from '@tabler/icons-react'
+import { IconThumbUp, IconBell, IconUser } from '@tabler/icons-react'
 
 export default function BottomNav() {
-  const location = useNavigate()
   const navigate = useNavigate()
   const path = useLocation().pathname
 
   const tabs = [
-    { label: 'Cards', icon: IconCards, path: '/vote' },
+    { label: 'Vote', icon: IconThumbUp, path: '/vote' },
     { label: 'Activity', icon: IconBell, path: '/activity' },
     { label: 'Profile', icon: IconUser, path: '/profile' },
   ]
