@@ -60,11 +60,18 @@ export default function Home() {
           <div style={{ fontSize: '36px', fontWeight: 500, color: '#2D3DCA', marginBottom: '4px' }}>
             sense<span style={{ fontWeight: 700 }}>US</span>
           </div>
-          <div style={{ fontSize: '12px', color: '#6B7280', letterSpacing: '0.05em' }}>
+          <div style={{ fontSize: '12px', color: '#6B7280', letterSpacing: '0.05em', marginBottom: '8px' }}>
             real humans. real opinions. real truth.
           </div>
-          <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '6px' }}>
-            A verified opinion platform by Gudboi Enterprises, LLC. <a href="/privacy" style={{ color: '#6B7280', textDecoration: 'none' }}>Privacy Policy</a> | <a href="/terms" style={{ color: '#6B7280', textDecoration: 'none' }}>Terms of Service</a>
+          <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '12px' }}>
+            Operated by Gudboi Enterprises, LLC
+          </div>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href="/how-it-works" style={{ fontSize: '12px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>How It Works</a>
+            <a href="/mission" style={{ fontSize: '12px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Our Mission</a>
+            <a href="/privacy" style={{ fontSize: '12px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Privacy Policy</a>
+            <a href="/terms" style={{ fontSize: '12px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Terms of Service</a>
+            <a href="/register" style={{ fontSize: '12px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Sign Up</a>
           </div>
         </div>
 
@@ -73,7 +80,7 @@ export default function Home() {
             What do people actually think?
           </p>
           <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.7, margin: '0 0 10px' }}>
-            senseUS is a verified opinion platform. One account per real human. No bots. No manipulation. Just honest Yes/No answers to the questions that matter, for the best humankind data we can provide.
+            senseUS is a verified opinion platform operated by Gudboi Enterprises, LLC. One account per real human. No bots. No manipulation. Just honest Yes/No answers to the questions that matter, for the best humankind data we can provide.
           </p>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '4px' }}>
             <Link to="/how-it-works" style={{ fontSize: '13px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none', border: '1.5px solid #2D3DCA', borderRadius: '8px', padding: '7px 14px' }}>
