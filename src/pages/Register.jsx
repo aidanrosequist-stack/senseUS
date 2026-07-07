@@ -107,14 +107,19 @@ export default function Register() {
 
           {meetsAgeRequirement && (
             <>
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', lineHeight: 1.6 }}>
                 <input
                   type="checkbox"
                   checked={isOver18}
                   onChange={(e) => setIsOver18(e.target.checked)}
-                  style={{ marginTop: '2px' }}
+                  style={{ marginTop: '4px', flexShrink: 0 }}
                 />
-                I confirm I am 18 years of age or older.
+                <span>
+                  By selecting this box, I confirm I am a real human being who wants to be a meaningful participant in Humankind. I also confirm that I am 18 years of age or older, and agree to the{' '}
+                  <a href="/terms" style={{ color: '#2D3DCA', textDecoration: 'none' }}>Terms of Service</a>
+                  {' '}and{' '}
+                  <a href="/privacy" style={{ color: '#2D3DCA', textDecoration: 'none' }}>Privacy Policy</a>.
+                </span>
               </label>
 
               <div>
