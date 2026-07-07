@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { IconThumbUp, IconBell, IconUser } from '@tabler/icons-react'
+import { IconThumbUp, IconBell, IconUser, IconCompass  } from '@tabler/icons-react'
 
 export default function BottomNav() {
   const navigate = useNavigate()
@@ -7,6 +7,7 @@ export default function BottomNav() {
 
   const tabs = [
     { label: 'Vote', icon: IconThumbUp, path: '/vote' },
+    { label: 'Explore', icon: IconCompass, path: '/explore' },
     { label: 'Activity', icon: IconBell, path: '/activity' },
     { label: 'Profile', icon: IconUser, path: '/profile' },
   ]
