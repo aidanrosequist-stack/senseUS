@@ -89,7 +89,10 @@ export default function Explore() {
   const [unansweredOnly, setUnansweredOnly] = useState(false)
 
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
     async function fetchData() {
       try {
         // Fetch all published questions with vote counts
