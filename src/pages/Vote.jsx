@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import BottomNav from '../components/layout/BottomNav'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useQuestions } from '../hooks/useQuestions'
@@ -81,6 +82,7 @@ export default function Vote() {
           onVote={handleVote}
         />
       </div>
+      <BottomNav />
     </div>
   )
 }

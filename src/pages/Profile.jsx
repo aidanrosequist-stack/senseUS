@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import BottomNav from '../components/layout/BottomNav'
 
 const VOTE_PILL_STYLES = {
   yes: { background: '#eef3e0', color: '#4d621d' },
@@ -127,7 +128,7 @@ export default function Profile() {
   }
 
   return (
-    <div style={{ maxWidth: '420px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box' }}>
+    <div style={{ maxWidth: '420px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '80px' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
@@ -216,7 +217,7 @@ export default function Profile() {
           })}
         </div>
       )}
-
+<BottomNav />
     </div>
   )
 }
