@@ -1,25 +1,277 @@
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 import BottomNav from '../components/layout/BottomNav'
+import { IconWaveSine, IconChartBar } from '@tabler/icons-react'
+
+const VOTE_COLORS = {
+  yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
+}
+
+const VOTE_LABELS = {
+  yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no', dec: 'undecided'
+}
+
+function timeAgo(dateString) {
+  const now = new Date()
+  const date = new Date(dateString)
+  const diff = Math.floor((now - date) / 1000)
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
+}
 
 export default function Activity() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [tab, setTab] = useState('replies')
+  const [replies, setReplies] = useState([])
+  const [shifts, setShifts] = useState([])
+  const [badges, setBadges] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!user) return
+    async function fetchActivity() {
+      try {
+        // Fetch replies to user's comments
+        const { data: userComments } = await supabase
+          .from('comments')
+          .select('id, body, question_id')
+          .eq('user_id', user.id)
+          .eq('is_deleted', false)
+
+        if (userComments?.length > 0) {
+          const commentIds = userComments.map(c => c.id)
+          const { data: repliesData } = await supabase
+            .from('comments')
+            .select(`
+              id, body, created_at, parent_id, resonance_count,
+              profiles (first_name, last_initial, display_preference, anon_name),
+              questions (id, text, category)
+            `)
+            .in('parent_id', commentIds)
+            .eq('is_deleted', false)
+            .order('created_at', { ascending: false })
+            .limit(20)
+
+          setReplies(repliesData || [])
+        }
+
+        // Fetch vote percentage shifts
+        const { data: userVotes } = await supabase
+          .from('votes')
+          .select(`
+            choice, pct_yes_at_vote, pct_no_at_vote,
+            questions (id, text, category)
+          `)
+          .eq('user_id', user.id)
+          .not('pct_yes_at_vote', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(20)
+
+        if (userVotes?.length > 0) {
+          const shiftsWithCurrent = await Promise.all(
+            userVotes.map(async (vote) => {
+              const { data: tally } = await supabase
+                .from('votes')
+                .select('choice')
+                .eq('question_id', vote.questions.id)
+
+              const counts = { yes: 0, ly: 0, ln: 0, no: 0 }
+              ;(tally || []).forEach(v => {
+                if (counts[v.choice] !== undefined) counts[v.choice]++
+              })
+              const total = counts.yes + counts.ly + counts.ln + counts.no
+              const currentPctYes = total > 0 ? Math.round(((counts.yes + counts.ly) / total) * 100) : 0
+              const delta = currentPctYes - (vote.pct_yes_at_vote || 0)
+
+              return { ...vote, currentPctYes, delta }
+            })
+          )
+          setShifts(shiftsWithCurrent.filter(s => Math.abs(s.delta) >= 1))
+        }
+
+        // Fetch badges from profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('badges')
+          .eq('id', user.id)
+          .single()
+        setBadges(profile?.badges || [])
+
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchActivity()
+  }, [user])
+
+  function getDisplayName(profile) {
+    if (!profile) return 'Anonymous'
+    if (profile.display_preference === 'anon') return profile.anon_name || 'Anonymous'
+    if (profile.display_preference === 'first_only') return profile.first_name
+    return `${profile.first_name} ${profile.last_initial}.`
+  }
+
+  const BADGE_INFO = {
+    'ultra-definitive': { label: 'Ultra-Definitive', description: '100+ votes, less than 10% leaning', emoji: '🎯' },
+    'decisive-streak': { label: 'Decisive Streak', description: '20 consecutive definitive votes', emoji: '🔥' },
+    'super-decisive-streak': { label: 'Super Decisive Streak', description: '50 consecutive definitive votes', emoji: '⚡' },
+  }
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+        Loading...
+      </div>
+    )
+  }
+
   return (
     <div style={{ maxWidth: '420px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', minHeight: '100dvh', paddingBottom: '80px' }}>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
           sense<span style={{ fontWeight: 700, color: '#2D3DCA' }}>US</span>
         </div>
+        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Activity</div>
+        <div style={{ width: '60px' }} />
       </div>
 
-      <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-        <div style={{ fontSize: '32px', marginBottom: '1rem' }}>🔔</div>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.5rem' }}>
-          Activity is coming soon
-        </h2>
-        <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.7, margin: '0 auto', maxWidth: '280px' }}>
-          Once conversations are live, you'll see replies to your comments, shifts in questions you've voted on, and badge achievements here.
-        </p>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '1.5rem', background: '#F3F4F6', padding: '4px', borderRadius: '10px' }}>
+        {[
+          { key: 'replies', label: 'Replies' },
+          { key: 'shifts', label: 'Shifts' },
+          { key: 'badges', label: 'Badges' },
+        ].map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            style={{
+              flex: 1, padding: '8px', background: tab === t.key ? '#2D3DCA' : 'transparent',
+              color: tab === t.key ? 'white' : '#6B7280', border: 'none', borderRadius: '8px',
+              fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
+
+      {/* Replies tab */}
+      {tab === 'replies' && (
+        <div>
+          {replies.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+              No replies yet. Join a conversation to get started.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {replies.map(reply => (
+                <div
+                  key={reply.id}
+                  onClick={() => navigate(`/conversation/${reply.questions?.id}`)}
+                  style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}
+                >
+                  <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 700, color: '#1A1A1A' }}>{getDisplayName(reply.profiles)}</span>
+                    {' '}replied to your comment
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, marginBottom: '6px' }}>
+                    {reply.body}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                      {reply.questions?.category} · {timeAgo(reply.created_at)}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#6B7280' }}>
+                      <IconWaveSine size={11} />
+                      {reply.resonance_count}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Shifts tab */}
+      {tab === 'shifts' && (
+        <div>
+          {shifts.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+              No significant shifts yet. Vote on more questions to track opinion changes.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {shifts.map((shift, i) => (
+                <div
+                  key={i}
+                  onClick={() => navigate(`/conversation/${shift.questions?.id}`)}
+                  style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}
+                >
+                  <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '8px' }}>
+                    {shift.questions?.text}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                      You voted <span style={{ color: VOTE_COLORS[shift.choice], fontWeight: 700 }}>{VOTE_LABELS[shift.choice]}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <IconChartBar size={13} color="#6B7280" />
+                      <span style={{
+                        fontSize: '12px', fontWeight: 700,
+                        color: shift.delta > 0 ? '#4d621d' : '#7a1313'
+                      }}>
+                        {shift.delta > 0 ? '▲' : '▼'} {Math.abs(shift.delta)}% yes since you voted
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Badges tab */}
+      {tab === 'badges' && (
+        <div>
+          {badges.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+              <div style={{ fontSize: '32px', marginBottom: '1rem' }}>🏆</div>
+              <div style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.5rem' }}>No badges yet</div>
+              <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.7, maxWidth: '260px', margin: '0 auto' }}>
+                Keep voting to earn badges. Cast 20 consecutive definitive yes/no votes to earn your first Decisive Streak badge.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {badges.map(badge => {
+                const info = BADGE_INFO[badge] || { label: badge, description: '', emoji: '🏅' }
+                return (
+                  <div key={badge} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ fontSize: '28px' }}>{info.emoji}</div>
+                    <div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A' }}>{info.label}</div>
+                      <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>{info.description}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <BottomNav />
     </div>
