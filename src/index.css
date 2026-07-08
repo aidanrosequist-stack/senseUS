@@ -12,3 +12,17 @@ html, body, #root {
 input, button, select, textarea {
   font-family: 'Merriweather', serif;
 }
+
+@media (min-width: 768px) {
+  body {
+    background: #C7C7CC;
+  }
+
+  #root {
+    max-width: 480px;
+    margin: 0 auto;
+    background: #F9FAFB;
+    min-height: 100dvh;
+    box-shadow: 0 0 40px rgba(0,0,0,0.15);
+  }
+}
