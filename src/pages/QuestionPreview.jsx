@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const VOTE_COLORS = {
@@ -8,15 +8,14 @@ const VOTE_COLORS = {
 
 export default function QuestionPreview() {
   const { number } = useParams()
-  const navigate = useNavigate()
+  const originNumber = useRef(parseInt(number, 10))
+  const [currentNum, setCurrentNum] = useState(parseInt(number, 10))
   const [question, setQuestion] = useState(null)
   const [tally, setTally] = useState({ yes: 0, ly: 0, ln: 0, no: 0 })
   const [loading, setLoading] = useState(true)
   const [sliding, setSliding] = useState(null)
   const [maxNumber, setMaxNumber] = useState(null)
-  const originNumber = useRef(parseInt(number, 10))
 
-  const qNum = parseInt(number, 10)
   const minAllowed = Math.max(1, originNumber.current - 2)
   const maxAllowed = originNumber.current + 2
 
@@ -27,7 +26,7 @@ export default function QuestionPreview() {
         const { data: q } = await supabase
           .from('questions')
           .select('id, text, category, domain, question_number')
-          .eq('question_number', qNum)
+          .eq('question_number', currentNum)
           .single()
 
         if (!q) { setLoading(false); return }
@@ -44,15 +43,16 @@ export default function QuestionPreview() {
         })
         setTally(counts)
 
-        const { data: maxQ } = await supabase
-          .from('questions')
-          .select('question_number')
-          .not('published_at', 'is', null)
-          .order('question_number', { ascending: false })
-          .limit(1)
-          .single()
-
-        if (maxQ) setMaxNumber(maxQ.question_number)
+        if (!maxNumber) {
+          const { data: maxQ } = await supabase
+            .from('questions')
+            .select('question_number')
+            .not('published_at', 'is', null)
+            .order('question_number', { ascending: false })
+            .limit(1)
+            .single()
+          if (maxQ) setMaxNumber(maxQ.question_number)
+        }
       } catch (err) {
         console.error(err)
       } finally {
@@ -60,21 +60,20 @@ export default function QuestionPreview() {
       }
     }
     fetchData()
-  }, [qNum])
+  }, [currentNum])
 
-  const canGoPrev = qNum > 1 && qNum > minAllowed
-  const canGoNext = (!maxNumber || qNum < maxNumber) && qNum < maxAllowed
+  const canGoPrev = currentNum > 1 && currentNum > minAllowed
+  const canGoNext = (!maxNumber || currentNum < maxNumber) && currentNum < maxAllowed
 
   const goTo = useCallback((direction) => {
-    const nextNum = direction === 'next' ? qNum + 1 : qNum - 1
     if (direction === 'next' && !canGoNext) return
     if (direction === 'prev' && !canGoPrev) return
     setSliding(direction === 'next' ? 'up' : 'down')
     setTimeout(() => {
       setSliding(null)
-      navigate(`/q/${nextNum}`)
+      setCurrentNum(prev => direction === 'next' ? prev + 1 : prev - 1)
     }, 280)
-  }, [qNum, canGoNext, canGoPrev, navigate])
+  }, [canGoNext, canGoPrev])
 
   useEffect(() => {
     function handleKey(e) {
@@ -113,22 +112,6 @@ export default function QuestionPreview() {
     }
   }, [goTo])
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280', background: '#C7C7CC' }}>
-        Loading...
-      </div>
-    )
-  }
-
-  if (!question) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280', background: '#C7C7CC' }}>
-        Question not found.
-      </div>
-    )
-  }
-
   const total = tally.yes + tally.ly + tally.ln + tally.no
   const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : 0
   const pctNo = 100 - pctYes
@@ -149,7 +132,7 @@ export default function QuestionPreview() {
   return (
     <div style={{ width: '100%', minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: '#C7C7CC', fontFamily: 'Merriweather, serif' }}>
 
-      {/* Header */}
+      {/* Header — never re-renders */}
       <div style={{ background: '#FFFFFF', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 8px rgba(0,0,0,0.08)', flexShrink: 0 }}>
         <div>
           <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
@@ -167,53 +150,59 @@ export default function QuestionPreview() {
         </Link>
       </div>
 
-      {/* Main content */}
+      {/* Card area — only this slides */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.25rem', overflow: 'hidden' }}>
         <div style={{ width: '100%', maxWidth: '420px', ...slideStyle }}>
 
-          <div style={{ background: '#FFFFFF', borderRadius: '20px', padding: '1.5rem', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '10px', fontWeight: 500, padding: '3px 10px', borderRadius: '20px', background: '#E6F1FB', color: '#0C447C' }}>
-                {question.category}
-              </span>
-              <span style={{ fontSize: '11px', color: '#9CA3AF' }}>#{question.question_number}</span>
-            </div>
-
-            <div style={{ fontSize: '17px', fontWeight: 700, color: '#1A1A1A', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-              {question.text}
-            </div>
-
-            {total > 0 ? (
-              <div style={{ marginBottom: '1.25rem' }}>
-                <div style={{ width: '100%', height: '8px', borderRadius: '4px', overflow: 'hidden', display: 'flex', marginBottom: '6px' }}>
-                  {segments.map(seg => (
-                    <div key={seg.key} style={{ width: `${(seg.value / total) * 100}%`, background: VOTE_COLORS[seg.key] }} />
-                  ))}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                  <span style={{ color: '#4d6214', fontWeight: 500 }}>{pctYes}% yes</span>
-                  <span style={{ color: '#6B7280', fontSize: '11px' }}>{total.toLocaleString()} answered</span>
-                  <span style={{ color: '#8a1616', fontWeight: 500 }}>{pctNo}% no</span>
-                </div>
+          {loading ? (
+            <div style={{ textAlign: 'center', color: '#6B7280', padding: '3rem 0' }}>Loading...</div>
+          ) : !question ? (
+            <div style={{ textAlign: 'center', color: '#6B7280', padding: '3rem 0' }}>Question not found.</div>
+          ) : (
+            <div style={{ background: '#FFFFFF', borderRadius: '20px', padding: '1.5rem', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '10px', fontWeight: 500, padding: '3px 10px', borderRadius: '20px', background: '#E6F1FB', color: '#0C447C' }}>
+                  {question.category}
+                </span>
+                <span style={{ fontSize: '11px', color: '#9CA3AF' }}>#{question.question_number}</span>
               </div>
-            ) : (
-              <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '1.25rem', textAlign: 'center' }}>
-                Be the first to vote on this question.
+
+              <div style={{ fontSize: '17px', fontWeight: 700, color: '#1A1A1A', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                {question.text}
               </div>
-            )}
 
-            <div style={{ height: '1px', background: '#E5E7EB', marginBottom: '1rem' }} />
+              {total > 0 ? (
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <div style={{ width: '100%', height: '8px', borderRadius: '4px', overflow: 'hidden', display: 'flex', marginBottom: '6px' }}>
+                    {segments.map(seg => (
+                      <div key={seg.key} style={{ width: `${(seg.value / total) * 100}%`, background: VOTE_COLORS[seg.key] }} />
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <span style={{ color: '#4d6214', fontWeight: 500 }}>{pctYes}% yes</span>
+                    <span style={{ color: '#6B7280', fontSize: '11px' }}>{total.toLocaleString()} answered</span>
+                    <span style={{ color: '#8a1616', fontWeight: 500 }}>{pctNo}% no</span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '1.25rem', textAlign: 'center' }}>
+                  Be the first to vote on this question.
+                </div>
+              )}
 
-            <Link
-              to="/register"
-              style={{ display: 'block', width: '100%', padding: '12px', background: '#2D3DCA', color: 'white', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', marginBottom: '8px' }}
-            >
-              Vote on this question
-            </Link>
-            <div style={{ textAlign: 'center', fontSize: '12px', color: '#6B7280' }}>
-              Join senseUS — free, verified, no ads
+              <div style={{ height: '1px', background: '#E5E7EB', marginBottom: '1rem' }} />
+
+              <Link
+                to="/register"
+                style={{ display: 'block', width: '100%', padding: '12px', background: '#2D3DCA', color: 'white', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', marginBottom: '8px' }}
+              >
+                Vote on this question
+              </Link>
+              <div style={{ textAlign: 'center', fontSize: '12px', color: '#6B7280' }}>
+                Join senseUS — free, verified, no ads
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Nav hints */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
@@ -229,7 +218,7 @@ export default function QuestionPreview() {
             )}
             {!canGoPrev && !canGoNext && (
               <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', color: '#9CA3AF', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
-                Join senseUS to see all questions
+                Join senseUS to see all {maxNumber} questions
               </div>
             )}
           </div>
@@ -237,7 +226,7 @@ export default function QuestionPreview() {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer — never re-renders */}
       <div style={{ background: '#FFFFFF', padding: '0.85rem 1.25rem', borderTop: '0.5px solid #E5E7EB', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: '10px', color: '#9CA3AF' }}>© Gudboi Enterprises, LLC</div>
