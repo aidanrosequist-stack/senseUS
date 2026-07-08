@@ -53,7 +53,7 @@ export default function Register() {
           </button>
           <div style={{ background: '#E6F1FB', border: '1px solid #0C447C', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
             <p style={{ fontSize: '12px', color: '#0C447C', margin: '0', lineHeight: 1.6, textAlign: 'center' }}>
-              By entering your phone number and clicking "Send verification code," you consent to receive a one-time SMS verification code from senseUS. Message and data rates may apply. You will not receive marketing messages.{' '}
+              By entering your phone number and clicking "Send verification code," you consent to receive a one-time SMS verification code from senseUS (operated by Gudboi Enterprises, LLC). Message and data rates may apply. You will not receive marketing messages.
               <a href="/privacy" style={{ color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Privacy Policy</a>
               {' '}·{' '}
               <a href="/terms" style={{ color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Terms of Service</a>
