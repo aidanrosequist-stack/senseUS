@@ -84,13 +84,29 @@ export default function QuestionFlow({ questions , onVote }) {
     )
   }
 
+  const swipeStart = useRef(null)
+
+  function handleTouchStart(e) {
+    swipeStart.current = e.touches[0].clientY
+  }
+
+  function handleTouchEnd(e) {
+    if (swipeStart.current === null) return
+    const dy = e.changedTouches[0].clientY - swipeStart.current
+    if (dy > 70 && view === 'voting') {
+      handleSwipeDownRecover()
+    }
+    swipeStart.current = null
+  }
+
   return (
     <div
       style={{ width: '100%', height: '100%' }}
       onWheel={(e) => {
-        // Basic desktop testing aid: scroll up triggers swipe-down recovery
         if (e.deltaY < -30) handleSwipeDownRecover()
       }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       {view === 'voting' && (
         <VoteCard
