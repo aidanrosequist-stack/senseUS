@@ -15,6 +15,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Terms from './pages/Terms'
 import Mission from './pages/Mission'
 import HowItWorks from './pages/HowItWorks'
+import QuestionPreview from './pages/QuestionPreview'
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/mission" element={<Mission />} />
         <Route path="/how-it-works" element={<HowItWorks />} />
+        <Route path="/q/:number" element={<QuestionPreview />} />
       </Routes>
     </BrowserRouter>
   )
