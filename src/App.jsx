@@ -26,9 +26,9 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="/make-up-my-mind/:questionId" element={<MakeUpMyMind />} />
+        <Route path="/make-up-my-mind/:questionId" element={<ProtectedRoute><MakeUpMyMind /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-        <Route path="/activity" element={<Activity />} />
+        <Route path="/activity" element={<ProtectedRoute><Activity /></ProtectedRoute>} />
         <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
         <Route path="/conversation/:questionId" element={<ProtectedRoute><Conversation /></ProtectedRoute>} />
         <Route path="/privacy" element={<Privacy />} />
