@@ -68,7 +68,7 @@ export default function Home() {
           </div>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <a href="/how-it-works" style={{ fontSize: '12px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>How It Works</a>
-            <a href="/transparency" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Transparency</a>
+            <a href="/transparency" style={{ fontSize: '11px', color: '#2D3DCA', textDecoration: 'none' }}>Transparency</a>
             <a href="/mission" style={{ fontSize: '12px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Our Mission</a>
             <a href="/privacy" style={{ fontSize: '12px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Privacy Policy</a>
             <a href="/terms" style={{ fontSize: '12px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Terms of Service</a>
