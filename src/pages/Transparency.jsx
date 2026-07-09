@@ -33,22 +33,25 @@ export default function Transparency() {
     questionCount: null,
     voteCount: null,
     commentCount: null,
+    events: [],
   })
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [users, questions, votes, comments] = await Promise.all([
+        const [users, questions, votes, comments, events] = await Promise.all([
           supabase.from('profiles').select('*', { count: 'exact', head: true }),
           supabase.from('questions').select('*', { count: 'exact', head: true }).not('published_at', 'is', null),
           supabase.from('votes').select('*', { count: 'exact', head: true }),
           supabase.from('comments').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
+          supabase.from('transparency_events').select('*').eq('is_public', true).order('occurred_at', { ascending: false }),
         ])
         setStats({
           userCount: users.count ?? 0,
           questionCount: questions.count ?? 0,
           voteCount: votes.count ?? 0,
           commentCount: comments.count ?? 0,
+          events: events.data || [],
         })
       } catch (err) {
         console.error(err)
@@ -219,16 +222,54 @@ export default function Transparency() {
         {p("To report a security vulnerability: security@senseus.app")}
       </Section>
 
-      {/* Section 9 */}
-      <Section title="9. Government Requests">
-        {p("Since our founding, senseUS has received zero government requests for user data, content removal, or account information.")}
-        {p("If we ever receive such a request, we will:")}
-        <ul style={{ paddingLeft: '1.5rem', fontSize: '14px', lineHeight: 1.8, color: '#374151', marginBottom: '0.75rem' }}>
-          <li>Notify affected users to the extent permitted by law</li>
-          <li>Challenge requests we believe are overbroad or unlawful</li>
-          <li>Report the number and nature of requests in this transparency report</li>
-        </ul>
-        {p("We note that because phone numbers are not stored after verification, and because votes are linked only to anonymous internal IDs, the data we could produce in response to a legal demand is extremely limited by design.")}
+      <Section title="9. Government Requests & Security Incidents">
+        {(() => {
+          const govRequests = stats.events.filter(e => e.event_type === 'government_request')
+          const secIncidents = stats.events.filter(e => e.event_type === 'security_incident')
+          return (
+            <>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>Government Requests</div>
+                {govRequests.length === 0 ? (
+                  <p style={{ fontSize: '14px', lineHeight: 1.8, color: '#4d621d', fontWeight: 500, margin: '0 0 0.75rem' }}>
+                    Zero government requests received to date.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '0.75rem' }}>
+                    {govRequests.map(e => (
+                      <div key={e.id} style={{ background: '#F9FAFB', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '12px' }}>
+                        <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>{new Date(e.occurred_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                        <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.6, marginBottom: e.resolution ? '6px' : 0 }}>{e.description}</div>
+                        {e.resolution && <div style={{ fontSize: '12px', color: '#52B788', marginTop: '4px' }}>Resolution: {e.resolution}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {p("If we ever receive a government request, we will notify affected users to the extent permitted by law, challenge requests we believe are overbroad or unlawful, and report the number and nature of requests here.")}
+                {p("We note that because phone numbers are not stored after verification, and because votes are linked only to anonymous internal IDs, the data we could produce in response to a legal demand is extremely limited by design.")}
+              </div>
+
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>Security Incidents</div>
+                {secIncidents.length === 0 ? (
+                  <p style={{ fontSize: '14px', lineHeight: 1.8, color: '#4d621d', fontWeight: 500, margin: 0 }}>
+                    Zero security incidents to date.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {secIncidents.map(e => (
+                      <div key={e.id} style={{ background: '#F9FAFB', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '12px' }}>
+                        <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>{new Date(e.occurred_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                        <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.6, marginBottom: e.resolution ? '6px' : 0 }}>{e.description}</div>
+                        {e.resolution && <div style={{ fontSize: '12px', color: '#52B788', marginTop: '4px' }}>Resolution: {e.resolution}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )
+        })()}
       </Section>
 
       {/* Section 10 — Live stats */}
@@ -258,8 +299,8 @@ export default function Transparency() {
             note="In conversations"
           />
         </div>
-        {p("Government requests received: 0", { color: '#4d621d', fontWeight: 500 })}
-        {p("Security incidents: 0", { color: '#4d621d', fontWeight: 500 })}
+        {p(`Government requests received: ${stats.events.filter(e => e.event_type === 'government_request').length}`, { color: '#4d621d', fontWeight: 500 })}
+        {p(`Security incidents: ${stats.events.filter(e => e.event_type === 'security_incident').length}`, { color: '#4d621d', fontWeight: 500 })}
         {p("Third-party audits completed: 0 (first audit planned within 12 months of launch)", { color: '#6B7280' })}
       </Section>
 

@@ -48,6 +48,13 @@ export default function Admin() {
   })
 
   // New article form
+  const [newEvent, setNewEvent] = useState({
+    event_type: 'government_request',
+    occurred_at: new Date().toISOString().split('T')[0],
+    description: '',
+    resolution: '',
+    is_public: true,
+  })
   const [selectedQuestionId, setSelectedQuestionId] = useState('')
   const [newArticle, setNewArticle] = useState({
     url: '',
@@ -156,6 +163,7 @@ export default function Admin() {
         <Tab label="Questions" active={tab === 'questions'} onClick={() => setTab('questions')} />
         <Tab label="Add Question" active={tab === 'add'} onClick={() => setTab('add')} />
         <Tab label="Add Article" active={tab === 'articles'} onClick={() => setTab('articles')} />
+           <Tab label="Transparency" active={tab === 'transparency'} onClick={() => setTab('transparency')} />
       </div>
 
       {/* Questions list */}
@@ -267,6 +275,81 @@ export default function Admin() {
               {questions.map(q => (
                 <option key={q.id} value={q.id}>{q.text.substring(0, 60)}{q.text.length > 60 ? '...' : ''}</option>
               ))}
+
+{/* Transparency events */}
+      {tab === 'transparency' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <label style={{ fontSize: '13px', fontWeight: 700 }}>
+            Event type
+            <select
+              value={newEvent.event_type}
+              onChange={(e) => setNewEvent(p => ({ ...p, event_type: e.target.value }))}
+              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '9px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+            >
+              <option value="government_request">Government Request</option>
+              <option value="security_incident">Security Incident</option>
+            </select>
+          </label>
+
+          <label style={{ fontSize: '13px', fontWeight: 700 }}>
+            Date occurred
+            <input
+              type="date"
+              value={newEvent.occurred_at}
+              onChange={(e) => setNewEvent(p => ({ ...p, occurred_at: e.target.value }))}
+              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'Merriweather, serif' }}
+            />
+          </label>
+
+          <label style={{ fontSize: '13px', fontWeight: 700 }}>
+            Description
+            <textarea
+              value={newEvent.description}
+              onChange={(e) => setNewEvent(p => ({ ...p, description: e.target.value }))}
+              placeholder="Describe the event..."
+              rows={3}
+              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'Merriweather, serif', resize: 'vertical' }}
+            />
+          </label>
+
+          <label style={{ fontSize: '13px', fontWeight: 700 }}>
+            Resolution (optional)
+            <textarea
+              value={newEvent.resolution}
+              onChange={(e) => setNewEvent(p => ({ ...p, resolution: e.target.value }))}
+              placeholder="How was it resolved?"
+              rows={2}
+              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'Merriweather, serif', resize: 'vertical' }}
+            />
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={newEvent.is_public}
+              onChange={(e) => setNewEvent(p => ({ ...p, is_public: e.target.checked }))}
+            />
+            Show publicly on transparency page
+          </label>
+
+          <button
+            onClick={async () => {
+              if (!newEvent.description.trim()) return showMessage('Description is required.', true)
+              const { error } = await supabase.from('transparency_events').insert(newEvent)
+              if (error) {
+                showMessage('Error: ' + error.message, true)
+              } else {
+                showMessage('Event added to transparency report!')
+                setNewEvent({ event_type: 'government_request', occurred_at: new Date().toISOString().split('T')[0], description: '', resolution: '', is_public: true })
+              }
+            }}
+            style={{ width: '100%', padding: '11px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+          >
+            Add to transparency report
+          </button>
+        </div>
+      )}
+
             </select>
           </label>
 

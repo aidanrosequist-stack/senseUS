@@ -56,7 +56,7 @@ export function useRegistration() {
     }
   }
 
-  async function completeRegistration({ birthYear, displayPreference, firstName, lastName }) {
+  async function completeRegistration({ birthYear, displayPreference, firstName, lastName, country }) {
     setLoading(true)
     setError(null)
     try {
@@ -82,6 +82,7 @@ export function useRegistration() {
         display_preference: displayPreference,
         anon_name: anonName,
         birth_year: birthYear,
+        country_code: country,
       })
 
       if (insertError) {

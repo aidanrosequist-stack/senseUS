@@ -15,6 +15,7 @@ export default function Register() {
   const [displayPreference, setDisplayPreference] = useState('full')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [country, setCountry] = useState('')
 
   const currentYear = new Date().getFullYear()
   const meetsAgeRequirement = birthYear && (currentYear - parseInt(birthYear, 10)) >= 18
@@ -164,6 +165,47 @@ export default function Register() {
                   )}
                 </div>
               )}
+<label style={{ fontSize: '13px', fontWeight: 500 }}>
+                Country of residence
+                <select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'Merriweather, serif' }}
+                >
+                  <option value="">Select your country...</option>
+                  <option value="US">United States</option>
+                  <option value="CA">Canada</option>
+                  <option value="GB">United Kingdom</option>
+                  <option value="AU">Australia</option>
+                  <option value="DE">Germany</option>
+                  <option value="FR">France</option>
+                  <option value="JP">Japan</option>
+                  <option value="BR">Brazil</option>
+                  <option value="IN">India</option>
+                  <option value="MX">Mexico</option>
+                  <option value="ZA">South Africa</option>
+                  <option value="NG">Nigeria</option>
+                  <option value="KE">Kenya</option>
+                  <option value="EG">Egypt</option>
+                  <option value="AR">Argentina</option>
+                  <option value="CL">Chile</option>
+                  <option value="CO">Colombia</option>
+                  <option value="ES">Spain</option>
+                  <option value="IT">Italy</option>
+                  <option value="NL">Netherlands</option>
+                  <option value="SE">Sweden</option>
+                  <option value="NO">Norway</option>
+                  <option value="DK">Denmark</option>
+                  <option value="FI">Finland</option>
+                  <option value="PL">Poland</option>
+                  <option value="PT">Portugal</option>
+                  <option value="NZ">New Zealand</option>
+                  <option value="SG">Singapore</option>
+                  <option value="KR">South Korea</option>
+                  <option value="PH">Philippines</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </label>
 
               <button
                 onClick={() => completeRegistration({
@@ -171,8 +213,9 @@ export default function Register() {
                   displayPreference,
                   firstName,
                   lastName,
+                  country,
                 })}
-                disabled={loading || !isOver18 || (displayPreference !== 'anon' && !firstName)}
+                disabled={loading || !isOver18 || (displayPreference !== 'anon' && !firstName) || !country}
                 style={{ width: '100%', padding: '11px', borderRadius: '8px', background: '#52B788', color: 'white', border: 'none', fontSize: '14px', fontWeight: 500, cursor: 'pointer', opacity: (loading || !isOver18 || (displayPreference !== 'anon' && !firstName)) ? 0.5 : 1 }}
               >
                 {loading ? 'Creating account...' : 'Complete registration'}
