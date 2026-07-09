@@ -48,6 +48,8 @@ export default function Admin() {
   })
 
   // New article form
+  const [flaggedQuestions, setFlaggedQuestions] = useState([])
+  const [loadingFlagged, setLoadingFlagged] = useState(false)
   const [newEvent, setNewEvent] = useState({
     event_type: 'government_request',
     occurred_at: new Date().toISOString().split('T')[0],
@@ -73,7 +75,10 @@ export default function Admin() {
   }, [isAdmin, loading])
 
   useEffect(() => {
-    if (isAdmin) loadQuestions()
+    if (isAdmin) {
+      loadQuestions()
+      loadFlaggedQuestions()
+    }
   }, [isAdmin])
 
   async function loadQuestions() {
@@ -84,6 +89,18 @@ export default function Admin() {
       .order('created_at', { ascending: false })
     if (!error) setQuestions(data || [])
     setLoadingData(false)
+  }
+
+    async function loadFlaggedQuestions() {
+    setLoadingFlagged(true)
+    const { data, error } = await supabase
+      .from('questions')
+      .select('id, text, category, domain, published_at, human_moderation_required')
+      .eq('human_moderation_required', true)
+      .is('published_at', null)
+      .order('created_at', { ascending: false })
+    if (!error) setFlaggedQuestions(data || [])
+    setLoadingFlagged(false)
   }
 
   function showMessage(msg, isError = false) {
@@ -164,6 +181,7 @@ export default function Admin() {
         <Tab label="Add Question" active={tab === 'add'} onClick={() => setTab('add')} />
         <Tab label="Add Article" active={tab === 'articles'} onClick={() => setTab('articles')} />
            <Tab label="Transparency" active={tab === 'transparency'} onClick={() => setTab('transparency')} />
+            <Tab label="Review Queue" active={tab === 'review'} onClick={() => setTab('review')} />
       </div>
 
       {/* Questions list */}
@@ -415,6 +433,65 @@ export default function Admin() {
           >
             Add article
           </button>
+        </div>
+      )}
+
+{/* Review queue */}
+      {tab === 'review' && (
+        <div>
+          <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '1rem' }}>
+            {flaggedQuestions.length} question{flaggedQuestions.length !== 1 ? 's' : ''} awaiting review
+          </p>
+          {loadingFlagged ? (
+            <p style={{ color: '#6B7280', fontSize: '13px' }}>Loading...</p>
+          ) : flaggedQuestions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#6B7280', fontSize: '13px' }}>
+              No questions pending review.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {flaggedQuestions.map(q => (
+                <div key={q.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                  <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '8px' }}>{q.text}</div>
+                  <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '10px' }}>
+                    {q.category} · {q.domain}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={async () => {
+                        const { error } = await supabase
+                          .from('questions')
+                          .update({ published_at: new Date().toISOString(), human_moderation_required: false })
+                          .eq('id', q.id)
+                        if (!error) {
+                          showMessage('Question approved and published!')
+                          loadFlaggedQuestions()
+                          loadQuestions()
+                        }
+                      }}
+                      style={{ flex: 1, padding: '7px', background: '#eef3e0', color: '#4d621d', border: '1px solid #4d621d', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                    >
+                      Approve & publish
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const { error } = await supabase
+                          .from('questions')
+                          .update({ published_at: null, human_moderation_required: true })
+                          .eq('id', q.id)
+                        if (!error) {
+                          showMessage('Question kept in review queue.')
+                        }
+                      }}
+                      style={{ flex: 1, padding: '7px', background: '#f9d8d8', color: '#7a1313', border: '1px solid #7a1313', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

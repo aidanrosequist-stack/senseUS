@@ -14,7 +14,7 @@ export function useQuestions(userId) {
         // Get all published questions
         const { data: allQuestions, error: qError } = await supabase
           .from('questions')
-          .select('id, text, category, domain')
+          .select('id, text, category, domain, is_tracking_anchor')
           .not('published_at', 'is', null)
           .lte('published_at', new Date().toISOString())
           .order('created_at', { ascending: false })
@@ -55,9 +55,13 @@ export function useQuestions(userId) {
           })
         )
 
-        // Stratified sampling by category ratio
+        // Separate tracking anchors — they always go first
+        const trackingQuestions = questionsWithTallies.filter(q => q.is_tracking_anchor)
+        const regularQuestions = questionsWithTallies.filter(q => !q.is_tracking_anchor)
+
+        // Stratified sampling by category ratio (regular questions only)
         const categorized = {}
-        questionsWithTallies.forEach(q => {
+        regularQuestions.forEach(q => {
           if (!categorized[q.category]) categorized[q.category] = []
           categorized[q.category].push(q)
         })
@@ -83,7 +87,8 @@ export function useQuestions(userId) {
           if (!added) break
         }
 
-        setQuestions(result)
+        // Tracking questions first, then stratified regular questions
+        setQuestions([...trackingQuestions, ...result])
       } catch (err) {
         setError(err.message)
       } finally {
