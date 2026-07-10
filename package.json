@@ -15,11 +15,14 @@
     "@tailwindcss/postcss": "^4.3.1",
     "i18next": "^26.3.1",
     "i18next-browser-languagedetector": "^8.2.1",
+    "libphonenumber-js": "^1.13.8",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-hook-form": "^7.79.0",
     "react-i18next": "^17.0.8",
-    "react-router-dom": "^7.17.0"
+    "react-phone-number-input": "^3.4.17",
+    "react-router-dom": "^7.17.0",
+    "recharts": "^3.9.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

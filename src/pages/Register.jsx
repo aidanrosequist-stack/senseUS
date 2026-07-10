@@ -1,5 +1,34 @@
 import { useState } from 'react'
 import { useRegistration } from '../hooks/useRegistration'
+import PhoneInput from 'react-phone-number-input'
+import { getExampleNumber } from 'libphonenumber-js'
+import examples from 'libphonenumber-js/examples.mobile.json'
+import 'react-phone-number-input/style.css'
+
+// Auto-detects a default country from the browser's locale (e.g. "en-US" -> "US").
+// Falls back to "US" if the locale doesn't include a region, since that's the
+// most common case for senseUS's initial audience.
+function getDefaultCountryFromLocale() {
+  try {
+    const locale = navigator.language || navigator.languages?.[0] || 'en-US'
+    const parts = locale.split('-')
+    const region = parts[1]
+    return region ? region.toUpperCase() : 'US'
+  } catch {
+    return 'US'
+  }
+}
+
+// Generates a real, correctly-formatted example number for the given country
+// (e.g. "(201) 555-0123" for US) to use as a light-grey format hint in the input.
+function getPlaceholderForCountry(countryCode) {
+  try {
+    const example = getExampleNumber(countryCode, examples)
+    return example ? example.formatNational() : undefined
+  } catch {
+    return undefined
+  }
+}
 
 export default function Register() {
   const {
@@ -16,6 +45,8 @@ export default function Register() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [country, setCountry] = useState('')
+  const [defaultPhoneCountry] = useState(getDefaultCountryFromLocale)
+  const [phoneCountry, setPhoneCountry] = useState(defaultPhoneCountry)
 
   const currentYear = new Date().getFullYear()
   const meetsAgeRequirement = birthYear && (currentYear - parseInt(birthYear, 10)) >= 18
@@ -36,14 +67,16 @@ export default function Register() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <label style={{ fontSize: '13px', fontWeight: 500 }}>
             Phone number
-            <input
-              type="tel"
-              placeholder="+15551234567"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              autoComplete="tel"
-              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box' }}
+             <div className="senseus-phone-input" style={{ marginTop: '6px' }}>
+            <PhoneInput 
+            defaultCountry={defaultPhoneCountry}
+            value={phone} 
+            onChange={(value) => setPhone(value || '')}
+            onCountryChange={(c) => setPhoneCountry(c || defaultPhoneCountry)}
+            placeholder={getPlaceholderForCountry(phoneCountry)}
+            autoComplete="tel" 
             />
+            </div>
           </label>
           <button
             onClick={sendCode}

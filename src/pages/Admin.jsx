@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAdmin } from '../hooks/useAdmin'
+import AdminReports from './AdminReports'
 
 const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'tracking', 'sponsored']
 const DOMAINS = ['society & culture', 'ethics & philosophy', 'health & wellbeing', 'relationships', 'technology', 'money & work', 'media & information', 'politics & policy', 'science & nature', 'sports & leisure']
@@ -182,6 +183,7 @@ export default function Admin() {
         <Tab label="Add Article" active={tab === 'articles'} onClick={() => setTab('articles')} />
            <Tab label="Transparency" active={tab === 'transparency'} onClick={() => setTab('transparency')} />
             <Tab label="Review Queue" active={tab === 'review'} onClick={() => setTab('review')} />
+              <Tab label="Reports" active={tab === 'reports'} onClick={() => setTab('reports')} />
       </div>
 
       {/* Questions list */}
@@ -494,6 +496,8 @@ export default function Admin() {
           )}
         </div>
       )}
+
+{tab === 'reports' && <AdminReports supabase={supabase} />}
 
     </div>
   )
