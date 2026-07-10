@@ -47,6 +47,7 @@ export default function Register() {
   const [country, setCountry] = useState('')
   const [defaultPhoneCountry] = useState(getDefaultCountryFromLocale)
   const [phoneCountry, setPhoneCountry] = useState(defaultPhoneCountry)
+  const [dataConsent, setDataConsent] = useState(false)
 
   const currentYear = new Date().getFullYear()
   const meetsAgeRequirement = birthYear && (currentYear - parseInt(birthYear, 10)) >= 18
@@ -67,15 +68,15 @@ export default function Register() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <label style={{ fontSize: '13px', fontWeight: 500 }}>
             Phone number
-             <div className="senseus-phone-input" style={{ marginTop: '6px' }}>
-            <PhoneInput 
-            defaultCountry={defaultPhoneCountry}
-            value={phone} 
-            onChange={(value) => setPhone(value || '')}
-            onCountryChange={(c) => setPhoneCountry(c || defaultPhoneCountry)}
-            placeholder={getPlaceholderForCountry(phoneCountry)}
-            autoComplete="tel" 
-            />
+            <div className="senseus-phone-input" style={{ marginTop: '6px' }}>
+              <PhoneInput
+                defaultCountry={defaultPhoneCountry}
+                value={phone}
+                onChange={(value) => setPhone(value || '')}
+                onCountryChange={(c) => setPhoneCountry(c || defaultPhoneCountry)}
+                placeholder={getPlaceholderForCountry(phoneCountry)}
+                autoComplete="tel"
+              />
             </div>
           </label>
           <button
@@ -153,6 +154,18 @@ export default function Register() {
                   <a href="/terms" style={{ color: '#2D3DCA', textDecoration: 'none' }}>Terms of Service</a>
                   {' '}and{' '}
                   <a href="/privacy" style={{ color: '#2D3DCA', textDecoration: 'none' }}>Privacy Policy</a>.
+                </span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', lineHeight: 1.6 }}>
+                <input
+                  type="checkbox"
+                  checked={dataConsent}
+                  onChange={(e) => setDataConsent(e.target.checked)}
+                  style={{ marginTop: '4px', flexShrink: 0 }}
+                />
+                <span>
+                  I understand that my votes will be included anonymously in aggregate data. My individual responses will never be identified or attributed to me.
                 </span>
               </label>
 
@@ -240,6 +253,10 @@ export default function Register() {
                 </select>
               </label>
 
+              <p style={{ fontSize: '12px', color: '#52B788', textAlign: 'center', lineHeight: 1.6, margin: '0' }}>
+                Just your vote. Not your name. Not anything that can be traced back to you.
+              </p>
+
               <button
                 onClick={() => completeRegistration({
                   birthYear: parseInt(birthYear, 10),
@@ -248,8 +265,8 @@ export default function Register() {
                   lastName,
                   country,
                 })}
-                disabled={loading || !isOver18 || (displayPreference !== 'anon' && !firstName) || !country}
-                style={{ width: '100%', padding: '11px', borderRadius: '8px', background: '#52B788', color: 'white', border: 'none', fontSize: '14px', fontWeight: 500, cursor: 'pointer', opacity: (loading || !isOver18 || (displayPreference !== 'anon' && !firstName)) ? 0.5 : 1 }}
+                disabled={loading || !isOver18 || !dataConsent || (displayPreference !== 'anon' && !firstName) || !country}
+                style={{ width: '100%', padding: '11px', borderRadius: '8px', background: '#52B788', color: 'white', border: 'none', fontSize: '14px', fontWeight: 500, cursor: 'pointer', opacity: (loading || !isOver18 || !dataConsent || (displayPreference !== 'anon' && !firstName)) ? 0.5 : 1 }}
               >
                 {loading ? 'Creating account...' : 'Complete registration'}
               </button>

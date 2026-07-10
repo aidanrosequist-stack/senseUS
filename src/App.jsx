@@ -17,6 +17,7 @@ import Mission from './pages/Mission'
 import HowItWorks from './pages/HowItWorks'
 import QuestionPreview from './pages/QuestionPreview'
 import Transparency from './pages/Transparency'
+import Ethos from './pages/Ethos'
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
         <Route path="/how-it-works" element={<HowItWorks />} />
         <Route path="/q/:number" element={<QuestionPreview />} />
         <Route path="/transparency" element={<Transparency />} />
+        <Route path="/ethos" element={<Ethos />} />
       </Routes>
     </BrowserRouter>
   )

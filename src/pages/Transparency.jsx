@@ -325,6 +325,7 @@ export default function Transparency() {
           <Link to="/privacy" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Privacy Policy</Link>
           <Link to="/terms" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Terms of Service</Link>
           <Link to="/mission" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Our Mission</Link>
+          <Link to="/ethos" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Our Ethos</Link>
           <Link to="/how-it-works" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>How It Works</Link>
         </div>
       </div>

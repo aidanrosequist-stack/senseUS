@@ -155,6 +155,7 @@ export default function HowItWorks() {
 
       <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: '1.5rem', marginTop: '3rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
         <Link to="/mission" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Our Mission</Link>
+         <Link to="/ethos" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Our Ethos</Link>
         <Link to="/privacy" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Privacy Policy</Link>
         <Link to="/terms" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Terms of Service</Link>
       </div>
