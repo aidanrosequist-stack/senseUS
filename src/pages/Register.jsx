@@ -41,6 +41,7 @@ export default function Register() {
 
   const [birthYear, setBirthYear] = useState('')
   const [isOver18, setIsOver18] = useState(false)
+  const [dataConsent, setDataConsent] = useState(false)
   const [displayPreference, setDisplayPreference] = useState('full')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -82,7 +83,7 @@ export default function Register() {
           <button
             onClick={sendCode}
             disabled={loading || !phone}
-            style={{ width: '100%', padding: '11px', borderRadius: '8px', background: '#2D3DCA', color: 'white', border: 'none', fontSize: '14px', fontWeight: 500, cursor: 'pointer', opacity: loading || !phone ? 0.5 : 1 }}
+            style={{ width: '100%', padding: '11px', borderRadius: '8px', background: '#2D3DCA', color: 'white', border: 'none', fontSize: '14px', fontWeight: 500, cursor: 'pointer', opacity: (loading || !isOver18 || !dataConsent || (displayPreference !== 'anon' && !firstName) || !country) ? 0.5 : 1 }}
           >
             {loading ? 'Sending...' : 'Send verification code'}
           </button>
@@ -156,6 +157,22 @@ export default function Register() {
                   <a href="/privacy" style={{ color: '#2D3DCA', textDecoration: 'none' }}>Privacy Policy</a>.
                 </span>
               </label>
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', lineHeight: 1.6 }}>
+                <input
+                  type="checkbox"
+                  checked={dataConsent}
+                  onChange={(e) => setDataConsent(e.target.checked)}
+                  style={{ marginTop: '4px', flexShrink: 0 }}
+                />
+                <span>
+                  I understand that my votes will be included anonymously in aggregate data. My individual responses will never be identified or attributed to me.
+                </span>
+              </label>
+
+              <p style={{ fontSize: '12px', color: '#52B788', textAlign: 'center', lineHeight: 1.6, margin: '0' }}>
+                Just your vote. Not your name. Not anything that can be traced back to you.
+              </p>
 
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', lineHeight: 1.6 }}>
                 <input
