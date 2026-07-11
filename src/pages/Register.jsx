@@ -48,7 +48,6 @@ export default function Register() {
   const [country, setCountry] = useState('')
   const [defaultPhoneCountry] = useState(getDefaultCountryFromLocale)
   const [phoneCountry, setPhoneCountry] = useState(defaultPhoneCountry)
-  const [dataConsent, setDataConsent] = useState(false)
 
   const currentYear = new Date().getFullYear()
   const meetsAgeRequirement = birthYear && (currentYear - parseInt(birthYear, 10)) >= 18
