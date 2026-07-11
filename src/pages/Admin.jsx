@@ -36,6 +36,7 @@ export default function Admin() {
   const [questions, setQuestions] = useState([])
   const [loadingData, setLoadingData] = useState(false)
   const [message, setMessage] = useState(null)
+  const [flaggedComments, setFlaggedComments] = useState([])
 
   // New question form
   const [newQuestion, setNewQuestion] = useState({
@@ -82,6 +83,14 @@ export default function Admin() {
     }
   }, [isAdmin])
 
+  useEffect(() => {
+    if (isAdmin) {
+      loadQuestions()
+      loadFlaggedQuestions()
+      loadFlaggedComments()
+    }
+  }, [isAdmin])
+
   async function loadQuestions() {
     setLoadingData(true)
     const { data, error } = await supabase
@@ -102,6 +111,20 @@ export default function Admin() {
       .order('created_at', { ascending: false })
     if (!error) setFlaggedQuestions(data || [])
     setLoadingFlagged(false)
+  }
+
+  async function loadFlaggedComments() {
+    const { data, error } = await supabase
+      .from('comments')
+      .select(`
+        id, body, flag_count, created_at,
+        profiles (first_name, last_initial, display_preference, anon_name),
+        questions (text, question_number)
+      `)
+      .eq('is_flagged', true)
+      .eq('is_deleted', false)
+      .order('flag_count', { ascending: false })
+    if (!error) setFlaggedComments(data || [])
   }
 
   function showMessage(msg, isError = false) {
@@ -494,6 +517,59 @@ export default function Admin() {
               ))}
             </div>
           )}
+
+          {/* Flagged comments */}
+          <div style={{ marginTop: '2rem' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
+              Flagged Comments ({flaggedComments.length})
+            </p>
+            {flaggedComments.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '1rem', color: '#6B7280', fontSize: '13px' }}>
+                No flagged comments.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {flaggedComments.map(comment => (
+                  <div key={comment.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                    <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '4px' }}>
+                      On: {comment.questions?.text?.substring(0, 60)}... · {comment.flag_count} flag{comment.flag_count !== 1 ? 's' : ''}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '10px' }}>
+                      {comment.body}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={async () => {
+                          await supabase
+                            .from('comments')
+                            .update({ is_deleted: true })
+                            .eq('id', comment.id)
+                          showMessage('Comment removed.')
+                          loadFlaggedComments()
+                        }}
+                        style={{ flex: 1, padding: '7px', background: '#f9d8d8', color: '#7a1313', border: '1px solid #7a1313', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                      >
+                        Remove comment
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await supabase
+                            .from('comments')
+                            .update({ is_flagged: false, flag_count: 0 })
+                            .eq('id', comment.id)
+                          showMessage('Comment cleared — no action taken.')
+                          loadFlaggedComments()
+                        }}
+                        style={{ flex: 1, padding: '7px', background: '#eef3e0', color: '#4d621d', border: '1px solid #4d621d', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                      >
+                        Clear flag
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

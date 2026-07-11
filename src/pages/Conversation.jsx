@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { IconWaveSine, IconCornerDownRight } from '@tabler/icons-react'
+import { checkComment } from '../lib/moderation'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
@@ -109,6 +110,13 @@ export default function Conversation() {
 
   async function submitComment(body, parentId = null) {
     if (!body.trim() || !user) return
+
+    const check = checkComment(body)
+    if (!check.allowed) {
+      alert(check.reason)
+      return
+    }
+
     setSubmitting(true)
     const { data, error } = await supabase
       .from('comments')
@@ -117,6 +125,7 @@ export default function Conversation() {
         user_id: user.id,
         body: body.trim(),
         parent_id: parentId,
+        is_flagged: check.flagged || false,
       })
       .select(`
         id, body, resonance_count, created_at, parent_id, user_id,
@@ -143,6 +152,20 @@ export default function Conversation() {
   async function toggleResonate(commentId) {
     if (!user) return
     const hasResonated = userResonances.has(commentId)
+
+    async function flagComment(commentId) {
+    if (!user) return
+    try {
+      await supabase.from('comment_flags').insert({
+        comment_id: commentId,
+        user_id: user.id,
+      })
+      await supabase.rpc('increment_flag_count', { comment_id: commentId })
+      alert('Thank you — this comment has been flagged for review.')
+    } catch (err) {
+      // Already flagged — silently ignore duplicate
+    }
+  }
 
     if (hasResonated) {
       await supabase.from('comment_resonances').delete()
@@ -207,6 +230,16 @@ export default function Conversation() {
               <IconWaveSine size={14} />
               <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>{comment.resonance_count}</span>
             </button>
+
+            {canParticipate && comment.user_id !== user?.id && (
+              <button
+                onClick={() => flagComment(comment.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', marginLeft: 'auto' }}
+                title="Flag this comment"
+              >
+                <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⚑</span>
+              </button>
+            )}
 
             {!isReply && canParticipate && (
               <button
