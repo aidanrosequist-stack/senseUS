@@ -93,6 +93,13 @@ export function useRegistration() {
        // Remove from waitlist if they pre-signed up
       await supabase.from('waitlist').delete().eq('phone', phone)
 
+      // Send welcome SMS — fire and forget, don't block registration completion
+      supabase.functions.invoke('send-welcome-sms', {
+        body: { phone }
+      }).catch(() => {
+        // Silent fail — welcome SMS failure shouldn't break registration
+      })
+
       setStep('done')
     } catch (err) {
       setError(err.message)
