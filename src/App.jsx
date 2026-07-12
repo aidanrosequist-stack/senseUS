@@ -67,7 +67,7 @@ function AppContent() {
   )
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <AppContent />
