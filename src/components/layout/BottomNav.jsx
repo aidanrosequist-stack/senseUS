@@ -1,14 +1,18 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { IconThumbUp, IconBell, IconUser, IconCompass } from '@tabler/icons-react'
+import { useAuth } from '../../hooks/useAuth'
+import { useNotifications } from '../../hooks/useNotifications'
 
 export default function BottomNav() {
   const navigate = useNavigate()
   const path = useLocation().pathname
+  const { user } = useAuth()
+  const { unreadCount } = useNotifications()
 
   const tabs = [
     { label: 'Vote', icon: IconThumbUp, path: '/vote' },
     { label: 'Explore', icon: IconCompass, path: '/explore' },
-    { label: 'Activity', icon: IconBell, path: '/activity' },
+    { label: 'Activity', icon: IconBell, path: '/activity', badge: user ? unreadCount : 0 },
     { label: 'Profile', icon: IconUser, path: '/profile' },
   ]
 
@@ -54,9 +58,29 @@ export default function BottomNav() {
                 cursor: 'pointer',
                 padding: '8px 20px',
                 color: active ? '#2D3DCA' : '#6B7280',
+                position: 'relative',
               }}
             >
               <Icon size={22} />
+              {tab.badge > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: '4px',
+                  right: '12px',
+                  background: '#c21f1f',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  {tab.badge > 9 ? '9+' : tab.badge}
+                </div>
+              )}
               <span style={{ fontSize: '10px', fontWeight: active ? 700 : 400, fontFamily: 'Merriweather, serif' }}>
                 {tab.label}
               </span>

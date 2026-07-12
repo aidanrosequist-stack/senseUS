@@ -70,6 +70,16 @@ export default function Admin() {
     ai_excluded: false,
   })
 
+  const [broadcast, setBroadcast] = useState({
+    title: '',
+    body: '',
+    type: 'admin_broadcast',
+    priority: 'normal',
+    action_url: '',
+    audience: 'all',
+  })
+  const [broadcasting, setBroadcasting] = useState(false)
+
   useEffect(() => {
     if (!loading && !isAdmin) {
       navigate('/')
@@ -206,6 +216,7 @@ export default function Admin() {
         <Tab label="Add Article" active={tab === 'articles'} onClick={() => setTab('articles')} />
            <Tab label="Transparency" active={tab === 'transparency'} onClick={() => setTab('transparency')} />
             <Tab label="Review Queue" active={tab === 'review'} onClick={() => setTab('review')} />
+              <Tab label="Broadcast" active={tab === 'broadcast'} onClick={() => setTab('broadcast')} />
               <Tab label="Reports" active={tab === 'reports'} onClick={() => setTab('reports')} />
       </div>
 
@@ -574,6 +585,118 @@ export default function Admin() {
       )}
 
 {tab === 'reports' && <AdminReports supabase={supabase} />}
+
+{/* Broadcast */}
+      {tab === 'broadcast' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <label style={{ fontSize: '13px', fontWeight: 700 }}>
+            Title
+            <input
+              type="text"
+              value={broadcast.title}
+              onChange={(e) => setBroadcast(p => ({ ...p, title: e.target.value }))}
+              placeholder="Notification title..."
+              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'Merriweather, serif' }}
+            />
+          </label>
+
+          <label style={{ fontSize: '13px', fontWeight: 700 }}>
+            Message
+            <textarea
+              value={broadcast.body}
+              onChange={(e) => setBroadcast(p => ({ ...p, body: e.target.value }))}
+              placeholder="Notification message..."
+              rows={3}
+              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'Merriweather, serif', resize: 'vertical' }}
+            />
+          </label>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 700 }}>
+              Priority
+              <select
+                value={broadcast.priority}
+                onChange={(e) => setBroadcast(p => ({ ...p, priority: e.target.value }))}
+                style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '9px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+              >
+                <option value="normal">Normal (silent)</option>
+                <option value="high">High (popup on login)</option>
+                <option value="urgent">Urgent (full screen)</option>
+              </select>
+            </label>
+            <label style={{ fontSize: '13px', fontWeight: 700 }}>
+              Audience
+              <select
+                value={broadcast.audience}
+                onChange={(e) => setBroadcast(p => ({ ...p, audience: e.target.value }))}
+                style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '9px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+              >
+                <option value="all">All users</option>
+                <option value="active">Active users (voted in last 30 days)</option>
+              </select>
+            </label>
+          </div>
+
+          <label style={{ fontSize: '13px', fontWeight: 700 }}>
+            Action URL (optional)
+            <input
+              type="text"
+              value={broadcast.action_url}
+              onChange={(e) => setBroadcast(p => ({ ...p, action_url: e.target.value }))}
+              placeholder="/vote, /transparency, etc."
+              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'Merriweather, serif' }}
+            />
+          </label>
+
+          <button
+            onClick={async () => {
+              if (!broadcast.title.trim() || !broadcast.body.trim()) return showMessage('Title and message are required.', true)
+              setBroadcasting(true)
+
+              try {
+                // Get target users
+                let query = supabase.from('profiles').select('id')
+                if (broadcast.audience === 'active') {
+                  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+                  const { data: activeUsers } = await supabase
+                    .from('votes')
+                    .select('user_id')
+                    .gte('created_at', thirtyDaysAgo)
+                  const activeIds = [...new Set((activeUsers || []).map(v => v.user_id))]
+                  query = query.in('id', activeIds)
+                }
+
+                const { data: users } = await query
+                if (!users?.length) return showMessage('No users found.', true)
+
+                // Insert notification for each user
+                const notifications = users.map(u => ({
+                  user_id: u.id,
+                  type: 'admin_broadcast',
+                  priority: broadcast.priority,
+                  title: broadcast.title,
+                  body: broadcast.body,
+                  action_url: broadcast.action_url || null,
+                }))
+
+                const { error } = await supabase.from('notifications').insert(notifications)
+                if (error) throw error
+
+                showMessage(`Broadcast sent to ${users.length} users!`)
+                setBroadcast({ title: '', body: '', type: 'admin_broadcast', priority: 'normal', action_url: '', audience: 'all' })
+              } catch (err) {
+                showMessage('Error sending broadcast: ' + err.message, true)
+              } finally {
+                setBroadcasting(false)
+              }
+            }}
+            disabled={broadcasting}
+            style={{ width: '100%', padding: '11px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif', opacity: broadcasting ? 0.5 : 1 }}
+          >
+            {broadcasting ? 'Sending...' : 'Send broadcast'}
+          </button>
+        </div>
+      )}
 
     </div>
   )

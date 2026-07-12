@@ -18,11 +18,29 @@ import HowItWorks from './pages/HowItWorks'
 import QuestionPreview from './pages/QuestionPreview'
 import Transparency from './pages/Transparency'
 import NotFound from './pages/NotFound'
+import Notifications from './pages/Notifications'
+import NotificationPopup from './components/notifications/NotificationPopup'
+import { useNotifications } from './hooks/useNotifications'
+import { useAuth } from './hooks/useAuth'
 import Ethos from './pages/Ethos'
 
-function App() {
+function AppContent() {
+  const { user } = useAuth()
+  const {
+    urgentNotification,
+    highNotifications,
+    dismissUrgent,
+    dismissHigh,
+  } = user ? useNotifications() : { urgentNotification: null, highNotifications: [], dismissUrgent: () => {}, dismissHigh: () => {} }
+
   return (
-    <BrowserRouter>
+    <>
+      <NotificationPopup
+        urgentNotification={urgentNotification}
+        highNotifications={highNotifications}
+        onDismissUrgent={dismissUrgent}
+        onDismissHigh={dismissHigh}
+      />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/vote" element={<ProtectedRoute><Vote /></ProtectedRoute>} />
@@ -35,17 +53,24 @@ function App() {
         <Route path="/activity" element={<ProtectedRoute><Activity /></ProtectedRoute>} />
         <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
         <Route path="/conversation/:questionId" element={<ProtectedRoute><Conversation /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/mission" element={<Mission />} />
         <Route path="/how-it-works" element={<HowItWorks />} />
-        <Route path="/q/:number" element={<QuestionPreview />} />
         <Route path="/transparency" element={<Transparency />} />
         <Route path="/ethos" element={<Ethos />} />
+        <Route path="/q/:number" element={<QuestionPreview />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </BrowserRouter>
+    </>
   )
 }
 
-export default App
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  )
+}
