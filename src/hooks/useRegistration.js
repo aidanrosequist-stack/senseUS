@@ -90,6 +90,9 @@ export function useRegistration() {
         return
       }
 
+       // Remove from waitlist if they pre-signed up
+      await supabase.from('waitlist').delete().eq('phone', phone)
+
       setStep('done')
     } catch (err) {
       setError(err.message)
