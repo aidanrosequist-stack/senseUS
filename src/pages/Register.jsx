@@ -6,6 +6,8 @@ import examples from 'libphonenumber-js/examples.mobile.json'
 import 'react-phone-number-input/style.css'
 import { Link } from 'react-router-dom'
 
+console.log('Sending code to:', phone)
+
 // Auto-detects a default country from the browser's locale (e.g. "en-US" -> "US").
 // Falls back to "US" if the locale doesn't include a region, since that's the
 // most common case for senseUS's initial audience.
