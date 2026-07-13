@@ -77,6 +77,9 @@ export default function Admin() {
     priority: 'normal',
     action_url: '',
     audience: 'all',
+    country_code: '',
+    age_min: '',
+    age_max: '',
   })
   const [broadcasting, setBroadcasting] = useState(false)
 
@@ -633,8 +636,66 @@ export default function Admin() {
               >
                 <option value="all">All users</option>
                 <option value="active">Active users (voted in last 30 days)</option>
+                <option value="country">By country</option>
+                <option value="age">By age range</option>
+                <option value="country_age">By country + age range</option>
               </select>
             </label>
+
+            {(broadcast.audience === 'country' || broadcast.audience === 'country_age') && (
+              <label style={{ fontSize: '13px', fontWeight: 700 }}>
+                Country code
+                <select
+                  value={broadcast.country_code}
+                  onChange={(e) => setBroadcast(p => ({ ...p, country_code: e.target.value }))}
+                  style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '9px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+                >
+                  <option value="">Select country...</option>
+                  <option value="US">United States</option>
+                  <option value="CA">Canada</option>
+                  <option value="GB">United Kingdom</option>
+                  <option value="AU">Australia</option>
+                  <option value="DE">Germany</option>
+                  <option value="FR">France</option>
+                  <option value="JP">Japan</option>
+                  <option value="BR">Brazil</option>
+                  <option value="IN">India</option>
+                  <option value="MX">Mexico</option>
+                  <option value="ZA">South Africa</option>
+                  <option value="NG">Nigeria</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </label>
+            )}
+
+            {(broadcast.audience === 'age' || broadcast.audience === 'country_age') && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 700 }}>
+                  Min age
+                  <input
+                    type="number"
+                    value={broadcast.age_min}
+                    onChange={(e) => setBroadcast(p => ({ ...p, age_min: e.target.value }))}
+                    placeholder="18"
+                    min="18"
+                    max="100"
+                    style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'Merriweather, serif' }}
+                  />
+                </label>
+                <label style={{ fontSize: '13px', fontWeight: 700 }}>
+                  Max age
+                  <input
+                    type="number"
+                    value={broadcast.age_max}
+                    onChange={(e) => setBroadcast(p => ({ ...p, age_max: e.target.value }))}
+                    placeholder="65"
+                    min="18"
+                    max="100"
+                    style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'Merriweather, serif' }}
+                  />
+                </label>
+              </div>
+            )}
           </div>
 
           <label style={{ fontSize: '13px', fontWeight: 700 }}>
@@ -655,7 +716,9 @@ export default function Admin() {
 
               try {
                 // Get target users
+                const currentYear = new Date().getFullYear()
                 let query = supabase.from('profiles').select('id')
+
                 if (broadcast.audience === 'active') {
                   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
                   const { data: activeUsers } = await supabase
@@ -664,6 +727,20 @@ export default function Admin() {
                     .gte('created_at', thirtyDaysAgo)
                   const activeIds = [...new Set((activeUsers || []).map(v => v.user_id))]
                   query = query.in('id', activeIds)
+                }
+
+                if ((broadcast.audience === 'country' || broadcast.audience === 'country_age') && broadcast.country_code) {
+                  query = query.eq('country_code', broadcast.country_code)
+                }
+
+                if ((broadcast.audience === 'age' || broadcast.audience === 'country_age') && broadcast.age_min) {
+                  const maxBirthYear = currentYear - parseInt(broadcast.age_min)
+                  query = query.lte('birth_year', maxBirthYear)
+                }
+
+                if ((broadcast.audience === 'age' || broadcast.audience === 'country_age') && broadcast.age_max) {
+                  const minBirthYear = currentYear - parseInt(broadcast.age_max)
+                  query = query.gte('birth_year', minBirthYear)
                 }
 
                 const { data: users } = await query

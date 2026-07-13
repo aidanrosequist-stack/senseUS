@@ -230,10 +230,11 @@ export default function QuestionPreview() {
       <div style={{ background: '#FFFFFF', padding: '0.85rem 1.25rem', borderTop: '0.5px solid #E5E7EB', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: '10px', color: '#9CA3AF' }}>© Gudboi Enterprises, LLC</div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <Link to="/privacy" style={{ fontSize: '10px', color: '#9CA3AF', textDecoration: 'none' }}>Privacy</Link>
-            <Link to="/terms" style={{ fontSize: '10px', color: '#9CA3AF', textDecoration: 'none' }}>Terms</Link>
-            <Link to="/how-it-works" style={{ fontSize: '10px', color: '#9CA3AF', textDecoration: 'none' }}>How It Works</Link>
+         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <Link to="/privacy" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Privacy</Link>
+            <Link to="/terms" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Terms</Link>
+            <Link to="/how-it-works" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>How It Works</Link>
+            <Link to="/ethos" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Our Ethos</Link>
           </div>
         </div>
       </div>
