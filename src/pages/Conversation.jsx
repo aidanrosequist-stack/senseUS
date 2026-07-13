@@ -153,6 +153,26 @@ export default function Conversation() {
     if (!user) return
     const hasResonated = userResonances.has(commentId)
 
+async function shareComment(commentId) {
+    // Need question_number to build the URL
+    const { data: q } = await supabase
+      .from('questions')
+      .select('question_number')
+      .eq('id', questionId)
+      .single()
+
+    if (!q) return
+
+    const url = `https://senseus.app/q/${q.question_number}#comment-${commentId}`
+    try {
+      await navigator.clipboard.writeText(url)
+      alert('Link copied to clipboard!')
+    } catch {
+      // Fallback for browsers that don't support clipboard API
+      prompt('Copy this link:', url)
+    }
+  }
+
     async function flagComment(commentId) {
     if (!user) return
     try {
@@ -231,15 +251,24 @@ export default function Conversation() {
               <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>{comment.resonance_count}</span>
             </button>
 
-            {canParticipate && comment.user_id !== user?.id && (
+            <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
               <button
-                onClick={() => flagComment(comment.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', marginLeft: 'auto' }}
-                title="Flag this comment"
+                onClick={() => shareComment(comment.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
+                title="Share this comment"
               >
-                <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⚑</span>
+                <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⤴</span>
               </button>
-            )}
+              {canParticipate && comment.user_id !== user?.id && (
+                <button
+                  onClick={() => flagComment(comment.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
+                  title="Flag this comment"
+                >
+                  <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⚑</span>
+                </button>
+              )}
+            </div>
 
             {!isReply && canParticipate && (
               <button

@@ -19,6 +19,15 @@ export default function QuestionPreview() {
   const minAllowed = Math.max(1, originNumber.current - 2)
   const maxAllowed = originNumber.current + 2
 
+  const [sharedComment, setSharedComment] = useState(false)
+
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash && hash.startsWith('#comment-')) {
+      setSharedComment(true)
+    }
+  }, [])
+
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
@@ -192,15 +201,21 @@ export default function QuestionPreview() {
 
               <div style={{ height: '1px', background: '#E5E7EB', marginBottom: '1rem' }} />
 
-              <Link
-                to="/register"
-                style={{ display: 'block', width: '100%', padding: '12px', background: '#2D3DCA', color: 'white', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', marginBottom: '8px' }}
-              >
-                Vote on this question
-              </Link>
-              <div style={{ textAlign: 'center', fontSize: '12px', color: '#6B7280' }}>
-                Join senseUS — free, verified, no ads
+            {sharedComment && (
+              <div style={{ background: '#E6F1FB', border: '1px solid #0C447C', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px', fontSize: '12px', color: '#0C447C', lineHeight: 1.6, textAlign: 'center' }}>
+                Someone shared a comment with you. Log in to see it and join the conversation.
               </div>
+            )}
+
+            <Link
+              to="/register"
+              style={{ display: 'block', width: '100%', padding: '12px', background: '#2D3DCA', color: 'white', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', marginBottom: '8px' }}
+            >
+              {sharedComment ? 'Join to see the comment' : 'Vote on this question'}
+            </Link>
+            <div style={{ textAlign: 'center', fontSize: '12px', color: '#6B7280' }}>
+              Join senseUS — free, verified, no ads
+            </div>
             </div>
           )}
 
