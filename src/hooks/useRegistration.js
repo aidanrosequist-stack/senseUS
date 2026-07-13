@@ -10,11 +10,9 @@ const ANONYMOUS_NAMES = [
   'Avery K.', 'Rowan L.', 'Sage D.', 'River C.', 'Phoenix J.',
   'Amara T.', 'Rohan B.', 'Lena W.', 'Mateo R.', 'Kai M.'
 ]
-
-const [redirectTo, setRedirectTo] = useState(null)
-
 export function useRegistration() {
   const [phone, setPhone] = useState('')
+  const [redirectTo, setRedirectTo] = useState(null)
   const [code, setCode] = useState('')
   const [step, setStep] = useState('phone')
   const [loading, setLoading] = useState(false)

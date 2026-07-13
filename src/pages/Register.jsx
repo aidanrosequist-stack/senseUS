@@ -174,18 +174,6 @@ export default function Register() {
                 Just your vote. Not your name. Not anything that can be traced back to you.
               </p>
 
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', lineHeight: 1.6 }}>
-                <input
-                  type="checkbox"
-                  checked={dataConsent}
-                  onChange={(e) => setDataConsent(e.target.checked)}
-                  style={{ marginTop: '4px', flexShrink: 0 }}
-                />
-                <span>
-                  I understand that my votes will be included anonymously in aggregate data. My individual responses will never be identified or attributed to me.
-                </span>
-              </label>
-
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 500, marginBottom: '8px' }}>How should your name appear?</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -318,3 +306,6 @@ export default function Register() {
           </Link>
         </div>
       )}
+          </div>
+  )
+}

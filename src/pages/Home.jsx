@@ -189,9 +189,9 @@ export default function Home() {
           }}
         >
           <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, margin: '0 0 10px' }}>
-            Believe in this mission? Help me keep the light on <em>and</em> get a nice picture or two here:
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>🥁</div>
+            Believe in this mission? Get a nice picture or two <em>and</em> help me keep the light on, here:
           </p>
+          <div style={{ fontSize: '32px', marginBottom: '8px' }}>🥁</div>
           
             <a href="https://lightwillprevail.com"
             target="_blank"

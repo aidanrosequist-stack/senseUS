@@ -587,6 +587,7 @@ export default function Admin() {
         </div>
       )}
 
+{/* Reports */}
 {tab === 'reports' && <AdminReports supabase={supabase} />}
 
 {/* Broadcast */}
