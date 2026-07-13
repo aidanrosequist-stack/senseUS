@@ -109,7 +109,7 @@ export default function Transparency() {
           <ul style={{ paddingLeft: '1.5rem', fontSize: '14px', lineHeight: 1.8, color: '#374151' }}>
             <li>Birth year (not full date of birth) — age verification only</li>
             <li>First name and last initial — display purposes only</li>
-            <li>Phone number — verified and then discarded, not stored</li>
+            <li>Phone number — stored by our authentication provider (Supabase) solely to enable future logins. Never stored in our application database, never used for marketing, never shared beyond what authentication requires.</li>
             <li>Country of residence (optional) — aggregate geographic analysis</li>
             <li>Votes — permanent, linked to anonymous internal ID only</li>
             <li>Comments and replies — displayed publicly under chosen display name</li>
@@ -122,7 +122,7 @@ export default function Transparency() {
           <ul style={{ paddingLeft: '1.5rem', fontSize: '14px', lineHeight: 1.8, color: '#374151' }}>
             <li>Full date of birth</li>
             <li>Full last name</li>
-            <li>Phone number (discarded after verification)</li>
+            <li>Phone number in our application database (retained only by Supabase Auth for login purposes)</li>
             <li>Email address</li>
             <li>IP addresses</li>
             <li>Device fingerprints</li>
@@ -219,6 +219,7 @@ export default function Transparency() {
           <li>No IP addresses logged</li>
         </ul>
         {p("We plan to conduct our first third-party security audit within 12 months of launch. Results will be summarized in our next transparency report.")}
+        {p("Our authentication provider, Supabase, retains phone numbers solely to enable user login. In the event of a legal demand directed at either Gudboi Enterprises LLC or Supabase, both our application data and authentication data (including phone numbers) may be subject to disclosure. We are evaluating additional architectural separations in a future platform version to further protect user privacy.")}
         {p("To report a security vulnerability: security@senseus.app")}
       </Section>
 
