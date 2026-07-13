@@ -102,9 +102,12 @@ export default function MakeUpMyMind() {
         </h1>
       </div>
 
-      <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '2rem' }}>
+      <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '1rem' }}>
         Read perspectives from across the spectrum, then return to cast your vote.
       </p>
+      <div style={{ background: '#F9FAFB', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '10px 12px', marginBottom: '1.5rem', fontSize: '11px', color: '#9CA3AF', lineHeight: 1.6 }}>
+        Articles were sourced with AI assistance and reviewed by our editorial team. Links may break over time — if you find a dead link, please let us know at hello@senseus.app. For questions about AI itself, all articles are human-selected only.
+      </div>
 
       {/* Articles grouped by stance */}
       {Object.keys(grouped).length === 0 ? (
