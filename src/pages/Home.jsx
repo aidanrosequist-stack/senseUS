@@ -189,7 +189,8 @@ export default function Home() {
           }}
         >
           <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, margin: '0 0 10px' }}>
-            Believe in this mission? Help support it financially here:
+            Believe in this mission? Help me keep the light on <em>and</em> get a nice picture or two here:
+          <div style={{ fontSize: '32px', marginBottom: '8px' }}>🥁</div>
           </p>
           
             <a href="https://lightwillprevail.com"

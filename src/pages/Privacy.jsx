@@ -1,6 +1,6 @@
 export default function Privacy() {
   return (
-    <div style={{ maxWidth: '720px', margin: '0 auto', padding: '3rem 1.5rem', fontFamily: 'Arial, sans-serif' }}>
+    <div style={{ maxWidth: '720px', margin: '0 auto', padding: '3rem 1.5rem', fontFamily: 'Merriweather, serif' }}>
       
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#2D3DCA', margin: '0 0 4px' }}>senseUS</h1>

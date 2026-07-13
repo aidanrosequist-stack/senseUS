@@ -1,11 +1,11 @@
 export default function Terms() {
   return (
-    <div style={{ maxWidth: '720px', margin: '0 auto', padding: '3rem 1.5rem', fontFamily: 'Arial, sans-serif' }}>
+    <div style={{ maxWidth: '720px', margin: '0 auto', padding: '3rem 1.5rem', fontFamily: 'Merriweather, serif' }}>
 
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#2D3DCA', margin: '0 0 4px' }}>senseUS</h1>
         <h2 style={{ fontSize: '22px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 8px' }}>Terms of Service</h2>
-        <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>Last updated: [DATE] — Version 1.0</p>
+        <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>Last updated: July 11, 2026 — Version 1.0</p>
       </div>
 
       <div style={{ background: '#E6F1FB', border: '1px solid #0C447C', borderRadius: '8px', padding: '12px 16px', marginBottom: '2rem', fontSize: '13px', color: '#0C447C' }}>
