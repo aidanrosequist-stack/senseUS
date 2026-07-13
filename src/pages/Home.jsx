@@ -76,7 +76,17 @@ export default function Home() {
           </div>
         </div>
 
-        <div style={{ marginBottom: '2.5rem' }}>
+        {/* Pitch */}
+        <div style={{
+          width: '100%',
+          background: '#FFFFFF',
+          border: '0.5px solid #E5E7EB',
+          borderRadius: '16px',
+          padding: '1.25rem',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+          marginBottom: '1.5rem',
+          textAlign: 'center',
+        }}>
           <p style={{ fontSize: '18px', fontWeight: 500, color: '#1A1A1A', lineHeight: 1.5, margin: '0 0 10px' }}>
             What do people actually think?
           </p>
