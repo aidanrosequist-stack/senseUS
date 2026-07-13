@@ -28,7 +28,7 @@ export default function Privacy() {
             {
               title: '3.1 Information We Collect at Signup',
               bullets: [
-                'Phone number — used for identity verification only. Not stored after verification is complete.',
+                'Phone number — used for identity verification only. Your phone number is stored by our authentication provider (Supabase) solely to enable future logins. It is never stored in our application database, never used for marketing, and never shared with third parties beyond what is necessary for authentication.',
                 'Date of birth — used solely to verify you are 18 or older. Not stored after this check.',
                 'Birth year — stored for age-band analytics only. Full date of birth is never retained.',
                 'First name — stored and displayed according to your display preference.',
@@ -58,7 +58,7 @@ export default function Privacy() {
               bullets: [
                 'Full date of birth (discarded after age verification)',
                 'Full last name (discarded after last initial is derived)',
-                'Phone number (not stored after verification)',
+                'Phone number in our application database (retained only by Supabase Auth for login purposes)',
                 'Gender or gender identity',
                 'Race or ethnicity',
                 'Nationality or citizenship',
@@ -114,7 +114,7 @@ export default function Privacy() {
           bullets: [
             'Votes are retained permanently — this is a deliberate integrity decision fundamental to the trustworthiness of our data.',
             'Profile information is retained for as long as your account is active.',
-            'Phone number and full date of birth are discarded immediately after verification.',
+            'Phone number is retained by our authentication provider (Supabase) for login purposes only, and is not stored in our application database. Full date of birth is discarded immediately after age verification.',
             'Server logs are retained for 90 days for security and fraud prevention.',
             'If you delete your account, your profile information and display name are removed. Your votes are retained in anonymized form as part of our aggregate dataset.',
           ]

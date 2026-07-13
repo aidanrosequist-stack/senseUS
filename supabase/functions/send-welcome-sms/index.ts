@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    const message = `Welcome to senseUS! We're excited to hear what you have to say. True to our word, your phone number is being deleted from our system right now. One human, one voice. Let the light prevail. Reply STOP to opt out.`
+    const message = `Welcome to senseUS! We're excited to hear what you have to say. True to our word, your phone number is being deleted from our system right now. One human, one voice. Reply STOP to opt out.`
 
     // Send the SMS
     const response = await fetch(
