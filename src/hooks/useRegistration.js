@@ -11,6 +11,8 @@ const ANONYMOUS_NAMES = [
   'Amara T.', 'Rohan B.', 'Lena W.', 'Mateo R.', 'Kai M.'
 ]
 
+const [redirectTo, setRedirectTo] = useState(null)
+
 export function useRegistration() {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
@@ -100,6 +102,14 @@ export function useRegistration() {
         // Silent fail — welcome SMS failure shouldn't break registration
       })
 
+      // Check if user came from a shared comment link
+      const params = new URLSearchParams(window.location.search)
+      const fromQ = params.get('from') === 'q'
+      const questionNumber = params.get('q')
+      if (fromQ && questionNumber) {
+        setRedirectTo(`/q/${questionNumber}`)
+      }
+
       setStep('done')
     } catch (err) {
       setError(err.message)
@@ -114,5 +124,6 @@ export function useRegistration() {
     step, setStep,
     loading, error,
     sendCode, checkCode, completeRegistration,
+    redirectTo,
   }
 }

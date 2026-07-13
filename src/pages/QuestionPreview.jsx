@@ -152,7 +152,7 @@ export default function QuestionPreview() {
           </div>
         </div>
         <Link
-          to="/register"
+              to={sharedComment ? `/register?from=q&q=${currentNum}` : `/register`}
           style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF', background: '#2D3DCA', padding: '6px 14px', borderRadius: '20px', textDecoration: 'none' }}
         >
           Join free
@@ -203,12 +203,12 @@ export default function QuestionPreview() {
 
             {sharedComment && (
               <div style={{ background: '#E6F1FB', border: '1px solid #0C447C', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px', fontSize: '12px', color: '#0C447C', lineHeight: 1.6, textAlign: 'center' }}>
-                Someone shared a comment with you. Log in to see it and join the conversation.
+                Someone shared a comment with you. Join senseUS to vote, see the conversation, and share yours.
               </div>
             )}
 
             <Link
-              to="/register"
+              to={sharedComment ? `/register?from=q&q=${currentNum}` : `/register`}
               style={{ display: 'block', width: '100%', padding: '12px', background: '#2D3DCA', color: 'white', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', marginBottom: '8px' }}
             >
               {sharedComment ? 'Join to see the comment' : 'Vote on this question'}
