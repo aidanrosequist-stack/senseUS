@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f',
@@ -10,6 +11,7 @@ export default function QuestionPreview() {
   const { number } = useParams()
   const originNumber = useRef(parseInt(number, 10))
   const [currentNum, setCurrentNum] = useState(parseInt(number, 10))
+  const { user } = useAuth()
   const [question, setQuestion] = useState(null)
   const [tally, setTally] = useState({ yes: 0, ly: 0, ln: 0, no: 0 })
   const [loading, setLoading] = useState(true)
@@ -152,7 +154,12 @@ export default function QuestionPreview() {
           </div>
         </div>
         <Link
-              to={sharedComment ? `/register?from=q&q=${currentNum}` : `/register`}
+              to={user
+                ? `/conversation/${question?.id}`
+                : sharedComment
+                ? `/register?from=q&q=${currentNum}`
+                : `/register`
+              }
           style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF', background: '#2D3DCA', padding: '6px 14px', borderRadius: '20px', textDecoration: 'none' }}
         >
           Join free
@@ -208,10 +215,19 @@ export default function QuestionPreview() {
             )}
 
             <Link
-              to={sharedComment ? `/register?from=q&q=${currentNum}` : `/register`}
+              to={user
+                ? `/conversation/${question?.id}`
+                : sharedComment
+                ? `/register?from=q&q=${currentNum}`
+                : `/register`
+              }
               style={{ display: 'block', width: '100%', padding: '12px', background: '#2D3DCA', color: 'white', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', marginBottom: '8px' }}
             >
-              {sharedComment ? 'Join to see the comment' : 'Vote on this question'}
+              {user
+                ? 'Go to the conversation'
+                : sharedComment
+                ? 'Join to see the comment'
+                : 'Vote on this question'}
             </Link>
             <div style={{ textAlign: 'center', fontSize: '12px', color: '#6B7280' }}>
               Join senseUS — free, verified, no ads
