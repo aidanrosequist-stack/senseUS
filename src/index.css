@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+.PhoneInputCountryIconImg {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.PhoneInputCountryIcon {
+  width: 1.5em !important;
+  height: 1em !important;
+}
+
 html, body {
   height: 100%;
   margin: 0;
