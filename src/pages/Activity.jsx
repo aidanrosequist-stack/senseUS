@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { Skeleton, SkeletonCard } from '../components/ui/Skeleton'
 import BottomNav from '../components/layout/BottomNav'
 import { IconWaveSine, IconChartBar } from '@tabler/icons-react'
 
@@ -127,8 +128,12 @@ export default function Activity() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
-        Loading...
+      <div style={{ maxWidth: '420px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '80px' }}>
+        <Skeleton height="16px" width="40%" style={{ marginBottom: '1.5rem' }} />
+        <SkeletonCard style={{ marginBottom: '8px' }} />
+        <SkeletonCard style={{ marginBottom: '8px' }} />
+        <SkeletonCard style={{ marginBottom: '8px' }} />
+        <SkeletonCard />
       </div>
     )
   }

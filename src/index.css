@@ -19,6 +19,11 @@ input, button, select, textarea {
   font-family: 'Merriweather', serif;
 }
 
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 @media (min-width: 768px) {
   html, body {
     background: #C7C7CC;

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { Skeleton } from '../components/ui/Skeleton'
 import BottomNav from '../components/layout/BottomNav'
 
 const DOMAINS = [
@@ -154,8 +155,17 @@ export default function Explore() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
-        Loading...
+      <div style={{ maxWidth: '100%', fontFamily: 'Merriweather, serif', padding: '1.25rem', paddingBottom: '80px' }}>
+        {[1, 2, 3].map(i => (
+          <div key={i} style={{ marginBottom: '1.75rem' }}>
+            <Skeleton height="13px" width="30%" style={{ marginBottom: '0.75rem' }} />
+            <div style={{ display: 'flex', gap: '10px', overflowX: 'hidden' }}>
+              {[1, 2, 3].map(j => (
+                <Skeleton key={j} width="140px" height="160px" borderRadius="12px" style={{ flexShrink: 0 }} />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     )
   }

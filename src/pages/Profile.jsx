@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { Skeleton, SkeletonCard, SkeletonStatGrid } from '../components/ui/Skeleton'
 import BottomNav from '../components/layout/BottomNav'
 
 const VOTE_PILL_STYLES = {
@@ -112,8 +113,19 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '420px', margin: '0 auto', padding: '2rem 1.5rem', textAlign: 'center', color: '#6B7280', fontFamily: 'Merriweather, serif' }}>
-        Loading...
+      <div style={{ maxWidth: '420px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '80px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
+          <Skeleton width="48px" height="48px" borderRadius="50%" />
+          <div style={{ flex: 1 }}>
+            <Skeleton height="16px" width="50%" style={{ marginBottom: '6px' }} />
+            <Skeleton height="12px" width="35%" />
+          </div>
+        </div>
+        <SkeletonStatGrid />
+        <Skeleton height="14px" width="30%" style={{ marginBottom: '10px' }} />
+        <SkeletonCard style={{ marginBottom: '8px' }} />
+        <SkeletonCard style={{ marginBottom: '8px' }} />
+        <SkeletonCard />
       </div>
     )
   }
