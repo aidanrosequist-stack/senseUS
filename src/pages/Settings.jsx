@@ -217,7 +217,17 @@ export default function Settings() {
       <Section title="Your data">
         <Row label="Export my data">
           <button
-            onClick={() => alert('Data export requested. You will receive your data within 48 hours.')}
+            onClick={async () => {
+              try {
+                const { error } = await supabase
+                  .from('exports')
+                  .insert({ user_id: user.id })
+                if (error) throw error
+                setSaveMessage('Export requested! You will receive your data within 48 hours.')
+              } catch (err) {
+                setSaveMessage('Error requesting export. Please try again.')
+              }
+            }}
             style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
           >
             Request export
