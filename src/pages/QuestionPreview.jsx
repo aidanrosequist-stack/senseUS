@@ -196,7 +196,7 @@ export default function QuestionPreview() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                     <span style={{ color: '#4d6214', fontWeight: 500 }}>{pctYes}% yes</span>
-                    <span style={{ color: '#6B7280', fontSize: '11px' }}>{total.toLocaleString()} answered</span>
+                    <span style={{ color: '#6B7280', fontSize: '11px' }}>{total.toLocaleString()} verified humans answered</span>
                     <span style={{ color: '#8a1616', fontWeight: 500 }}>{pctNo}% no</span>
                   </div>
                 </div>

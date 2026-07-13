@@ -239,19 +239,34 @@ onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
           zIndex: 2,
         }}
       >
-        <span
-          style={{
-            fontSize: '11px',
-            fontWeight: 500,
-            padding: '3px 10px',
-            borderRadius: '20px',
-            marginBottom: '0.75rem',
-            background: zone ? 'rgba(255,255,255,0.25)' : '#E6F1FB',
-            color: zone ? '#FFFFFF' : '#0C447C',
-          }}
-        >
-          {question.category}
-        </span>
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: 500,
+              padding: '3px 10px',
+              borderRadius: '20px',
+              background: zone ? 'rgba(255,255,255,0.25)' : '#E6F1FB',
+              color: zone ? '#FFFFFF' : '#0C447C',
+            }}
+          >
+            {question.category}
+          </span>
+          {question.category === 'sponsored' && (
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 500,
+                padding: '3px 10px',
+                borderRadius: '20px',
+                background: zone ? 'rgba(255,255,255,0.25)' : '#FFF3CD',
+                color: zone ? '#FFFFFF' : '#856404',
+              }}
+            >
+              Sponsored
+            </span>
+          )}
+        </div>
         <div
           style={{
             fontSize: '19px',
