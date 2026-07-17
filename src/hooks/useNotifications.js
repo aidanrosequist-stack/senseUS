@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { useState, useEffect, useRef } from 'react'
 
 export function useNotifications() {
   const { user } = useAuth()
@@ -9,6 +10,8 @@ export function useNotifications() {
   const [urgentNotification, setUrgentNotification] = useState(null)
   const [highNotifications, setHighNotifications] = useState([])
   const [loading, setLoading] = useState(true)
+
+  const channelRef = useRef(null)
 
   useEffect(() => {
     if (!user) {
@@ -27,12 +30,8 @@ export function useNotifications() {
       if (!error && data) {
         setNotifications(data)
         setUnreadCount(data.filter(n => !n.read).length)
-
-        // Find unread urgent notification
         const urgent = data.find(n => !n.read && n.priority === 'urgent')
         setUrgentNotification(urgent || null)
-
-        // Find unread high priority notifications
         const high = data.filter(n => !n.read && n.priority === 'high')
         setHighNotifications(high)
       }
@@ -41,8 +40,12 @@ export function useNotifications() {
 
     fetchNotifications()
 
-    // Real-time subscription for new notifications
-    const channel = supabase
+    // Clean up any existing channel first
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+    }
+
+    channelRef.current = supabase
       .channel(`notifications-${user.id}`)
       .on('postgres_changes', {
         event: 'INSERT',
@@ -62,7 +65,12 @@ export function useNotifications() {
       })
       .subscribe()
 
-    return () => supabase.removeChannel(channel)
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
+    }
   }, [user])
 
   async function markAsRead(notificationId) {
