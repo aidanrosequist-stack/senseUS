@@ -3,11 +3,13 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useAdmin() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (authLoading) return
+    
     if (!user) {
       setIsAdmin(false)
       setLoading(false)
@@ -20,14 +22,15 @@ export function useAdmin() {
       .eq('id', user.id)
       .single()
       .then(({ data, error }) => {
-        if (!error && data?.is_admin) {
+        console.log('useAdmin query result:', { data, error, isAdmin: data?.is_admin })
+        if (!error && data?.is_admin === true) {
           setIsAdmin(true)
         } else {
           setIsAdmin(false)
         }
         setLoading(false)
       })
-  }, [user])
+  }, [user, authLoading])
 
   return { isAdmin, loading }
 }
