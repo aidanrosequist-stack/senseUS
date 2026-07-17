@@ -8,7 +8,6 @@ import { useAuth } from '../hooks/useAuth'
 const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'tracking', 'sponsored']
 const DOMAINS = ['society & culture', 'ethics & philosophy', 'health & wellbeing', 'relationships', 'technology', 'money & work', 'media & information', 'politics & policy', 'science & nature', 'sports & leisure']
 const STANCES = ['yes', 'ly', 'neutral', 'ln', 'no']
-const [editingQuestion, setEditingQuestion] = useState(null)
 
 function Tab({ label, active, onClick }) {
   return (
@@ -40,6 +39,7 @@ export default function Admin() {
   const [loadingData, setLoadingData] = useState(false)
   const [message, setMessage] = useState(null)
   const [flaggedComments, setFlaggedComments] = useState([])
+  const [editingQuestion, setEditingQuestion] = useState(null)
 
   // New question form
   const [newQuestion, setNewQuestion] = useState({
