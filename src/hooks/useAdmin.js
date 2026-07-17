@@ -22,7 +22,6 @@ export function useAdmin() {
       .eq('id', user.id)
       .single()
       .then(({ data, error }) => {
-        console.log('useAdmin query result:', { data, error, isAdmin: data?.is_admin })
         if (!error && data?.is_admin === true) {
           setIsAdmin(true)
         } else {
