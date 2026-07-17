@@ -61,6 +61,7 @@ export default function Vote() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '14px',
+        paddingBottom: '74px',
         boxSizing: 'border-box',
       }}
     >
@@ -69,13 +70,12 @@ export default function Vote() {
           width: '100%',
           maxWidth: '420px',
           height: '100%',
-          maxHeight: 'calc(100dvh - 80px)',
+          maxHeight: '760px',
           borderRadius: '20px',
           overflow: 'hidden',
           border: '0.5px solid #E5E7EB',
           boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
           background: '#FFFFFF',
-          paddingBottom: '80px',
           boxSizing: 'border-box',
         }}
       >
