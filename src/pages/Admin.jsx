@@ -84,7 +84,8 @@ export default function Admin() {
   const [broadcasting, setBroadcasting] = useState(false)
 
   useEffect(() => {
-    if (!loading && !isAdmin) {
+    if (loading) return
+    if (!isAdmin) {
       navigate('/')
     }
   }, [isAdmin, loading])

@@ -24,7 +24,7 @@ const VOTE_LABELS = {
 }
 
 export default function ResultsCard({ question, userVote, tally, onJoinConversation, onNext }) {
-  const total = tally.yes + tally.leaning_yes + tally.leaning_no + tally.no
+  const total = tally.yes + tally.ly + tally.ln + tally.no
   const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : 0
   const pctNo = 100 - pctYes
 
