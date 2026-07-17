@@ -75,6 +75,8 @@ export default function Vote() {
           border: '0.5px solid #E5E7EB',
           boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
           background: '#FFFFFF',
+          paddingBottom: '60px',
+          boxSizing: 'border-box',
         }}
       >
         <QuestionFlow
