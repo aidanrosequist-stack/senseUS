@@ -42,24 +42,25 @@ export function useNotifications() {
     fetchNotifications()
 
     // Real-time subscription for new notifications
-    const channel = supabase.channel(`notifications-${user.id}`)
-    channel.on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'notifications',
-      filter: `user_id=eq.${user.id}`,
-    }, (payload) => {
-      setNotifications(prev => [payload.new, ...prev])
-      if (!payload.new.read) {
-        setUnreadCount(prev => prev + 1)
-        if (payload.new.priority === 'urgent') {
-          setUrgentNotification(payload.new)
-        } else if (payload.new.priority === 'high') {
-          setHighNotifications(prev => [...prev, payload.new])
+    const channel = supabase
+      .channel(`notifications-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      }, (payload) => {
+        setNotifications(prev => [payload.new, ...prev])
+        if (!payload.new.read) {
+          setUnreadCount(prev => prev + 1)
+          if (payload.new.priority === 'urgent') {
+            setUrgentNotification(payload.new)
+          } else if (payload.new.priority === 'high') {
+            setHighNotifications(prev => [...prev, payload.new])
+          }
         }
-      }
-    })
-    channel.subscribe()
+      })
+      .subscribe()
 
     return () => supabase.removeChannel(channel)
   }, [user])
