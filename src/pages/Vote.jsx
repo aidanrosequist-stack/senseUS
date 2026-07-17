@@ -69,7 +69,7 @@ export default function Vote() {
           width: '100%',
           maxWidth: '420px',
           height: '100%',
-          maxHeight: '760px',
+          maxHeight: 'calc(100dvh - 80px)',
           borderRadius: '20px',
           overflow: 'hidden',
           border: '0.5px solid #E5E7EB',
