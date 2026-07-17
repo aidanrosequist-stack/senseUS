@@ -31,7 +31,7 @@ function AppContent() {
     highNotifications,
     dismissUrgent,
     dismissHigh,
-  } = user ? useNotifications() : { urgentNotification: null, highNotifications: [], dismissUrgent: () => {}, dismissHigh: () => {} }
+  } = useNotifications()
 
   return (
     <>

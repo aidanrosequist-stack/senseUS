@@ -76,7 +76,7 @@ export function useRegistration() {
         anonName = ANONYMOUS_NAMES[Math.floor(Math.random() * ANONYMOUS_NAMES.length)]
       }
 
-      const { error: insertError } = await supabase.from('profiles').insert({
+      const { error: insertError } = await supabase.from('profiles').upsert({
         id: userData.user.id,
         first_name: firstName,
         last_initial: lastInitial,
