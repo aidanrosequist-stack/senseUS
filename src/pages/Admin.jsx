@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAdmin } from '../hooks/useAdmin'
 import AdminReports from './AdminReports'
+import { useAuth } from '../hooks/useAuth'
 
 const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'tracking', 'sponsored']
 const DOMAINS = ['society & culture', 'ethics & philosophy', 'health & wellbeing', 'relationships', 'technology', 'money & work', 'media & information', 'politics & policy', 'science & nature', 'sports & leisure']
@@ -31,6 +32,7 @@ function Tab({ label, active, onClick }) {
 
 export default function Admin() {
   const { isAdmin, loading } = useAdmin()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('questions')
   const [questions, setQuestions] = useState([])
@@ -84,6 +86,7 @@ export default function Admin() {
   const [broadcasting, setBroadcasting] = useState(false)
 
   useEffect(() => {
+    console.log('Admin check:', { loading, isAdmin, user: user?.id })
     if (loading) return
     if (!isAdmin) {
       navigate('/')
