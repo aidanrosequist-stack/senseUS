@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth'
 const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'tracking', 'sponsored']
 const DOMAINS = ['society & culture', 'ethics & philosophy', 'health & wellbeing', 'relationships', 'technology', 'money & work', 'media & information', 'politics & policy', 'science & nature', 'sports & leisure']
 const STANCES = ['yes', 'ly', 'neutral', 'ln', 'no']
+const [editingQuestion, setEditingQuestion] = useState(null)
 
 function Tab({ label, active, onClick }) {
   return (
@@ -237,24 +238,91 @@ export default function Admin() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {questions.map(q => (
-                <div key={q.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '4px' }}>{q.text}</div>
-                    <div style={{ fontSize: '11px', color: '#6B7280' }}>
-                      {q.category} · {q.domain}
-                      {q.is_tracking_anchor && ' · 📍 tracking'}
+                <div key={q.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                  {editingQuestion?.id === q.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <textarea
+                        value={editingQuestion.text}
+                        onChange={(e) => setEditingQuestion(p => ({ ...p, text: e.target.value }))}
+                        rows={3}
+                        style={{ width: '100%', border: '1px solid #2D3DCA', borderRadius: '8px', padding: '8px', fontSize: '13px', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', resize: 'vertical' }}
+                      />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                        <select
+                          value={editingQuestion.category}
+                          onChange={(e) => setEditingQuestion(p => ({ ...p, category: e.target.value }))}
+                          style={{ border: '1px solid #D1D5DB', borderRadius: '6px', padding: '6px', fontSize: '12px', fontFamily: 'Merriweather, serif' }}
+                        >
+                          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <select
+                          value={editingQuestion.domain}
+                          onChange={(e) => setEditingQuestion(p => ({ ...p, domain: e.target.value }))}
+                          style={{ border: '1px solid #D1D5DB', borderRadius: '6px', padding: '6px', fontSize: '12px', fontFamily: 'Merriweather, serif' }}
+                        >
+                          {DOMAINS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          onClick={async () => {
+                            const { error } = await supabase
+                              .from('questions')
+                              .update({
+                                text: editingQuestion.text,
+                                category: editingQuestion.category,
+                                domain: editingQuestion.domain,
+                              })
+                              .eq('id', q.id)
+                            if (!error) {
+                              showMessage('Question updated!')
+                              setEditingQuestion(null)
+                              loadQuestions()
+                            } else {
+                              showMessage('Error: ' + error.message, true)
+                            }
+                          }}
+                          style={{ flex: 1, padding: '7px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingQuestion(null)}
+                          style={{ flex: 1, padding: '7px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => togglePublish(q)}
-                    style={{
-                      padding: '5px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', flexShrink: 0,
-                      background: q.published_at ? '#eef3e0' : '#F3F4F6',
-                      color: q.published_at ? '#4d621d' : '#6B7280',
-                    }}
-                  >
-                    {q.published_at ? 'Published' : 'Draft'}
-                  </button>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '4px' }}>{q.text}</div>
+                        <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                          #{q.question_number} · {q.category} · {q.domain}
+                          {q.is_tracking_anchor && ' · 📍 tracking'}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                        <button
+                          onClick={() => setEditingQuestion({ ...q })}
+                          style={{ padding: '5px 10px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', background: '#E6F1FB', color: '#0C447C' }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => togglePublish(q)}
+                          style={{
+                            padding: '5px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif',
+                            background: q.published_at ? '#eef3e0' : '#F3F4F6',
+                            color: q.published_at ? '#4d621d' : '#6B7280',
+                          }}
+                        >
+                          {q.published_at ? 'Published' : 'Draft'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
