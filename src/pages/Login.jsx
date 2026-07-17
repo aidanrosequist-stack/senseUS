@@ -2,6 +2,21 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Link } from 'react-router-dom'
+import PhoneInput from 'react-phone-number-input'
+import { getExampleNumber } from 'libphonenumber-js'
+import examples from 'libphonenumber-js/examples.mobile.json'
+import 'react-phone-number-input/style.css'
+
+function getDefaultCountryFromLocale() {
+  try {
+    const locale = navigator.language || navigator.languages?.[0] || 'en-US'
+    const parts = locale.split('-')
+    const region = parts[1]
+    return region ? region.toUpperCase() : 'US'
+  } catch {
+    return 'US'
+  }
+}
 
 export default function Login() {
   const [phone, setPhone] = useState('')
@@ -9,6 +24,8 @@ export default function Login() {
   const [step, setStep] = useState('phone')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [defaultPhoneCountry] = useState(getDefaultCountryFromLocale)
+  const [phoneCountry, setPhoneCountry] = useState(getDefaultCountryFromLocale())
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -80,14 +97,16 @@ export default function Login() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <label style={{ fontSize: '13px', fontWeight: 700 }}>
             Phone number
-            <input
-              type="tel"
-              placeholder="+15551234567"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              autoComplete="tel"
-              style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'Merriweather, serif' }}
-            />
+            <div className="senseus-phone-input" style={{ marginTop: '6px' }}>
+              <PhoneInput
+                defaultCountry={defaultPhoneCountry}
+                value={phone}
+                onChange={(value) => setPhone(value || '')}
+                onCountryChange={(c) => setPhoneCountry(c || defaultPhoneCountry)}
+                placeholder={getExampleNumber(phoneCountry, examples)?.formatNational()}
+                autoComplete="tel"
+              />
+            </div>
           </label>
           <button
             onClick={sendCode}
