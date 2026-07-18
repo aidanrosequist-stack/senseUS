@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/layout/BottomNav'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'

@@ -1,17 +1,17 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import VoteCard from './VoteCard'
 import ResultsCard from './ResultsCard'
 
-export default function QuestionFlow({ questions , onVote }) {
+export default function QuestionFlow({ questions , onVote, targetQuestionId }) {
   const navigate = useNavigate()
-  const [currentIndex, setCurrentIndex] = useState(() => {
-    if (targetQuestionId) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  useEffect(() => {
+    if (targetQuestionId && questions.length > 0) {
       const idx = questions.findIndex(q => q.id === targetQuestionId)
-      return idx >= 0 ? idx : 0
+      if (idx >= 0) setCurrentIndex(idx)
     }
-    return 0
-  })
+  }, [targetQuestionId, questions])
   const [view, setView] = useState('voting') // 'voting' | 'results'
   const [userVote, setUserVote] = useState(null)
   const [tallies, setTallies] = useState({})
