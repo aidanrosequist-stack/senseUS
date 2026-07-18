@@ -1,4 +1,5 @@
 import { IconMessageCircle } from '@tabler/icons-react'
+import { useRef, useEffect } from 'react'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c',
@@ -35,9 +36,34 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
     { key: 'no', value: tally.no },
   ]
 
+  const cardRef = useRef(null)
+  const startY = useRef(0)
+
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el) return
+
+    function onTouchStart(e) {
+      startY.current = e.touches[0].clientY
+    }
+
+    function onTouchEnd(e) {
+      const dy = e.changedTouches[0].clientY - startY.current
+      if (dy < -50) onNext()
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [onNext])
+
   return (
     <div
-      style={{
+    ref={cardRef}  
+    style={{
         width: '100%',
         height: '100%',
         display: 'flex',
