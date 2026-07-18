@@ -11,7 +11,7 @@ export default function Header() {
       <div style={{
         width: '100%',
         maxWidth: '480px',
-        padding: '5px 1.5rem',
+        padding: '1px 1rem',
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
@@ -24,7 +24,7 @@ export default function Header() {
         />
         <div style={{ fontFamily: 'Merriweather, serif' }}>
           <div style={{ fontSize: '24px', fontWeight: 400, color: '#1A1A1A', lineHeight: 1 }}>
-            sense<span style={{ fontWeight: 700, color: '#2D3DCA' }}>US</span>
+            sense<span style={{ fontWeight: 700, color: '#509100' }}>US</span>
           </div>
           <div style={{ fontSize: '12px', color: '#6B7280', letterSpacing: '0.03em', marginTop: '2px' }}>
             THE societal media platform

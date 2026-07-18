@@ -49,6 +49,41 @@ function playSound(type) {
   oscillator.stop(ctx.currentTime + config.duration)
 }
 
+function ProgressRing({ progress, color }) {
+  const radius = 18
+  const circumference = 2 * Math.PI * radius
+  const strokeDashoffset = circumference - (progress / 100) * circumference
+
+  return (
+    <svg
+      width="44"
+      height="44"
+      style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-90deg)', pointerEvents: 'none' }}
+    >
+      <circle
+        cx="22"
+        cy="22"
+        r={radius}
+        fill="none"
+        stroke="rgba(255,255,255,0.3)"
+        strokeWidth="3"
+      />
+      <circle
+        cx="22"
+        cy="22"
+        r={radius}
+        fill="none"
+        stroke="white"
+        strokeWidth="3"
+        strokeDasharray={circumference}
+        strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
+        style={{ transition: 'stroke-dashoffset 0.05s linear' }}
+      />
+    </svg>
+  )
+}
+
 export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, showHint = false, initialZone = null }) {
   const [zone, setZone] = useState(initialZone)
   const [dragging, setDragging] = useState(false)
@@ -58,6 +93,59 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
   const startPos = useRef({ x: 0, y: 0 })
   const delta = useRef({ x: 0, y: 0 })
   const lastZone = useRef(null)
+  const [holdProgress, setHoldProgress] = useState(0) // 0-100
+  const [holdZone, setHoldZone] = useState(null)
+  const holdTimer = useRef(null)
+  const holdInterval = useRef(null)
+  function startHold(voteZone) {
+    setHoldZone(voteZone)
+    setHoldProgress(0)
+    
+    const startTime = Date.now()
+    const duration = 3000 // 3 seconds
+    
+    holdInterval.current = setInterval(() => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min((elapsed / duration) * 100, 100)
+      setHoldProgress(progress)
+      
+      // Vibrate in pulses on Android
+      if (navigator.vibrate && progress < 100) {
+        navigator.vibrate(20)
+      }
+      
+      if (progress >= 100) {
+        clearInterval(holdInterval.current)
+        // Play completion tone
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)()
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.frequency.value = 600
+          gain.gain.setValueAtTime(0.3, ctx.currentTime)
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+          osc.start()
+          osc.stop(ctx.currentTime + 0.3)
+        } catch (e) {}
+        
+        // Final vibrate
+        if (navigator.vibrate) navigator.vibrate([50, 30, 50])
+        
+        // Commit vote
+        handleButtonVote(voteZone)
+        setHoldProgress(0)
+        setHoldZone(null)
+      }
+    }, 50)
+  }
+
+  function cancelHold() {
+    clearInterval(holdInterval.current)
+    setHoldProgress(0)
+    setHoldZone(null)
+  }
 
   useEffect(() => {
     const el = cardRef.current
@@ -337,45 +425,29 @@ onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
             marginBottom: '8px',
           }}
         >
-          <button
-            onClick={() => handleButtonVote('yes')}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: '#eef3e0', border: '1.5px solid #4d621d', borderRadius: '9px', padding: '10px 4px', cursor: 'pointer' }}
-          >
-            <span style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#6d8a1c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <IconThumbUp size={18} color="white" />
-            </span>
-            <span style={{ fontSize: '10px', fontWeight: 500, color: '#27500A' }}>Yes</span>
-          </button>
-
-          <button
-            onClick={() => handleButtonVote('ly')}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: '#faf6d0', border: '1.5px solid #7a6b0e', borderRadius: '9px', padding: '10px 4px', cursor: 'pointer' }}
-          >
-            <span style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#d9c01a', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'rotate(45deg)' }}>
-              <IconThumbUp size={18} color="white" />
-            </span>
-            <span style={{ fontSize: '10px', fontWeight: 500, color: '#633806', textAlign: 'center' }}>Leaning Yes</span>
-          </button>
-
-          <button
-            onClick={() => handleButtonVote('ln')}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: '#f9ead8', border: '1.5px solid #7a4513', borderRadius: '9px', padding: '10px 4px', cursor: 'pointer' }}
-          >
-            <span style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#c2731f', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'rotate(45deg)' }}>
-              <IconThumbDown size={18} color="white" />
-            </span>
-            <span style={{ fontSize: '10px', fontWeight: 500, color: '#993C1D', textAlign: 'center' }}>Leaning No</span>
-          </button>
-
-          <button
-            onClick={() => handleButtonVote('no')}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: '#f9d8d8', border: '1.5px solid #7a1313', borderRadius: '9px', padding: '10px 4px', cursor: 'pointer' }}
-          >
-            <span style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#c21f1f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <IconThumbDown size={18} color="white" />
-            </span>
-            <span style={{ fontSize: '10px', fontWeight: 500, color: '#791F1F' }}>No</span>
-          </button>
+          {[
+            { zone: 'yes', bg: '#eef3e0', border: '#4d621d', circle: '#6d8a1c', label: 'Yes', icon: 'up', rotate: false, textColor: '#27500A' },
+            { zone: 'ly', bg: '#faf6d0', border: '#7a6b0e', circle: '#d9c01a', label: 'Leaning Yes', icon: 'up', rotate: true, textColor: '#633806' },
+            { zone: 'ln', bg: '#f9ead8', border: '#7a4513', circle: '#c2731f', label: 'Leaning No', icon: 'down', rotate: true, textColor: '#993C1D' },
+            { zone: 'no', bg: '#f9d8d8', border: '#7a1313', circle: '#c21f1f', label: 'No', icon: 'down', rotate: false, textColor: '#791F1F' },
+          ].map(({ zone, bg, border, circle, label, icon, rotate, textColor }) => (
+            <button
+              key={zone}
+              onClick={() => holdZone !== zone && handleButtonVote(zone)}
+              onPointerDown={() => startHold(zone)}
+              onPointerUp={cancelHold}
+              onPointerLeave={cancelHold}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: bg, border: `1.5px solid ${border}`, borderRadius: '9px', padding: '10px 4px', cursor: 'pointer', position: 'relative', userSelect: 'none' }}
+            >
+              <span style={{ width: '32px', height: '32px', borderRadius: '50%', background: circle, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: rotate ? 'rotate(45deg)' : 'none', position: 'relative' }}>
+                {icon === 'up' ? <IconThumbUp size={18} color="white" /> : <IconThumbDown size={18} color="white" />}
+                {holdZone === zone && holdProgress > 0 && (
+                  <ProgressRing progress={holdProgress} color={circle} />
+                )}
+              </span>
+              <span style={{ fontSize: '10px', fontWeight: 500, color: textColor, textAlign: 'center' }}>{label}</span>
+            </button>
+          ))}
         </div>
 
 <button
