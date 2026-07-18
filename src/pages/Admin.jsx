@@ -168,6 +168,31 @@ export default function Admin() {
     }
   }
 
+async function toggleTrackingAnchor(question) {
+    const { error } = await supabase
+      .from('questions')
+      .update({ is_tracking_anchor: !question.is_tracking_anchor })
+      .eq('id', question.id)
+    if (!error) {
+      showMessage(question.is_tracking_anchor ? 'Removed tracking anchor.' : 'Set as tracking anchor!')
+      loadQuestions()
+    }
+  }
+
+  async function deleteQuestion(question) {
+    if (!window.confirm(`Delete "${question.text.substring(0, 50)}..."? This cannot be undone.`)) return
+    const { error } = await supabase
+      .from('questions')
+      .delete()
+      .eq('id', question.id)
+    if (!error) {
+      showMessage('Question deleted.')
+      loadQuestions()
+    } else {
+      showMessage('Error deleting: ' + error.message, true)
+    }
+  }
+
   async function addArticle() {
     if (!selectedQuestionId) return showMessage('Select a question first.', true)
     if (!newArticle.url.trim() || !newArticle.outlet_name.trim()) return showMessage('URL and outlet name are required.', true)
@@ -304,6 +329,13 @@ export default function Admin() {
                           Edit
                         </button>
                         <button
+                          onClick={() => toggleTrackingAnchor(q)}
+                          style={{ padding: '5px 10px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', background: q.is_tracking_anchor ? '#FFF3CD' : '#F3F4F6', color: q.is_tracking_anchor ? '#856404' : '#6B7280' }}
+                          title="Toggle tracking anchor"
+                        >
+                          📍
+                        </button>
+                        <button
                           onClick={() => togglePublish(q)}
                           style={{
                             padding: '5px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif',
@@ -312,6 +344,13 @@ export default function Admin() {
                           }}
                         >
                           {q.published_at ? 'Published' : 'Draft'}
+                        </button>
+                        <button
+                          onClick={() => deleteQuestion(q)}
+                          style={{ padding: '5px 10px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', background: '#f9d8d8', color: '#7a1313' }}
+                          title="Delete question"
+                        >
+                          🗑
                         </button>
                       </div>
                     </div>
