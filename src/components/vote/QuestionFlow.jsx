@@ -116,6 +116,7 @@ export default function QuestionFlow({ questions , onVote }) {
           onMakeUpMyMind={() => navigate(`/make-up-my-mind/${currentQuestion.id}`)}
           onViewConversation={() => navigate(`/conversation/${currentQuestion.id}`)}
           showHint={currentIndex === 0}
+          initialZone={userVote}
         />
       )}
       {view === 'results' && (
@@ -125,6 +126,7 @@ export default function QuestionFlow({ questions , onVote }) {
           tally={getTallyFor(currentQuestion)}
           onJoinConversation={handleJoinConversation}
           onNext={advance}
+          onChangeVote={() => setView('voting')}
         />
       )}
     </div>

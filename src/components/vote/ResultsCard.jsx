@@ -24,7 +24,7 @@ const VOTE_LABELS = {
   dec: 'undecided',
 }
 
-export default function ResultsCard({ question, userVote, tally, onJoinConversation, onNext }) {
+export default function ResultsCard({ question, userVote, tally, onJoinConversation, onNext, onChangeVote }) {
   const total = tally.yes + tally.ly + tally.ln + tally.no
   const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : 0
   const pctNo = 100 - pctYes
@@ -211,15 +211,31 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
         {question.replyCount || 0} replies
       </div>
 
-      <div
-        onClick={onNext}
-        style={{
-          fontSize: '12px',
-          color: '#6B7280',
-          cursor: 'pointer',
-        }}
-      >
-        tap or swipe up for next question
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+        <div
+          onClick={onNext}
+          style={{
+            fontSize: '12px',
+            color: '#6B7280',
+            cursor: 'pointer',
+          }}
+        >
+          tap or swipe up for next question
+        </div>
+        <button
+          onClick={onChangeVote}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '12px',
+            color: '#9CA3AF',
+            cursor: 'pointer',
+            textDecoration: 'underline',
+            fontFamily: 'Merriweather, serif',
+          }}
+        >
+          Change my vote
+        </button>
       </div>
     </div>
   )
