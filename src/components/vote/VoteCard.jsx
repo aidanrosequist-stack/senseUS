@@ -54,9 +54,23 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
   const [dragging, setDragging] = useState(false)
   const [hintSide, setHintSide] = useState(null) // 'left' | 'right' | null
   const [hintOffset, setHintOffset] = useState(-100)
+  const cardRef = useRef(null)
   const startPos = useRef({ x: 0, y: 0 })
   const delta = useRef({ x: 0, y: 0 })
   const lastZone = useRef(null)
+
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el) return
+
+    function onTouchMove(e) {
+      e.preventDefault()
+      handleMove(e.touches[0].clientX, e.touches[0].clientY)
+    }
+
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => el.removeEventListener('touchmove', onTouchMove)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -173,6 +187,7 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
 
   return (
 <div
+      ref={cardRef}
       style={{
         position: 'relative',
         width: '100%',
@@ -190,7 +205,10 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
       onMouseUp={handleEnd}
       onMouseLeave={() => dragging && handleEnd()}
 onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
-      onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY)}
+      onTouchMove={(e) => {
+  e.preventDefault()
+  handleMove(e.touches[0].clientX, e.touches[0].clientY)
+}}
       onTouchEnd={handleEnd}
     >
       {hintSide === 'left' && (
