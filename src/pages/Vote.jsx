@@ -21,6 +21,16 @@ export default function Vote() {
     const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : 0
     const pctNo = 100 - pctYes
 
+    // Check if this is a new vote or a change
+    const { data: existingVote } = await supabase
+      .from('votes')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('question_id', questionId)
+      .single()
+
+    const isNewVote = !existingVote
+
     const { error: voteError } = await supabase
       .from('votes')
       .upsert({
@@ -35,8 +45,10 @@ export default function Vote() {
 
     if (voteError) console.error('Vote error:', voteError)
 
-    // Increment answers_count on profile
-    await supabase.rpc('increment_answers_count', { user_id: user.id })
+    // Only increment answers_count for new votes, not changes
+    if (isNewVote) {
+      await supabase.rpc('increment_answers_count', { user_id: user.id })
+    }
   }
 
   if (loading) {
