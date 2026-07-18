@@ -4,11 +4,14 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useQuestions } from '../hooks/useQuestions'
 import QuestionFlow from '../components/vote/QuestionFlow'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 export default function Vote() {
   const { user } = useAuth()
   const { questions, loading, error } = useQuestions(user?.id)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const targetQuestionId = searchParams.get('question')
 
   async function handleVote(questionId, choice, tally) {
     if (!user) return
@@ -82,6 +85,7 @@ export default function Vote() {
         <QuestionFlow
           questions={questions}
           onVote={handleVote}
+          targetQuestionId={targetQuestionId}
         />
       </div>
       <BottomNav />

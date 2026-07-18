@@ -5,7 +5,13 @@ import ResultsCard from './ResultsCard'
 
 export default function QuestionFlow({ questions , onVote }) {
   const navigate = useNavigate()
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    if (targetQuestionId) {
+      const idx = questions.findIndex(q => q.id === targetQuestionId)
+      return idx >= 0 ? idx : 0
+    }
+    return 0
+  })
   const [view, setView] = useState('voting') // 'voting' | 'results'
   const [userVote, setUserVote] = useState(null)
   const [tallies, setTallies] = useState({})
