@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useQuestions } from '../hooks/useQuestions'
 import QuestionFlow from '../components/vote/QuestionFlow'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 
 export default function Vote() {
   const { user } = useAuth()
@@ -11,6 +11,8 @@ export default function Vote() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const targetQuestionId = searchParams.get('question')
+  const location = useLocation()
+  const from = location.state?.from || '/vote'
 
   async function handleVote(questionId, choice, tally) {
     if (!user) return
@@ -60,13 +62,36 @@ export default function Vote() {
         height: '100dvh',
         background: '#C7C7CC',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '14px',
         paddingBottom: '74px',
         boxSizing: 'border-box',
+        position: 'relative',
       }}
     >
+      {from !== '/vote' && (
+        <button
+          onClick={() => navigate(from)}
+          style={{
+            position: 'absolute',
+            top: '16px',
+            left: '16px',
+            background: 'rgba(255,255,255,0.85)',
+            border: 'none',
+            borderRadius: '20px',
+            padding: '6px 14px',
+            fontSize: '12px',
+            color: '#1A1A1A',
+            cursor: 'pointer',
+            fontFamily: 'Merriweather, serif',
+            zIndex: 10,
+          }}
+        >
+          ← back
+        </button>
+      )}
       <div
         style={{
           width: '100%',

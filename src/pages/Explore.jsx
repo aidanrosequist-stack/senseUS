@@ -141,7 +141,7 @@ export default function Explore() {
     if (userVote) {
       navigate(`/conversation/${question.id}`)
     } else {
-      navigate(`/vote?question=${question.id}`)
+      navigate(`/vote?question=${question.id}`, { state: { from: '/explore' } })
     }
   }
 
