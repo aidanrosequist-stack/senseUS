@@ -1,4 +1,5 @@
 import BottomNav from '../components/layout/BottomNav'
+import Header from '../components/layout/Header'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useQuestions } from '../hooks/useQuestions'
@@ -76,13 +77,23 @@ export default function Vote() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: '14px',
+        justifyContent: 'flex-start',
+        padding: '0',
         paddingBottom: '74px',
         boxSizing: 'border-box',
         position: 'relative',
       }}
     >
+      <Header />
+      <div style={{
+        flex: 1,
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '14px',
+        boxSizing: 'border-box',
+      }}>
       {from !== '/vote' && (
         <button
           onClick={() => navigate(from)}
@@ -125,6 +136,7 @@ export default function Vote() {
         />
       </div>
       <BottomNav />
+    </div>
     </div>
   )
 }

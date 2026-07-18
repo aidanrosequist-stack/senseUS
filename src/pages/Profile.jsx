@@ -165,8 +165,9 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Stats grid */}
-      <div 
+{/* Stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', marginBottom: '1.5rem' }}>
+        <div 
           onClick={() => setShowResonanceInfo(true)}
           style={{ background: '#F9FAFB', borderRadius: '8px', padding: '1rem', textAlign: 'center', cursor: 'pointer' }}>
           <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '6px', fontWeight: 300 }}>Resonance score ⓘ</div>
@@ -247,7 +248,53 @@ export default function Profile() {
           })}
         </div>
       )}
-<BottomNav />
+{showResonanceInfo && (
+        <div
+          onClick={() => setShowResonanceInfo(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: '1.5rem', boxSizing: 'border-box',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#FFFFFF', borderRadius: '16px', padding: '1.5rem',
+              maxWidth: '360px', width: '100%', fontFamily: 'Merriweather, serif',
+            }}
+          >
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
+              Resonance Score
+            </div>
+            <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.7, marginBottom: '1rem' }}>
+              Your resonance score reflects how closely your votes align with the overall verified community. A score of 50 means you're perfectly in the middle — voting with the majority half the time and against it half the time.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '1rem' }}>
+              {[
+                { tier: 'Trailblazer', range: '0–9', desc: 'Consistently ahead of the curve' },
+                { tier: 'Contrarian', range: '10–24', desc: 'Frequently swims against the tide' },
+                { tier: 'Independent', range: '25–49', desc: 'Leans away from consensus' },
+                { tier: 'Aligned', range: '50–74', desc: 'Often agrees with the majority' },
+                { tier: 'Resonant', range: '75–90', desc: 'Strongly in tune with the community' },
+                { tier: 'Chorus', range: '91–100', desc: 'Nearly always with the majority' },
+              ].map(t => (
+                <div key={t.tier} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 0', borderBottom: '0.5px solid #F3F4F6' }}>
+                  <span style={{ fontWeight: 700, color: '#2D3DCA' }}>{t.tier} ({t.range})</span>
+                  <span style={{ color: '#6B7280' }}>{t.desc}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowResonanceInfo(false)}
+              style={{ width: '100%', padding: '10px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+      <BottomNav />
     </div>
   )
 }
