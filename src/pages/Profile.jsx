@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Skeleton, SkeletonCard, SkeletonStatGrid } from '../components/ui/Skeleton'
 import BottomNav from '../components/layout/BottomNav'
@@ -48,6 +48,7 @@ export default function Profile() {
   const [votes, setVotes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     async function loadProfile() {
@@ -223,6 +224,21 @@ export default function Profile() {
                       <DeltaBadge pctAtVote={vote.pct_yes_at_vote} pctNow={65} type="yes" />
                     </div>
                   )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                  <button
+                    onClick={() => navigate(`/vote?question=${vote.questions?.id}`)}
+                    style={{ flex: 1, padding: '6px', background: '#F3F4F6', color: '#1A1A1A', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                  >
+                    Change vote
+                  </button>
+                  <button
+                    onClick={() => navigate(`/conversation/${vote.questions?.id}`)}
+                    style={{ flex: 1, padding: '6px', background: '#E6F1FB', color: '#0C447C', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                  >
+                    View conversation
+                  </button>
                 </div>
               </div>
             )
