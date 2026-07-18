@@ -93,14 +93,7 @@ export default function Admin() {
     }
   }, [isAdmin, loading])
 
-  useEffect(() => {
-    if (isAdmin) {
-      loadQuestions()
-      loadFlaggedQuestions()
-    }
-  }, [isAdmin])
-
-  useEffect(() => {
+    useEffect(() => {
     if (isAdmin) {
       loadQuestions()
       loadFlaggedQuestions()
