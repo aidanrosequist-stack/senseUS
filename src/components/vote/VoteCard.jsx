@@ -161,7 +161,14 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
       return
     }
 
-    // Released without enough movement to commit via swipe-up - snap back
+    // Horizontal swipe past threshold = commit vote directly
+    if (zone && Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      onVote(zone)
+      resetVisual()
+      return
+    }
+
+    // Released without enough movement — snap back
     resetVisual()
   }
 
