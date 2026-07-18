@@ -80,12 +80,10 @@ export default function Conversation() {
           .from('comments')
           .select(`
             id, body, resonance_count, created_at, parent_id, user_id,
-            profiles (first_name, last_initial, display_preference, anon_name),
-            votes!inner (choice)
+            profiles (first_name, last_initial, display_preference, anon_name)
           `)
           .eq('question_id', questionId)
           .eq('is_deleted', false)
-          .eq('votes.question_id', questionId)
           .order('resonance_count', { ascending: false })
 
         setComments(commentsData || [])
