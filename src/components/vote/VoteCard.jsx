@@ -49,7 +49,7 @@ function playSound(type) {
   oscillator.stop(ctx.currentTime + config.duration)
 }
 
-export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation }) {
+export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, showHint = false }) {
   const [zone, setZone] = useState(null)
   const [dragging, setDragging] = useState(false)
   const [hintSide, setHintSide] = useState(null) // 'left' | 'right' | null
@@ -73,6 +73,7 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
   }, [])
 
   useEffect(() => {
+    if (!showHint) return
     let cancelled = false
 
     function wait(ms) {

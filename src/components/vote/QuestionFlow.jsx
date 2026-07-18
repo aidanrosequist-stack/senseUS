@@ -115,6 +115,7 @@ export default function QuestionFlow({ questions , onVote }) {
           onSkip={handleSkip}
           onMakeUpMyMind={() => navigate(`/make-up-my-mind/${currentQuestion.id}`)}
           onViewConversation={() => navigate(`/conversation/${currentQuestion.id}`)}
+          showHint={currentIndex === 0}
         />
       )}
       {view === 'results' && (
