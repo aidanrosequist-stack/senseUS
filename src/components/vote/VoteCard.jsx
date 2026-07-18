@@ -98,6 +98,7 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
   const holdTimer = useRef(null)
   const holdInterval = useRef(null)
   function startHold(voteZone) {
+    console.log('startHold called:', voteZone)
     setHoldZone(voteZone)
     setHoldProgress(0)
     
