@@ -145,6 +145,7 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
         setHoldZone(null)
       }
     }, 50)
+  }
 
   function cancelHold() {
     clearInterval(holdInterval.current)
