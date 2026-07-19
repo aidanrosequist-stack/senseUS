@@ -86,6 +86,10 @@ function ProgressRing({ progress, color }) {
 
 export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, showHint = false, initialZone = null }) {
   const [zone, setZone] = useState(initialZone)
+
+  useEffect(() => {
+    if (initialZone) setZone(initialZone)
+  }, [initialZone])
   const [dragging, setDragging] = useState(false)
   const [hintSide, setHintSide] = useState(null) // 'left' | 'right' | null
   const [hintOffset, setHintOffset] = useState(-100)

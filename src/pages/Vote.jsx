@@ -12,11 +12,13 @@ export default function Vote() {
   const { questions, loading, error } = useQuestions(user?.id)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const targetQuestionId = searchParams.get('currentVote')
+  const targetQuestionId = searchParams.get('question')
+  const currentVoteParam = searchParams.get('currentVote')
+  console.log('currentVoteParam:', currentVoteParam)
   const location = useLocation()
   const from = location.state?.from || '/vote'
   const [targetQuestion, setTargetQuestion] = useState(null)
-
+  
   useEffect(() => {
     if (!targetQuestionId || !user) return
 
@@ -59,8 +61,6 @@ export default function Vote() {
       .eq('user_id', user.id)
       .eq('question_id', questionId)
       .single()
-
-      console.log('Vote check:', { existingVote, checkError, isNewVote: !existingVote })
 
     const isNewVote = !existingVote
 

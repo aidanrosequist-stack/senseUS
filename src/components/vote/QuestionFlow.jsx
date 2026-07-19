@@ -27,12 +27,17 @@ export default function QuestionFlow({ questions , onVote, targetQuestionId, tar
   
   const currentQuestion = (extraQuestion && currentIndex === 0) ? extraQuestion : questions[currentIndex]
   const currentInitialZone = (extraQuestion && currentIndex === 0) ? initialVoteForTarget : null
+  console.log('currentInitialZone:', currentInitialZone, 'extraQuestion:', !!extraQuestion, 'initialVoteForTarget:', initialVoteForTarget)
+  if (!currentQuestion) return null
+
+const [changingVote, setChangingVote] = useState(false)
 
   function getTallyFor(question) {
     return tallies[question.id] || question.votes || { yes: 0, leaning_yes: 0, leaning_no: 0, no: 0 }
   }
 
   function handleVote(value) {
+    setChangingVote(false)
     const tally = getTallyFor(currentQuestion)
 
     if (value === 'undecided') {
@@ -143,7 +148,7 @@ export default function QuestionFlow({ questions , onVote, targetQuestionId, tar
           tally={getTallyFor(currentQuestion)}
           onJoinConversation={handleJoinConversation}
           onNext={advance}
-          onChangeVote={() => setView('voting')}
+          onChangeVote={() => { setChangingVote(true); setView('voting') }}
         />
       )}
     </div>
