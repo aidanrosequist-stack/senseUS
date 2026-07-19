@@ -230,22 +230,27 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
   const moveTimeout = useRef(null)
 
   function handleMove(clientX, clientY) {
-    delta.current = {
+    const newDelta = {
       x: clientX - startPos.current.x,
       y: clientY - startPos.current.y,
     }
+    
+    // Only process if movement is significant
+    const moveDiff = Math.abs(newDelta.x - delta.current.x) + Math.abs(newDelta.y - delta.current.y)
+    
+    delta.current = newDelta
     const newZone = zoneFromDelta(delta.current.x)
     applyZone(newZone)
 
-    // Cancel hold timer while moving
-    cancelHold()
-
-    // Start hold timer when movement stops in a zone
-    clearTimeout(moveTimeout.current)
-    if (newZone) {
-      moveTimeout.current = setTimeout(() => {
-        startHold(newZone)
-      }, 300) // 300ms of no movement = start hold timer
+    // Only reset hold timer if user actually moved significantly
+    if (moveDiff > 3) {
+      cancelHold()
+      clearTimeout(moveTimeout.current)
+      if (newZone) {
+        moveTimeout.current = setTimeout(() => {
+          startHold(newZone)
+        }, 400)
+      }
     }
   }
 
