@@ -27,7 +27,6 @@ export default function QuestionFlow({ questions , onVote, targetQuestionId, tar
   
   const currentQuestion = (extraQuestion && currentIndex === 0) ? extraQuestion : questions[currentIndex]
   const currentInitialZone = (extraQuestion && currentIndex === 0) ? initialVoteForTarget : null
-  console.log('currentInitialZone:', currentInitialZone, 'extraQuestion:', !!extraQuestion, 'initialVoteForTarget:', initialVoteForTarget)
   if (!currentQuestion) return null
 
 const [changingVote, setChangingVote] = useState(false)

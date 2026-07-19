@@ -14,7 +14,6 @@ export default function Vote() {
   const [searchParams] = useSearchParams()
   const targetQuestionId = searchParams.get('question')
   const currentVoteParam = searchParams.get('currentVote')
-  console.log('currentVoteParam:', currentVoteParam)
   const location = useLocation()
   const from = location.state?.from || '/vote'
   const [targetQuestion, setTargetQuestion] = useState(null)
