@@ -113,16 +113,20 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
       const progress = Math.min((elapsed / duration) * 100, 100)
       setHoldProgress(progress)
 
-      // Vibrate at halfway point
-      if (progress >= 50 && progress < 52) {
-        if (navigator.vibrate) navigator.vibrate(30)
+      // Rhythmic double-tick vibration every 600ms
+      const elapsedSeconds = elapsed / 1000
+      const tickPhase = (elapsedSeconds % 0.6)
+      if (tickPhase < 0.05) {
+        if (navigator.vibrate) navigator.vibrate(25)
+      } else if (tickPhase >= 0.15 && tickPhase < 0.2) {
+        if (navigator.vibrate) navigator.vibrate(25)
       }
 
       if (progress >= 100) {
         clearInterval(holdInterval.current)
         
         // Completion vibrate and sound
-        if (navigator.vibrate) navigator.vibrate([50, 30, 50])
+        if (navigator.vibrate) navigator.vibrate([80, 40, 80, 40, 120])
         try {
           const ctx = new (window.AudioContext || window.webkitAudioContext)()
           const osc = ctx.createOscillator()
@@ -141,7 +145,6 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
         setHoldZone(null)
       }
     }, 50)
-  }
 
   function cancelHold() {
     clearInterval(holdInterval.current)
