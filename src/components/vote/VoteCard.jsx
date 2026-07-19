@@ -99,10 +99,12 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
   const holdInterval = useRef(null)
   function startHold(currentZone) {
     if (!currentZone) return
-    console.log('startHold called:', currentZone)
     setHoldZone(currentZone)
     setHoldProgress(0)
-    
+
+    // Single vibrate to signal hold started
+    if (navigator.vibrate) navigator.vibrate(30)
+
     const startTime = Date.now()
     const duration = 3000
 
@@ -111,12 +113,16 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
       const progress = Math.min((elapsed / duration) * 100, 100)
       setHoldProgress(progress)
 
-      if (navigator.vibrate && progress < 100) {
-        navigator.vibrate(20)
+      // Vibrate at halfway point
+      if (progress >= 50 && progress < 52) {
+        if (navigator.vibrate) navigator.vibrate(30)
       }
 
       if (progress >= 100) {
         clearInterval(holdInterval.current)
+        
+        // Completion vibrate and sound
+        if (navigator.vibrate) navigator.vibrate([50, 30, 50])
         try {
           const ctx = new (window.AudioContext || window.webkitAudioContext)()
           const osc = ctx.createOscillator()
@@ -130,7 +136,6 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
           osc.stop(ctx.currentTime + 0.3)
         } catch (e) {}
 
-        if (navigator.vibrate) navigator.vibrate([50, 30, 50])
         onVote(currentZone)
         setHoldProgress(0)
         setHoldZone(null)
@@ -140,6 +145,7 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
 
   function cancelHold() {
     clearInterval(holdInterval.current)
+    clearTimeout(moveTimeout.current)
     setHoldProgress(0)
     setHoldZone(null)
   }
@@ -221,17 +227,34 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
     setDragging(true)
   }
 
+  const moveTimeout = useRef(null)
+
   function handleMove(clientX, clientY) {
     delta.current = {
       x: clientX - startPos.current.x,
       y: clientY - startPos.current.y,
     }
-    applyZone(zoneFromDelta(delta.current.x))
+    const newZone = zoneFromDelta(delta.current.x)
+    applyZone(newZone)
+
+    // Cancel hold timer while moving
+    cancelHold()
+
+    // Start hold timer when movement stops in a zone
+    clearTimeout(moveTimeout.current)
+    if (newZone) {
+      moveTimeout.current = setTimeout(() => {
+        startHold(newZone)
+      }, 300) // 300ms of no movement = start hold timer
+    }
   }
 
   function handleEnd() {
     setDragging(false)
     const { x: dx, y: dy } = delta.current
+
+    // Cancel any hold timer
+    cancelHold()
 
     // Swipe up with no horizontal selection = skip
     if (dy < -THRESH_SWIPE_UP && Math.abs(dy) > Math.abs(dx) && !zone) {
@@ -240,7 +263,7 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
       return
     }
 
-    // Swipe up after selecting a zone = commit and advance
+    // Swipe up after selecting a zone = commit
     if (zone && dy < -THRESH_SWIPE_UP && Math.abs(dy) > Math.abs(dx) * 0.5) {
       if (changingVote && zone === initialZone) {
         resetVisual()
@@ -251,21 +274,14 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
       return
     }
 
-    // Horizontal swipe past threshold = commit vote directly
+    // Horizontal swipe past threshold = commit
     if (zone && Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
       onVote(zone)
       resetVisual()
       return
     }
 
-    // Zone selected but not enough movement to commit — start hold timer
-    if (zone && Math.abs(dx) > 20) {
-      startHold(zone)
-      return
-    }
-
-    // Released without enough movement — snap back
-    cancelHold()
+    // Snap back
     resetVisual()
   }
 
@@ -306,14 +322,14 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
       }}
       onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
       onMouseMove={(e) => dragging && handleMove(e.clientX, e.clientY)}
-      onMouseUp={handleEnd}
-      onMouseLeave={() => dragging && handleEnd()}
+      onMouseUp={() => { cancelHold(); handleEnd() }}
+      onMouseLeave={() => { cancelHold(); if (dragging) handleEnd() }}
       onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
       onTouchMove={(e) => {
         e.preventDefault()
         handleMove(e.touches[0].clientX, e.touches[0].clientY)
       }}
-      onTouchEnd={handleEnd}
+      onTouchEnd={() => { cancelHold(); handleEnd() }}
     >
       {hintSide === 'left' && (
         <div
