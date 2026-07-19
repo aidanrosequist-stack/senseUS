@@ -5,15 +5,45 @@ import { useAuth } from '../hooks/useAuth'
 import { useQuestions } from '../hooks/useQuestions'
 import QuestionFlow from '../components/vote/QuestionFlow'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 
 export default function Vote() {
   const { user } = useAuth()
   const { questions, loading, error } = useQuestions(user?.id)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const targetQuestionId = searchParams.get('question')
+  const targetQuestionId = searchParams.get('currentVote')
   const location = useLocation()
   const from = location.state?.from || '/vote'
+  const [targetQuestion, setTargetQuestion] = useState(null)
+
+  useEffect(() => {
+    if (!targetQuestionId || !user) return
+
+    async function fetchTargetQuestion() {
+      const { data } = await supabase
+        .from('questions')
+        .select('id, text, category, domain, is_tracking_anchor, geo_scope')
+        .eq('id', targetQuestionId)
+        .single()
+
+      if (data) {
+        const { data: tally } = await supabase
+          .from('votes')
+          .select('choice')
+          .eq('question_id', targetQuestionId)
+
+        const counts = { yes: 0, ly: 0, ln: 0, no: 0 }
+        ;(tally || []).forEach(v => {
+          if (counts[v.choice] !== undefined) counts[v.choice]++
+        })
+
+        setTargetQuestion({ ...data, votes: counts, replyCount: 0 })
+      }
+    }
+
+    fetchTargetQuestion()
+  }, [targetQuestionId, user])
 
   async function handleVote(questionId, choice, tally) {
     if (!user) return
@@ -136,6 +166,7 @@ export default function Vote() {
           onVote={handleVote}
           targetQuestionId={targetQuestionId}
           targetQuestion={targetQuestion}
+          initialVoteForTarget={currentVoteParam}
         />
       </div>
       <BottomNav />
