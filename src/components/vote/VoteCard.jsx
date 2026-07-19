@@ -102,21 +102,30 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
     setHoldZone(currentZone)
     setHoldProgress(0)
 
-    // Single vibrate to signal hold started
     if (navigator.vibrate) navigator.vibrate(30)
 
     const startTime = Date.now()
     const duration = 3000
+    let cancelled = false
 
-    // Schedule rhythmic double-ticks at fixed intervals
+    // Store cancel function on ref
+    holdInterval.cancelTicks = () => { cancelled = true }
+
     const tickTimes = [400, 600, 1000, 1200, 1600, 1800, 2200, 2400, 2800]
     tickTimes.forEach(t => {
       setTimeout(() => {
-        if (holdInterval.current) navigator.vibrate && navigator.vibrate(25)
+        if (!cancelled && holdInterval.current) {
+          if (navigator.vibrate) navigator.vibrate(25)
+        }
       }, t)
     })
 
     holdInterval.current = setInterval(() => {
+      if (cancelled) {
+        clearInterval(holdInterval.current)
+        holdInterval.current = null
+        return
+      }
       const elapsed = Date.now() - startTime
       const progress = Math.min((elapsed / duration) * 100, 100)
       setHoldProgress(progress)
@@ -124,8 +133,8 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
       if (progress >= 100) {
         clearInterval(holdInterval.current)
         holdInterval.current = null
+        cancelled = true
 
-        // Completion vibrate and sound
         if (navigator.vibrate) navigator.vibrate([80, 40, 80, 40, 120])
         try {
           const ctx = new (window.AudioContext || window.webkitAudioContext)()
@@ -148,7 +157,9 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
   }
 
   function cancelHold() {
+    if (holdInterval.cancelTicks) holdInterval.cancelTicks()
     clearInterval(holdInterval.current)
+    holdInterval.current = null
     clearTimeout(moveTimeout.current)
     setHoldProgress(0)
     setHoldZone(null)
@@ -278,13 +289,6 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
         resetVisual()
         return
       }
-      onVote(zone)
-      resetVisual()
-      return
-    }
-
-    // Horizontal swipe past threshold = commit
-    if (zone && Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
       onVote(zone)
       resetVisual()
       return
