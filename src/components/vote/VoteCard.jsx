@@ -242,6 +242,10 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
 
     // Swipe up after selecting a zone = commit and advance
     if (zone && dy < -THRESH_SWIPE_UP && Math.abs(dy) > Math.abs(dx) * 0.5) {
+      if (changingVote && zone === initialZone) {
+        resetVisual()
+        return
+      }
       onVote(zone)
       resetVisual()
       return
@@ -254,7 +258,14 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
       return
     }
 
+    // Zone selected but not enough movement to commit — start hold timer
+    if (zone && Math.abs(dx) > 20) {
+      startHold(zone)
+      return
+    }
+
     // Released without enough movement — snap back
+    cancelHold()
     resetVisual()
   }
 
@@ -293,16 +304,15 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
         userSelect: 'none',
         overflow: 'hidden',
       }}
-      onMouseDown={(e) => { handleStart(e.clientX, e.clientY); if (zone) startHold(zone) }}
+      onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
       onMouseMove={(e) => dragging && handleMove(e.clientX, e.clientY)}
-      onMouseUp={() => { handleEnd(); cancelHold() }}
-      onMouseLeave={() => { if (dragging) handleEnd(); cancelHold() }}
-      onTouchStart={(e) => { handleStart(e.touches[0].clientX, e.touches[0].clientY); if (zone) startHold(zone) }}
+      onMouseUp={handleEnd}
+      onMouseLeave={() => dragging && handleEnd()}
+      onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
       onTouchMove={(e) => {
         e.preventDefault()
         handleMove(e.touches[0].clientX, e.touches[0].clientY)
       }}
-      onTouchEnd={() => { handleEnd(); cancelHold() }}
       onTouchEnd={handleEnd}
     >
       {hintSide === 'left' && (
