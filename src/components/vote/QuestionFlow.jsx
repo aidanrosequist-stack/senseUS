@@ -3,21 +3,58 @@ import { useNavigate } from 'react-router-dom'
 import VoteCard from './VoteCard'
 import ResultsCard from './ResultsCard'
 
-export default function QuestionFlow({ questions , onVote, targetQuestionId }) {
+export default function QuestionFlow({ questions , onVote, targetQuestionId, targetQuestion }) {
   const navigate = useNavigate()
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [extraQuestion, setExtraQuestion] = useState(null)
+
   useEffect(() => {
-    if (targetQuestionId && questions.length > 0) {
-      const idx = questions.findIndex(q => q.id === targetQuestionId)
-      if (idx >= 0) setCurrentIndex(idx)
+    if (!targetQuestionId) return
+    
+    const idx = questions.findIndex(q => q.id === targetQuestionId)
+    if (idx >= 0) {
+      setCurrentIndex(idx)
+    } else if (targetQuestion) {
+      // Question not in feed (already voted) — inject it at the front
+      setExtraQuestion(targetQuestion)
+      setCurrentIndex(0)
     }
-  }, [targetQuestionId, questions])
+  }, [targetQuestionId, questions, targetQuestion])
   const [view, setView] = useState('voting') // 'voting' | 'results'
   const [userVote, setUserVote] = useState(null)
   const [tallies, setTallies] = useState({})
   const skipHistory = useRef([])
+  const [targetQuestion, setTargetQuestion] = useState(null)
 
-  const currentQuestion = questions[currentIndex]
+  useEffect(() => {
+    if (!targetQuestionId || !user) return
+
+    async function fetchTargetQuestion() {
+      const { data } = await supabase
+        .from('questions')
+        .select('id, text, category, domain, is_tracking_anchor, geo_scope')
+        .eq('id', targetQuestionId)
+        .single()
+
+      if (data) {
+        const { data: tally } = await supabase
+          .from('votes')
+          .select('choice')
+          .eq('question_id', targetQuestionId)
+
+        const counts = { yes: 0, ly: 0, ln: 0, no: 0 }
+        ;(tally || []).forEach(v => {
+          if (counts[v.choice] !== undefined) counts[v.choice]++
+        })
+
+        setTargetQuestion({ ...data, votes: counts, replyCount: 0 })
+      }
+    }
+
+    fetchTargetQuestion()
+  }, [targetQuestionId, user])
+
+  const currentQuestion = (extraQuestion && currentIndex === 0) ? extraQuestion : questions[currentIndex]
 
   function getTallyFor(question) {
     return tallies[question.id] || question.votes || { yes: 0, leaning_yes: 0, leaning_no: 0, no: 0 }
@@ -59,6 +96,7 @@ export default function QuestionFlow({ questions , onVote, targetQuestionId }) {
   }
 
   function advance() {
+    setExtraQuestion(null)
     setUserVote(null)
     setView('voting')
     setCurrentIndex((prev) => Math.min(prev + 1, questions.length))

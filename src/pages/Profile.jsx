@@ -232,7 +232,10 @@ export default function Profile() {
 
                 <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
                   <button
-                    onClick={() => navigate(`/vote?question=${vote.questions?.id}`)}
+                    onClick={() => {
+                      console.log('vote.questions:', vote.questions)
+                      navigate(`/vote?question=${vote.questions?.id}`)
+                    }}
                     style={{ flex: 1, padding: '6px', background: '#F3F4F6', color: '#1A1A1A', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
                   >
                     Change vote

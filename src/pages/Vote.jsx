@@ -30,6 +30,8 @@ export default function Vote() {
       .eq('question_id', questionId)
       .single()
 
+      console.log('Vote check:', { existingVote, checkError, isNewVote: !existingVote })
+
     const isNewVote = !existingVote
 
     const { error: voteError } = await supabase
@@ -133,6 +135,7 @@ export default function Vote() {
           questions={questions}
           onVote={handleVote}
           targetQuestionId={targetQuestionId}
+          targetQuestion={targetQuestion}
         />
       </div>
       <BottomNav />
