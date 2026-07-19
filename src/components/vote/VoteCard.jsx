@@ -97,27 +97,26 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
   const [holdZone, setHoldZone] = useState(null)
   const holdTimer = useRef(null)
   const holdInterval = useRef(null)
-  function startHold(voteZone) {
-    console.log('startHold called:', voteZone)
-    setHoldZone(voteZone)
+  function startHold(currentZone) {
+    if (!currentZone) return
+    console.log('startHold called:', currentZone)
+    setHoldZone(currentZone)
     setHoldProgress(0)
     
     const startTime = Date.now()
-    const duration = 3000 // 3 seconds
-    
+    const duration = 3000
+
     holdInterval.current = setInterval(() => {
       const elapsed = Date.now() - startTime
       const progress = Math.min((elapsed / duration) * 100, 100)
       setHoldProgress(progress)
-      
-      // Vibrate in pulses on Android
+
       if (navigator.vibrate && progress < 100) {
         navigator.vibrate(20)
       }
-      
+
       if (progress >= 100) {
         clearInterval(holdInterval.current)
-        // Play completion tone
         try {
           const ctx = new (window.AudioContext || window.webkitAudioContext)()
           const osc = ctx.createOscillator()
@@ -130,12 +129,9 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
           osc.start()
           osc.stop(ctx.currentTime + 0.3)
         } catch (e) {}
-        
-        // Final vibrate
+
         if (navigator.vibrate) navigator.vibrate([50, 30, 50])
-        
-        // Commit vote
-        handleButtonVote(voteZone)
+        onVote(currentZone)
         setHoldProgress(0)
         setHoldZone(null)
       }
@@ -297,15 +293,16 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
         userSelect: 'none',
         overflow: 'hidden',
       }}
-      onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
+      onMouseDown={(e) => { handleStart(e.clientX, e.clientY); if (zone) startHold(zone) }}
       onMouseMove={(e) => dragging && handleMove(e.clientX, e.clientY)}
-      onMouseUp={handleEnd}
-      onMouseLeave={() => dragging && handleEnd()}
-onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
+      onMouseUp={() => { handleEnd(); cancelHold() }}
+      onMouseLeave={() => { if (dragging) handleEnd(); cancelHold() }}
+      onTouchStart={(e) => { handleStart(e.touches[0].clientX, e.touches[0].clientY); if (zone) startHold(zone) }}
       onTouchMove={(e) => {
-  e.preventDefault()
-  handleMove(e.touches[0].clientX, e.touches[0].clientY)
-}}
+        e.preventDefault()
+        handleMove(e.touches[0].clientX, e.touches[0].clientY)
+      }}
+      onTouchEnd={() => { handleEnd(); cancelHold() }}
       onTouchEnd={handleEnd}
     >
       {hintSide === 'left' && (
@@ -434,7 +431,7 @@ onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
           ].map(({ zone, bg, border, circle, label, icon, rotate, textColor }) => (
             <button
               key={zone}
-              onClick={() => holdZone !== zone && handleButtonVote(zone)}
+              onClick={() => handleButtonVote(zone)}
               onPointerDown={() => startHold(zone)}
               onPointerUp={cancelHold}
               onPointerLeave={cancelHold}
@@ -450,6 +447,31 @@ onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
             </button>
           ))}
         </div>
+
+{holdProgress > 0 && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 10,
+            pointerEvents: 'none',
+          }}>
+            <svg width="80" height="80" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="5" />
+              <circle
+                cx="40" cy="40" r="34"
+                fill="none"
+                stroke="white"
+                strokeWidth="5"
+                strokeDasharray={2 * Math.PI * 34}
+                strokeDashoffset={2 * Math.PI * 34 * (1 - holdProgress / 100)}
+                strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 0.05s linear' }}
+              />
+            </svg>
+          </div>
+        )}
 
 <button
           onClick={handleMindMade}
