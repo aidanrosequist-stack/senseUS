@@ -108,23 +108,23 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
     const startTime = Date.now()
     const duration = 3000
 
+    // Schedule rhythmic double-ticks at fixed intervals
+    const tickTimes = [400, 600, 1000, 1200, 1600, 1800, 2200, 2400, 2800]
+    tickTimes.forEach(t => {
+      setTimeout(() => {
+        if (holdInterval.current) navigator.vibrate && navigator.vibrate(25)
+      }, t)
+    })
+
     holdInterval.current = setInterval(() => {
       const elapsed = Date.now() - startTime
       const progress = Math.min((elapsed / duration) * 100, 100)
       setHoldProgress(progress)
 
-      // Rhythmic double-tick vibration every 600ms
-      const elapsedSeconds = elapsed / 1000
-      const tickPhase = (elapsedSeconds % 0.6)
-      if (tickPhase < 0.05) {
-        if (navigator.vibrate) navigator.vibrate(25)
-      } else if (tickPhase >= 0.15 && tickPhase < 0.2) {
-        if (navigator.vibrate) navigator.vibrate(25)
-      }
-
       if (progress >= 100) {
         clearInterval(holdInterval.current)
-        
+        holdInterval.current = null
+
         // Completion vibrate and sound
         if (navigator.vibrate) navigator.vibrate([80, 40, 80, 40, 120])
         try {
