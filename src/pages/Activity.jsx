@@ -26,8 +26,7 @@ function timeAgo(dateString) {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
-export default function Activity() {
-  const { notifications, markAsRead, markAllAsRead } = useNotifications()
+export default function Activity({ notifications = [], markAsRead, markAllAsRead }) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('replies')
