@@ -27,10 +27,13 @@ import Ethos from './pages/Ethos'
 function AppContent() {
   const { user } = useAuth()
   const {
+    notifications,
     urgentNotification,
     highNotifications,
     dismissUrgent,
     dismissHigh,
+    markAsRead,
+    markAllAsRead,
   } = useNotifications()
 
   return (
