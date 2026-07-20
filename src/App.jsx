@@ -20,6 +20,7 @@ import Transparency from './pages/Transparency'
 import NotFound from './pages/NotFound'
 import Notifications from './pages/Notifications'
 import NotificationPopup from './components/notifications/NotificationPopup'
+import { NotificationsContext } from './context/NotificationsContext'
 import { useNotifications } from './hooks/useNotifications'
 import { useAuth } from './hooks/useAuth'
 import Ethos from './pages/Ethos'
@@ -37,7 +38,16 @@ function AppContent() {
   } = useNotifications()
 
   return (
-    <>
+    <NotificationsContext.Provider value={{
+      notifications,
+      unreadCount,
+      urgentNotification,
+      highNotifications,
+      markAsRead,
+      markAllAsRead,
+      dismissUrgent,
+      dismissHigh,
+    }}>
       <NotificationPopup
         urgentNotification={urgentNotification}
         highNotifications={highNotifications}
@@ -53,7 +63,7 @@ function AppContent() {
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/make-up-my-mind/:questionId" element={<ProtectedRoute><MakeUpMyMind /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-        <Route path="/activity" element={<ProtectedRoute><Activity notifications={notifications} markAsRead={markAsRead} markAllAsRead={markAllAsRead} /></ProtectedRoute>} />
+        <Route path="/activity" element={<ProtectedRoute><Activity /></ProtectedRoute>} />
         <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
         <Route path="/conversation/:questionId" element={<ProtectedRoute><Conversation /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
@@ -66,7 +76,7 @@ function AppContent() {
         <Route path="/q/:number" element={<QuestionPreview />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </>
+    </NotificationsContext.Provider>
   )
 }
 

@@ -1,5 +1,6 @@
 import Header from '../components/layout/Header'
 import { useNotifications } from '../hooks/useNotifications'
+import { useNotificationsContext } from '../context/NotificationsContext'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -26,7 +27,7 @@ function timeAgo(dateString) {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
-export default function Activity({ notifications = [], markAsRead, markAllAsRead }) {
+export default function Activity() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('replies')
@@ -34,6 +35,7 @@ export default function Activity({ notifications = [], markAsRead, markAllAsRead
   const [shifts, setShifts] = useState([])
   const [badges, setBadges] = useState([])
   const [loading, setLoading] = useState(true)
+  const { notifications, markAsRead, markAllAsRead } = useNotificationsContext()
 
   useEffect(() => {
     if (!user) return
