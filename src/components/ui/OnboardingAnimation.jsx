@@ -4,7 +4,7 @@ const STEPS = [
   {
     icon: '👉',
     title: 'Swipe right to vote Yes',
-    subtitle: 'Or hold in the green zone for 3 seconds',
+    subtitle: 'and hold in the green zone for 3 seconds',
     color: '#6d8a1c',
     bg: '#eef3e0',
     animDirection: 'right',
@@ -12,7 +12,7 @@ const STEPS = [
   {
     icon: '👈',
     title: 'Swipe left to vote No',
-    subtitle: 'Or hold in the red zone for 3 seconds',
+    subtitle: 'and hold in the red zone for 3 seconds',
     color: '#c21f1f',
     bg: '#f9d8d8',
     animDirection: 'left',

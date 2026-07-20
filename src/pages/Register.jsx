@@ -54,7 +54,7 @@ export default function Register() {
 
   const currentYear = new Date().getFullYear()
   const meetsAgeRequirement = birthYear && (currentYear - parseInt(birthYear, 10)) >= 18
-  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(true)
 
   return (
     <div style={{ maxWidth: '420px', margin: '0 auto', padding: '2rem 1.5rem' }}>

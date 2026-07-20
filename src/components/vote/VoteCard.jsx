@@ -109,13 +109,13 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
     if (navigator.vibrate) navigator.vibrate(30)
 
     const startTime = Date.now()
-    const duration = 3000
+    const duration = 2000
     let cancelled = false
 
     // Store cancel function on ref
     holdInterval.cancelTicks = () => { cancelled = true }
 
-    const tickTimes = [400, 600, 1000, 1200, 1600, 1800, 2200, 2400, 2800]
+    const tickTimes = [400, 600, 1000, 1200, 1600, 1800 ]
     tickTimes.forEach(t => {
       setTimeout(() => {
         if (!cancelled && holdInterval.current) {
