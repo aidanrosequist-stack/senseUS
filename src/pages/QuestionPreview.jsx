@@ -147,7 +147,7 @@ export default function QuestionPreview() {
       <div style={{ background: '#FFFFFF', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 8px rgba(0,0,0,0.08)', flexShrink: 0 }}>
         <div>
           <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
-            sense<span style={{ fontWeight: 700, color: '#2D3DCA' }}>US</span>
+            sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
           </div>
           <div style={{ fontSize: '9px', color: '#9CA3AF', letterSpacing: '0.04em', marginTop: '1px' }}>
             real humans. real opinions. real truth.

@@ -223,7 +223,7 @@ async function toggleTrackingAnchor(question) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
-          sense<span style={{ fontWeight: 700, color: '#2D3DCA' }}>US</span>
+          sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
           <span style={{ fontSize: '13px', color: '#6B7280', marginLeft: '8px' }}>Admin</span>
         </div>
       </div>

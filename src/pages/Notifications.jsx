@@ -45,7 +45,7 @@ export default function Notifications() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
-          sense<span style={{ fontWeight: 700, color: '#2D3DCA' }}>US</span>
+          sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
         </div>
         <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Notifications</div>
         <div style={{ width: '60px' }} />
