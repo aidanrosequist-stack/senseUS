@@ -65,15 +65,14 @@ export default function Activity() {
           setReplies(repliesData || [])
         }
 
-        // Fetch vote percentage shifts
+        // Fetch all questions user has voted on with current tallies
         const { data: userVotes } = await supabase
           .from('votes')
           .select(`
-            choice, pct_yes_at_vote, pct_no_at_vote,
+            choice,
             questions (id, text, category)
           `)
           .eq('user_id', user.id)
-          .not('pct_yes_at_vote', 'is', null)
           .order('created_at', { ascending: false })
           .limit(20)
 
@@ -90,13 +89,13 @@ export default function Activity() {
                 if (counts[v.choice] !== undefined) counts[v.choice]++
               })
               const total = counts.yes + counts.ly + counts.ln + counts.no
-              const currentPctYes = total > 0 ? Math.round(((counts.yes + counts.ly) / total) * 100) : 0
-              const delta = currentPctYes - (vote.pct_yes_at_vote || 0)
+              const pctYes = total > 0 ? Math.round(((counts.yes + counts.ly) / total) * 100) : 0
+              const pctNo = 100 - pctYes
 
-              return { ...vote, currentPctYes, delta }
+              return { ...vote, pctYes, pctNo, total }
             })
           )
-          setShifts(shiftsWithCurrent.filter(s => Math.abs(s.delta) >= 1))
+          setShifts(shiftsWithCurrent)
         }
 
         // Fetch badges from profile
@@ -219,7 +218,7 @@ export default function Activity() {
         <div>
           {shifts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
-              No significant shifts yet. Vote on more questions to track opinion changes.
+              No shifts yet. Vote on some questions to see how they're trending.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -232,19 +231,28 @@ export default function Activity() {
                   <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '8px' }}>
                     {shift.questions?.text}
                   </div>
+
+                  {/* Tally bar */}
+                  <div style={{ width: '100%', height: '6px', borderRadius: '3px', overflow: 'hidden', display: 'flex', background: '#F1F1F1', marginBottom: '6px' }}>
+                    <div style={{ width: `${shift.pctYes}%`, background: '#6d8a1c', transition: 'width 0.3s ease' }} />
+                    <div style={{ width: `${shift.pctNo}%`, background: '#c21f1f', transition: 'width 0.3s ease' }} />
+                  </div>
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: '11px', color: '#6B7280' }}>
                       You voted <span style={{ color: VOTE_COLORS[shift.choice], fontWeight: 700 }}>{VOTE_LABELS[shift.choice]}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <IconChartBar size={13} color="#6B7280" />
-                      <span style={{
-                        fontSize: '12px', fontWeight: 700,
-                        color: shift.delta > 0 ? '#4d621d' : '#7a1313'
-                      }}>
-                        {shift.delta > 0 ? '▲' : '▼'} {Math.abs(shift.delta)}% yes since you voted
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '11px', color: '#4d621d', fontWeight: 700 }}>
+                        ▲ {shift.pctYes}% yes
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#7a1313', fontWeight: 700 }}>
+                        ▼ {shift.pctNo}% no
                       </span>
                     </div>
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '4px' }}>
+                    {shift.total} {shift.total === 1 ? 'human' : 'humans'} answered
                   </div>
                 </div>
               ))}
