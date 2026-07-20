@@ -1,4 +1,5 @@
 import Header from '../components/layout/Header'
+import { useNotifications } from '../hooks/useNotifications'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -26,6 +27,7 @@ function timeAgo(dateString) {
 }
 
 export default function Activity() {
+  const { notifications, markAsRead, markAllAsRead } = useNotifications()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('replies')
@@ -157,6 +159,7 @@ export default function Activity() {
           { key: 'replies', label: 'Replies' },
           { key: 'shifts', label: 'Shifts' },
           { key: 'badges', label: 'Badges' },
+          { key: 'notifications', label: 'Notifications' },
         ].map(t => (
           <button
             key={t.key}
@@ -274,6 +277,56 @@ export default function Activity() {
                   </div>
                 )
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Notifications */}
+      {tab === 'notifications' && (
+        <div>
+          {notifications.length > 0 && (
+            <button
+              onClick={markAllAsRead}
+              style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1rem', padding: 0 }}
+            >
+              Mark all as read
+            </button>
+          )}
+          {notifications.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+              No notifications yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {notifications.map(notification => (
+                <div
+                  key={notification.id}
+                  onClick={() => markAsRead(notification.id)}
+                  style={{
+                    background: notification.read ? '#FFFFFF' : '#F0F3FF',
+                    border: notification.priority === 'urgent' ? '1px solid #c21f1f' : notification.priority === 'high' ? '1px solid #2D3DCA' : '0.5px solid #E5E7EB',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+                      {notification.title}
+                    </div>
+                    {!notification.read && (
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2D3DCA', flexShrink: 0, marginTop: '4px' }} />
+                    )}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5, marginBottom: '4px' }}>
+                    {notification.body}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                    {new Date(notification.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
