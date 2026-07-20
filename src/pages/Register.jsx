@@ -5,6 +5,7 @@ import { getExampleNumber } from 'libphonenumber-js'
 import examples from 'libphonenumber-js/examples.mobile.json'
 import 'react-phone-number-input/style.css'
 import { Link } from 'react-router-dom'
+import OnboardingAnimation from '../components/ui/OnboardingAnimation'
 
 // Auto-detects a default country from the browser's locale (e.g. "en-US" -> "US").
 // Falls back to "US" if the locale doesn't include a region, since that's the
@@ -53,6 +54,7 @@ export default function Register() {
 
   const currentYear = new Date().getFullYear()
   const meetsAgeRequirement = birthYear && (currentYear - parseInt(birthYear, 10)) >= 18
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   return (
     <div style={{ maxWidth: '420px', margin: '0 auto', padding: '2rem 1.5rem' }}>
@@ -281,14 +283,14 @@ export default function Register() {
         </div>
       )}
 
-      {step === 'done' && (
+      {step === 'done' && !showOnboarding && (
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: '20px', fontWeight: 600, color: '#52B788', marginBottom: '8px' }}>
             Welcome to senseUS!
           </p>
           <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '1.5rem' }}>Your account has been created.</p>
-          <Link
-            to={redirectTo || '/vote'}
+          <button
+            onClick={() => setShowOnboarding(true)}
             style={{
               display: 'block',
               width: '100%',
@@ -298,14 +300,25 @@ export default function Register() {
               borderRadius: '10px',
               fontSize: '14px',
               fontWeight: 700,
-              textDecoration: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'Merriweather, serif',
               textAlign: 'center',
               boxSizing: 'border-box',
             }}
           >
             {redirectTo ? 'Go vote on this question' : 'Start voting'}
-          </Link>
+          </button>
         </div>
+      )}
+
+      {showOnboarding && (
+        <OnboardingAnimation
+          onComplete={() => {
+            setShowOnboarding(false)
+            window.location.href = redirectTo || '/vote'
+          }}
+        />
       )}
           </div>
   )
