@@ -83,7 +83,8 @@ export default function Profile() {
             questions (
               id,
               text,
-              category
+              category,
+              votes (choice)
             )
           `)
           .eq('user_id', user.id)
@@ -225,7 +226,17 @@ export default function Profile() {
                   </div>
                   {vote.pct_yes_at_vote != null && (
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <DeltaBadge pctAtVote={vote.pct_yes_at_vote} pctNow={65} type="yes" />
+                      <DeltaBadge 
+                        pctAtVote={vote.pct_yes_at_vote} 
+                        pctNow={(() => {
+                          const allVotes = vote.questions?.votes || []
+                          const total = allVotes.length
+                          if (total === 0) return 50
+                          const yesCount = allVotes.filter(v => v.choice === 'yes' || v.choice === 'ly').length
+                          return Math.round((yesCount / total) * 100)
+                        })()}
+                        type="yes" 
+                      />
                     </div>
                   )}
                 </div>

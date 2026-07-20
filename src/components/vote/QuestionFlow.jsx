@@ -46,7 +46,10 @@ const [changingVote, setChangingVote] = useState(false)
       return
     }
 
-    const updatedTally = { ...tally, [value]: (tally[value] || 0) + 1 }
+    const isChange = userVote !== null
+    const updatedTally = isChange 
+      ? { ...tally, [userVote]: Math.max(0, (tally[userVote] || 0) - 1), [value]: (tally[value] || 0) + 1 }
+      : { ...tally, [value]: (tally[value] || 0) + 1 }
     setTallies((prev) => ({ ...prev, [currentQuestion.id]: updatedTally }))
     setUserVote(value)
     setView('results')
