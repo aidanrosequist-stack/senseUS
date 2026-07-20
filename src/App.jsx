@@ -29,12 +29,13 @@ function AppContent() {
   const { user } = useAuth()
   const {
     notifications,
+    unreadCount,
     urgentNotification,
     highNotifications,
-    dismissUrgent,
-    dismissHigh,
     markAsRead,
     markAllAsRead,
+    dismissUrgent,
+    dismissHigh,
   } = useNotifications()
 
   return (
