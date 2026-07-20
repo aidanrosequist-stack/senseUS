@@ -29,22 +29,8 @@ function timeAgo(dateString) {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
-function DeltaBadge({ pctAtVote, pctNow, type }) {
-  if (pctAtVote == null || pctNow == null) return null
-  const delta = Math.round(pctNow - pctAtVote)
-  if (delta === 0) return null
-  const isUp = delta > 0
-  const color = type === 'yes'
-    ? (isUp ? '#4d621d' : '#7a1313')
-    : (isUp ? '#7a1313' : '#4d621d')
-  return (
-    <span style={{ fontSize: '11px', color, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '2px' }}>
-      {isUp ? '▲' : '▼'} {Math.abs(delta)}%
-    </span>
-  )
-}
-
 export default function Profile() {
+  const [snapshotMap, setSnapshotMap] = useState({})
   const [profile, setProfile] = useState(null)
   const [votes, setVotes] = useState([])
   const [loading, setLoading] = useState(true)
@@ -91,7 +77,32 @@ export default function Profile() {
           .order('created_at', { ascending: false })
 
         if (votesError) throw votesError
+
+        // Fetch 7-day snapshots
+        const questionIds = (votesData || []).map(v => v.questions?.id).filter(Boolean)
+        let newSnapshotMap = {}
+        if (questionIds.length > 0) {
+          const today = new Date()
+          const sevenDaysAgo = new Date(today)
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+          const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+          const todayStr = today.toISOString().split('T')[0]
+
+          const { data: snapshots } = await supabase
+            .from('question_snapshots')
+            .select('question_id, pct_yes, pct_no, total_votes, snapshot_date')
+            .in('question_id', questionIds)
+            .in('snapshot_date', [todayStr, sevenDaysAgoStr])
+
+          ;(snapshots || []).forEach(s => {
+            if (!newSnapshotMap[s.question_id]) newSnapshotMap[s.question_id] = {}
+            if (s.snapshot_date === todayStr) newSnapshotMap[s.question_id].today = s
+            if (s.snapshot_date === sevenDaysAgoStr) newSnapshotMap[s.question_id].sevenDaysAgo = s
+          })
+        }
+
         setVotes(votesData || [])
+        setSnapshotMap(newSnapshotMap)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -224,21 +235,42 @@ export default function Profile() {
                   <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: 300 }}>
                     {vote.questions?.category} · {timeAgo(vote.created_at)}
                   </div>
-                  {vote.pct_yes_at_vote != null && (
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <DeltaBadge 
-                        pctAtVote={vote.pct_yes_at_vote} 
-                        pctNow={(() => {
-                          const allVotes = vote.questions?.votes || []
-                          const total = allVotes.length
-                          if (total === 0) return 50
-                          const yesCount = allVotes.filter(v => v.choice === 'yes' || v.choice === 'ly').length
-                          return Math.round((yesCount / total) * 100)
-                        })()}
-                        type="yes" 
-                      />
-                    </div>
-                  )}
+                    {snapshotMap[vote.questions?.id]?.today && (
+                  <div style={{ marginTop: '8px' }}>
+                    {(() => {
+                      const todaySnap = snapshotMap[vote.questions?.id]?.today
+                      const weekSnap = snapshotMap[vote.questions?.id]?.sevenDaysAgo
+                      const currentPctYes = todaySnap?.pct_yes || 0
+                      const currentPctNo = todaySnap?.pct_no || 0
+                      const trend = weekSnap ? currentPctYes - weekSnap.pct_yes : null
+
+                      return (
+                        <div>
+                          {/* Current tally bar */}
+                          <div style={{ width: '100%', height: '6px', borderRadius: '3px', overflow: 'hidden', display: 'flex', background: '#F1F1F1', marginBottom: '4px' }}>
+                            <div style={{ width: `${currentPctYes}%`, background: '#6d8a1c' }} />
+                            <div style={{ width: `${currentPctNo}%`, background: '#c21f1f' }} />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: '10px', color: '#6B7280' }}>
+                              <span style={{ color: '#4d621d', fontWeight: 700 }}>{currentPctYes}% yes</span>
+                              {' · '}
+                              <span style={{ color: '#7a1313', fontWeight: 700 }}>{currentPctNo}% no</span>
+                              {' · '}
+                              {todaySnap.total_votes} {todaySnap.total_votes === 1 ? 'human' : 'humans'}
+                            </div>
+                            {trend !== null && (
+                              <div style={{ fontSize: '10px', fontWeight: 700, color: trend > 0 ? '#4d621d' : trend < 0 ? '#7a1313' : '#6B7280' }}>
+                                {trend > 0 ? '▲' : trend < 0 ? '▼' : '—'}
+                                {trend !== 0 ? ` ${Math.abs(trend)}% this week` : ' no change'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )} 
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
