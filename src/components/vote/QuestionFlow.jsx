@@ -35,8 +35,7 @@ const [changingVote, setChangingVote] = useState(false)
     return tallies[question.id] || question.votes || { yes: 0, leaning_yes: 0, leaning_no: 0, no: 0 }
   }
 
-  function handleVote(value) {
-    setChangingVote(false)
+  async function handleVote(value) {
     const tally = getTallyFor(currentQuestion)
 
     if (value === 'undecided') {
@@ -47,17 +46,20 @@ const [changingVote, setChangingVote] = useState(false)
     }
 
     const isChange = userVote !== null
-    const updatedTally = isChange 
-      ? { ...tally, [userVote]: Math.max(0, (tally[userVote] || 0) - 1), [value]: (tally[value] || 0) + 1 }
-      : { ...tally, [value]: (tally[value] || 0) + 1 }
-    setTallies((prev) => ({ ...prev, [currentQuestion.id]: updatedTally }))
+    if (!isChange) {
+      const updatedTally = { ...tally, [value]: (tally[value] || 0) + 1 }
+      setTallies((prev) => ({ ...prev, [currentQuestion.id]: updatedTally }))
+    }
+
     setUserVote(value)
     setView('results')
     skipHistory.current = []
 
-    // Write to Supabase
     if (onVote) {
-      onVote(currentQuestion.id, value, tally)
+      const freshTally = await onVote(currentQuestion.id, value, tally)
+      if (freshTally) {
+        setTallies((prev) => ({ ...prev, [currentQuestion.id]: freshTally }))
+      }
     }
   }
 

@@ -81,6 +81,20 @@ export default function Vote() {
     if (isNewVote) {
       await supabase.rpc('increment_answers_count', { user_id: user.id })
     }
+
+    // Fetch real tally from DB and update local state
+    const { data: freshTally } = await supabase
+      .from('votes')
+      .select('choice')
+      .eq('question_id', questionId)
+
+    if (freshTally) {
+      const counts = { yes: 0, ly: 0, ln: 0, no: 0 }
+      freshTally.forEach(v => {
+        if (counts[v.choice] !== undefined) counts[v.choice]++
+      })
+      return counts
+    }
   }
 
   if (loading) {
