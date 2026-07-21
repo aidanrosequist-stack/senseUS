@@ -79,6 +79,11 @@ export default function Login() {
       </div>
 
       <div style={{ marginBottom: '2rem' }}>
+        <img
+          src="/senseUS-logo.png"
+          alt="senseUS"
+          style={{ height: '56px', width: 'auto', marginBottom: '8px' }}
+        />
         <div style={{ fontSize: '28px', fontWeight: 400, color: '#1A1A1A', marginBottom: '4px' }}>
           sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
         </div>

@@ -57,8 +57,13 @@ export default function Home() {
         }}
       >
         <div style={{ marginBottom: '2.5rem' }}>
+          <img
+            src="/senseUS-logo.png"
+            alt="senseUS"
+            style={{ height: '72px', width: 'auto', marginBottom: '8px' }}
+          />
           <div style={{ fontSize: '36px', fontWeight: 500, color: '#2D3DCA', marginBottom: '4px' }}>
-            sense<span style={{ fontWeight: 700 }}>US</span>
+            sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
           </div>
           <div style={{ fontSize: '12px', color: '#6B7280', letterSpacing: '0.05em', marginBottom: '8px' }}>
             real humans. real opinions. real truth.

@@ -58,6 +58,14 @@ export default function Register() {
 
   return (
     <div style={{ maxWidth: '420px', margin: '0 auto', padding: '2rem 1.5rem' }}>
+      <img
+        src="/senseUS-logo.png"
+        alt="senseUS"
+        style={{ height: '56px', width: 'auto', marginBottom: '8px' }}
+      />
+      <div style={{ fontSize: '28px', fontWeight: 400, color: '#1A1A1A', marginBottom: '4px' }}>
+        sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
+      </div>
       <h1 style={{ fontSize: '22px', fontWeight: 600, marginBottom: '1.5rem', color: '#2D3DCA' }}>
         Join senseUS
       </h1>
