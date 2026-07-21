@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { Skeleton, SkeletonCard } from '../components/ui/Skeleton'
 import BottomNav from '../components/layout/BottomNav'
-import { IconWaveSine, IconChartBar } from '@tabler/icons-react'
+import { IconWaveSine, IconChartBar, IconThumbUp, IconThumbDown } from '@tabler/icons-react'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
@@ -15,6 +15,15 @@ const VOTE_COLORS = {
 
 const VOTE_LABELS = {
   yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no', dec: 'undecided'
+}
+
+function VoteIcon({ choice, size = 14 }) {
+  const color = VOTE_COLORS[choice] || '#6B7280'
+  if (choice === 'yes') return <IconThumbUp size={size} color={color} />
+  if (choice === 'ly') return <IconThumbUp size={size} color={color} style={{ transform: 'rotate(45deg)' }} />
+  if (choice === 'ln') return <IconThumbDown size={size} color={color} style={{ transform: 'rotate(45deg)' }} />
+  if (choice === 'no') return <IconThumbDown size={size} color={color} />
+  return <span style={{ fontSize: size - 2, color }}>undecided</span>
 }
 
 function timeAgo(dateString) {
@@ -25,6 +34,19 @@ function timeAgo(dateString) {
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
   return `${Math.floor(diff / 86400)}d ago`
+}
+
+function formatVoteTimestamp(dateString) {
+  const date = new Date(dateString)
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  let hours = date.getUTCHours()
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+  const ampm = hours >= 12 ? 'pm' : 'am'
+  hours = hours % 12
+  if (hours === 0) hours = 12
+  return `${y}.${m}.${d} @ ${hours}:${minutes}${ampm} UTC`
 }
 
 export default function Activity() {
@@ -69,7 +91,7 @@ export default function Activity() {
         const { data: userVotes } = await supabase
           .from('votes')
           .select(`
-            choice,
+            choice, created_at, pct_yes_at_vote,
             questions (id, text, category)
           `)
           .eq('user_id', user.id)
@@ -77,24 +99,23 @@ export default function Activity() {
           .limit(20)
 
         if (userVotes?.length > 0) {
-          const shiftsWithCurrent = await Promise.all(
-            userVotes.map(async (vote) => {
-              const { data: tally } = await supabase
-                .from('votes')
-                .select('choice')
-                .eq('question_id', vote.questions.id)
-
-              const counts = { yes: 0, ly: 0, ln: 0, no: 0 }
-              ;(tally || []).forEach(v => {
-                if (counts[v.choice] !== undefined) counts[v.choice]++
-              })
-              const total = counts.yes + counts.ly + counts.ln + counts.no
-              const pctYes = total > 0 ? Math.round(((counts.yes + counts.ly) / total) * 100) : 0
-              const pctNo = 100 - pctYes
-
-              return { ...vote, pctYes, pctNo, total }
-            })
-          )
+          const questionIds = userVotes.map(v => v.questions.id)
+          const { data: tallyRows } = await supabase.rpc('get_vote_tallies_batch', {
+            p_question_ids: questionIds,
+          })
+          const totalsById = {}
+          for (const row of tallyRows || []) {
+            totalsById[row.question_id] = {
+              pctYes: Number(row.total) > 0 ? Math.round(((Number(row.yes) + Number(row.ly)) / Number(row.total)) * 100) : 0,
+              total: Number(row.total),
+            }
+          }
+          const shiftsWithCurrent = userVotes.map(vote => {
+            const t = totalsById[vote.questions.id] || { pctYes: 0, total: 0 }
+            const hasBaseline = vote.pct_yes_at_vote !== null && vote.pct_yes_at_vote !== undefined
+            const delta = hasBaseline ? t.pctYes - vote.pct_yes_at_vote : null
+            return { ...vote, pctYes: t.pctYes, pctNo: 100 - t.pctYes, total: t.total, delta }
+          })
           setShifts(shiftsWithCurrent)
         }
 
@@ -216,6 +237,9 @@ export default function Activity() {
       {/* Shifts tab */}
       {tab === 'shifts' && (
         <div>
+          <p style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.6, marginBottom: '1rem' }}>
+            See how public opinion is trending on questions you've answered. On the left is a timestamp of when you voted and how. On the right is the current total vote count, current yes/no percentage, and how the percentage has shifted since you voted.
+          </p>
           {shifts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
               No shifts yet. Vote on some questions to see how they're trending.
@@ -238,21 +262,37 @@ export default function Activity() {
                     <div style={{ width: `${shift.pctNo}%`, background: '#c21f1f', transition: 'width 0.3s ease' }} />
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '11px', color: '#6B7280' }}>
-                      You voted <span style={{ color: VOTE_COLORS[shift.choice], fontWeight: 700 }}>{VOTE_LABELS[shift.choice]}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ fontSize: '11px', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        You voted <VoteIcon choice={shift.choice} size={13} />
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#9CA3AF' }}>
+                        on {formatVoteTimestamp(shift.created_at)}
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '11px', color: '#4d621d', fontWeight: 700 }}>
-                        ▲ {shift.pctYes}% yes
-                      </span>
-                      <span style={{ fontSize: '11px', color: '#7a1313', fontWeight: 700 }}>
-                        ▼ {shift.pctNo}% no
-                      </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', color: '#4d621d', fontWeight: 700 }}>
+                          ▲ {shift.pctYes}% yes
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#7a1313', fontWeight: 700 }}>
+                          ▼ {shift.pctNo}% no
+                        </span>
+                      </div>
+                      {shift.delta !== null && (
+                        <div style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          color: shift.delta > 0 ? '#4d621d' : shift.delta < 0 ? '#7a1313' : '#9CA3AF',
+                        }}>
+                          {shift.delta > 0 ? `↑ +${shift.delta} pts since you voted` : shift.delta < 0 ? `↓ ${shift.delta} pts since you voted` : 'No shift since you voted'}
+                        </div>
+                      )}
+                      <div style={{ fontSize: '10px', color: '#9CA3AF' }}>
+                        {shift.total} {shift.total === 1 ? 'human' : 'humans'} answered to date
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '4px' }}>
-                    {shift.total} {shift.total === 1 ? 'human' : 'humans'} answered
                   </div>
                 </div>
               ))}
