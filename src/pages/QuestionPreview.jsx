@@ -43,16 +43,14 @@ export default function QuestionPreview() {
         if (!q) { setLoading(false); return }
         setQuestion(q)
 
-        const { data: votes } = await supabase
-          .from('votes')
-          .select('choice')
-          .eq('question_id', q.id)
+        const { data: tallyRow } = await supabase
+          .rpc('get_vote_tally', { p_question_id: q.id })
+          .single()
 
-        const counts = { yes: 0, ly: 0, ln: 0, no: 0 }
-        ;(votes || []).forEach(v => {
-          if (counts[v.choice] !== undefined) counts[v.choice]++
-        })
-        setTally(counts)
+        setTally(tallyRow
+          ? { yes: tallyRow.yes, ly: tallyRow.ly, ln: tallyRow.ln, no: tallyRow.no }
+          : { yes: 0, ly: 0, ln: 0, no: 0 }
+        )
 
         if (!maxNumber) {
           const { data: maxQ } = await supabase

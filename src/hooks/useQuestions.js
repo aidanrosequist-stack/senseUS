@@ -57,26 +57,24 @@ export function useQuestions(userId) {
           return true
         })
 
-        // Get vote tallies for each question
-        const questionsWithTallies = await Promise.all(
-          unanswered.map(async (q) => {
-            const { data: tally } = await supabase
-              .from('votes')
-              .select('choice')
-              .eq('question_id', q.id)
+        // Get vote tallies for each question — one batch call instead of
+        // one query per question (previously N+1: a separate full vote-row
+        // fetch for every unanswered question in the feed).
+        const questionIds = unanswered.map(q => q.id)
+        const { data: tallyRows } = await supabase.rpc('get_vote_tallies_batch', {
+          p_question_ids: questionIds,
+        })
 
-            const counts = { yes: 0, ly: 0, ln: 0, no: 0 }
-            ;(tally || []).forEach(v => {
-              if (counts[v.choice] !== undefined) counts[v.choice]++
-            })
+        const talliesById = {}
+        for (const row of tallyRows || []) {
+          talliesById[row.question_id] = { yes: row.yes, ly: row.ly, ln: row.ln, no: row.no }
+        }
 
-            return {
-              ...q,
-              votes: counts,
-              replyCount: 0,
-            }
-          })
-        )
+        const questionsWithTallies = unanswered.map(q => ({
+          ...q,
+          votes: talliesById[q.id] || { yes: 0, ly: 0, ln: 0, no: 0 },
+          replyCount: 0,
+        }))
 
         // Separate tracking anchors — they always go first
         const trackingQuestions = questionsWithTallies.filter(q => q.is_tracking_anchor)

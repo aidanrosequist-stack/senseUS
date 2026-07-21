@@ -32,7 +32,7 @@ export default function QuestionFlow({ questions , onVote, targetQuestionId, tar
 const [changingVote, setChangingVote] = useState(false)
 
   function getTallyFor(question) {
-    return tallies[question.id] || question.votes || { yes: 0, leaning_yes: 0, leaning_no: 0, no: 0 }
+    return tallies[question.id] || question.votes || { yes: 0, ly: 0, ln: 0, no: 0 }
   }
 
   async function handleVote(value) {

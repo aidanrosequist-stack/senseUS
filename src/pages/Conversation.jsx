@@ -35,6 +35,61 @@ function getDisplayName(profile) {
   return `${profile.first_name} ${profile.last_initial}.`
 }
 
+// Matches the segmented bar in ResultsCard.jsx — same colors, same
+// yes/no percentage math (leaning votes fold into their nearest side).
+function VoteBreakdownBar({ tally }) {
+  const total = tally.yes + tally.ly + tally.ln + tally.no
+  const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : 0
+  const pctNo = 100 - pctYes
+
+  const segments = [
+    { key: 'yes', value: tally.yes },
+    { key: 'ly', value: tally.ly },
+    { key: 'ln', value: tally.ln },
+    { key: 'no', value: tally.no },
+  ]
+
+  return (
+    <div style={{ marginBottom: '1.25rem' }}>
+      <div
+        style={{
+          width: '100%',
+          height: '8px',
+          borderRadius: '4px',
+          overflow: 'hidden',
+          display: 'flex',
+          background: '#F1F1F1',
+        }}
+      >
+        {segments.map((seg) => (
+          <div
+            key={seg.key}
+            style={{
+              width: total > 0 ? `${(seg.value / total) * 100}%` : '25%',
+              background: VOTE_COLORS[seg.key],
+              flexShrink: 0,
+            }}
+          />
+        ))}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          fontSize: '12px',
+          marginTop: '4px',
+        }}
+      >
+        <span style={{ color: '#4d6214' }}>{pctYes}% yes</span>
+        <span style={{ color: '#8a1616' }}>{pctNo}% no</span>
+      </div>
+      <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '6px' }}>
+        {total.toLocaleString()} verified humans answered
+      </div>
+    </div>
+  )
+}
+
 export default function Conversation() {
   const { questionId } = useParams()
   const navigate = useNavigate()
@@ -43,6 +98,7 @@ export default function Conversation() {
   const [question, setQuestion] = useState(null)
   const [comments, setComments] = useState([])
   const [userVote, setUserVote] = useState(null)
+  const [tally, setTally] = useState({ yes: 0, ly: 0, ln: 0, no: 0 })
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [newComment, setNewComment] = useState('')
@@ -73,6 +129,17 @@ export default function Conversation() {
             .eq('user_id', user.id)
             .single()
           setUserVote(vote?.choice || null)
+        }
+
+        // Fetch current vote tally for this question, for the breakdown bar.
+        // Only yes/ly/ln/no are counted — matches ResultsCard's math,
+        // which doesn't include 'dec' (declined) in the yes/no percentage.
+        const { data: tallyRow } = await supabase
+          .rpc('get_vote_tally', { p_question_id: questionId })
+          .single()
+
+        if (tallyRow) {
+          setTally({ yes: tallyRow.yes, ly: tallyRow.ly, ln: tallyRow.ln, no: tallyRow.no })
         }
 
         // Fetch comments with profiles
@@ -349,6 +416,9 @@ async function shareComment(commentId) {
           </div>
         )}
       </div>
+
+      {/* Vote breakdown bar */}
+      <VoteBreakdownBar tally={tally} />
 
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '1.25rem', overflowX: 'auto', paddingBottom: '4px' }}>

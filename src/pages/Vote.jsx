@@ -29,15 +29,13 @@ export default function Vote() {
         .single()
 
       if (data) {
-        const { data: tally } = await supabase
-          .from('votes')
-          .select('choice')
-          .eq('question_id', targetQuestionId)
+        const { data: tallyRow } = await supabase
+          .rpc('get_vote_tally', { p_question_id: targetQuestionId })
+          .single()
 
-        const counts = { yes: 0, ly: 0, ln: 0, no: 0 }
-        ;(tally || []).forEach(v => {
-          if (counts[v.choice] !== undefined) counts[v.choice]++
-        })
+        const counts = tallyRow
+          ? { yes: tallyRow.yes, ly: tallyRow.ly, ln: tallyRow.ln, no: tallyRow.no }
+          : { yes: 0, ly: 0, ln: 0, no: 0 }
 
         setTargetQuestion({ ...data, votes: counts, replyCount: 0 })
       }
@@ -84,16 +82,11 @@ export default function Vote() {
 
     // Fetch real tally from DB and update local state
     const { data: freshTally } = await supabase
-      .from('votes')
-      .select('choice')
-      .eq('question_id', questionId)
+      .rpc('get_vote_tally', { p_question_id: questionId })
+      .single()
 
     if (freshTally) {
-      const counts = { yes: 0, ly: 0, ln: 0, no: 0 }
-      freshTally.forEach(v => {
-        if (counts[v.choice] !== undefined) counts[v.choice]++
-      })
-      return counts
+      return { yes: freshTally.yes, ly: freshTally.ly, ln: freshTally.ln, no: freshTally.no }
     }
   }
 
