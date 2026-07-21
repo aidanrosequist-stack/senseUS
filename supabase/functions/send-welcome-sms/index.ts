@@ -16,6 +16,19 @@ async function deleteTwilioMessage(messageSid: string) {
   )
 }
 
+// Waits briefly for Twilio to register delivery, then deletes the message
+// record. Run via EdgeRuntime.waitUntil() so the function's execution
+// environment stays alive until this finishes, rather than potentially
+// getting killed right after the HTTP response is returned.
+async function deleteAfterDelay(messageSid: string) {
+  await new Promise((resolve) => setTimeout(resolve, 5000))
+  try {
+    await deleteTwilioMessage(messageSid)
+  } catch (e) {
+    // Silent fail — deletion is best-effort
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
@@ -64,15 +77,11 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Wait briefly for delivery then delete the message record from Twilio
-    // We don't await this — fire and forget so it doesn't slow down registration
-    setTimeout(async () => {
-      try {
-        await deleteTwilioMessage(data.sid)
-      } catch (e) {
-        // Silent fail — deletion is best-effort
-      }
-    }, 5000)
+    // Schedule the delayed deletion as a background task that's guaranteed
+    // to run to completion, instead of a bare setTimeout that could get
+    // silently cut off.
+    // @ts-ignore — EdgeRuntime is a Deno Deploy global, not in standard types
+    EdgeRuntime.waitUntil(deleteAfterDelay(data.sid))
 
     return new Response(
       JSON.stringify({ success: true }),

@@ -93,7 +93,7 @@ export default function AdminReports({ supabase }) {
           .limit(25),
         supabase
           .from("questions")
-          .select("id, text, domain, human_moderation_required, created_at, votes(count)")
+          .select("id, text, domain, human_moderation_required, created_at")
           .limit(100),
       ]);
 
@@ -107,10 +107,18 @@ export default function AdminReports({ supabase }) {
       setRegistrationSeries(bucketByDay(profilesLast30 || [], "created_at"));
       setVoteSeries(bucketByDay(votesLast30 || [], "created_at"));
       setAnomalies(anomalyRows || []);
+      const questionIds = (questionRows || []).map((q) => q.id);
+      const { data: tallyRows } = await supabase.rpc("get_vote_tallies_batch", {
+        p_question_ids: questionIds,
+      });
+      const totalsById = {};
+      for (const row of tallyRows || []) {
+        totalsById[row.question_id] = Number(row.total);
+      }
       setQuestions(
         (questionRows || []).map((q) => ({
           ...q,
-          voteCount: q.votes?.[0]?.count ?? 0,
+          voteCount: totalsById[q.id] ?? 0,
         }))
       );
     } catch (err) {
@@ -120,6 +128,14 @@ export default function AdminReports({ supabase }) {
       setLoading(false);
     }
   }
+
+async function resolveAnomaly(id) {
+  await supabase
+    .from('anomaly_log')
+    .update({ resolved: true, resolved_at: new Date().toISOString() })
+    .eq('id', id)
+  setAnomalies((prev) => prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)))
+}
 
   function bucketByDay(rows, field) {
     const buckets = {};
@@ -210,6 +226,7 @@ export default function AdminReports({ supabase }) {
             <thead>
               <tr style={{ textAlign: "left", color: "#888", borderBottom: "1px solid #eee" }}>
                 <th style={{ padding: "6px 8px" }}>Type</th>
+                <th style={{ padding: "6px 8px" }}>Details</th>
                 <th style={{ padding: "6px 8px" }}>Severity</th>
                 <th style={{ padding: "6px 8px" }}>Triggered</th>
                 <th style={{ padding: "6px 8px" }}>Resolved</th>
@@ -219,6 +236,10 @@ export default function AdminReports({ supabase }) {
               {anomalies.map((a) => (
                 <tr key={a.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
                   <td style={{ padding: "6px 8px" }}>{ALERT_LABELS[a.alert_type] || a.alert_type}</td>
+                  <td style={{ padding: "6px 8px", maxWidth: 280, color: "#444" }}>
+                    {a.details?.question || a.details?.country ||
+                      (a.details ? JSON.stringify(a.details) : "—")}
+                  </td>
                   <td style={{ padding: "6px 8px" }}>
                     <span style={{ color: SEVERITY_COLORS[a.severity] || "#666", fontWeight: 600 }}>
                       {a.severity}
@@ -227,7 +248,16 @@ export default function AdminReports({ supabase }) {
                   <td style={{ padding: "6px 8px", color: "#666" }}>
                     {new Date(a.triggered_at).toLocaleString()}
                   </td>
-                  <td style={{ padding: "6px 8px" }}>{a.resolved ? "Yes" : "No"}</td>
+                  <td style={{ padding: "6px 8px" }}>
+  {a.resolved ? "Yes" : (
+    <button
+      onClick={() => resolveAnomaly(a.id)}
+      style={{ fontSize: "11px", padding: "3px 8px", borderRadius: "6px", border: "1px solid #2D3DCA", background: "white", color: "#2D3DCA", cursor: "pointer" }}
+    >
+      Mark resolved
+    </button>
+  )}
+</td>
                 </tr>
               ))}
             </tbody>
