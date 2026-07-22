@@ -459,6 +459,8 @@ export default function Admin() {
                   <option value="JP">Japan</option>
                   <option value="BR">Brazil</option>
                   <option value="IN">India</option>
+                  <option value="NG">Nigeria</option>
+                  <option value="PH">Philippines</option>
                 </select>
               </label>
             )}
@@ -827,6 +829,7 @@ export default function Admin() {
                   <option value="MX">Mexico</option>
                   <option value="ZA">South Africa</option>
                   <option value="NG">Nigeria</option>
+                  <option value="PH">Philippines</option>
                   <option value="OTHER">Other</option>
                 </select>
               </label>
