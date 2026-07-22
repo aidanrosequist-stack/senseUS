@@ -239,18 +239,21 @@ async function shareComment(commentId) {
   }
 
     async function flagComment(commentId) {
-    if (!user) return
-    try {
-      await supabase.from('comment_flags').insert({
-        comment_id: commentId,
-        user_id: user.id,
-      })
-      await supabase.rpc('increment_flag_count', { comment_id: commentId })
-      alert('Thank you — this comment has been flagged for review.')
-    } catch (err) {
-      // Already flagged — silently ignore duplicate
+  if (!user) return
+  const { error: insertError } = await supabase.from('comment_flags').insert({
+    comment_id: commentId,
+    user_id: user.id,
+  })
+  if (insertError) {
+    if (insertError.code === '23505') {
+      alert('You\'ve already flagged this comment.')
     }
+    // Any other error: fail silently, don't increment
+    return
   }
+  await supabase.rpc('increment_flag_count', { comment_id: commentId })
+  alert('Thank you — this comment has been flagged for review.')
+}
 
     if (hasResonated) {
       await supabase.from('comment_resonances').delete()
