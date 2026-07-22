@@ -218,7 +218,19 @@ export default function Conversation() {
     if (!user) return
     const hasResonated = userResonances.has(commentId)
 
-async function shareComment(commentId, commentBody) {
+    if (hasResonated) {
+      await supabase.from('comment_resonances').delete()
+        .eq('comment_id', commentId).eq('user_id', user.id)
+      setUserResonances(prev => { const s = new Set(prev); s.delete(commentId); return s })
+      setComments(prev => prev.map(c => c.id === commentId ? { ...c, resonance_count: c.resonance_count - 1 } : c))
+    } else {
+      await supabase.from('comment_resonances').insert({ comment_id: commentId, user_id: user.id })
+      setUserResonances(prev => new Set([...prev, commentId]))
+      setComments(prev => prev.map(c => c.id === commentId ? { ...c, resonance_count: c.resonance_count + 1 } : c))
+    }
+  }
+
+  async function shareComment(commentId, commentBody) {
     if (!question?.question_number) return
 
     const url = `https://senseus.app/q/${question.question_number}#comment-${commentId}`
@@ -247,7 +259,7 @@ async function shareComment(commentId, commentBody) {
     }
   }
 
-async function deleteComment(commentId) {
+  async function deleteComment(commentId) {
     if (!confirm('Delete this comment? This cannot be undone.')) return
 
     const { error } = await supabase
@@ -264,33 +276,21 @@ async function deleteComment(commentId) {
     setComments(prev => prev.filter(c => c.id !== commentId && c.parent_id !== commentId))
   }
 
-    async function flagComment(commentId) {
-  if (!user) return
-  const { error: insertError } = await supabase.from('comment_flags').insert({
-    comment_id: commentId,
-    user_id: user.id,
-  })
-  if (insertError) {
-    if (insertError.code === '23505') {
-      alert('You\'ve already flagged this comment.')
+  async function flagComment(commentId) {
+    if (!user) return
+    const { error: insertError } = await supabase.from('comment_flags').insert({
+      comment_id: commentId,
+      user_id: user.id,
+    })
+    if (insertError) {
+      if (insertError.code === '23505') {
+        alert('You\'ve already flagged this comment.')
+      }
+      // Any other error: fail silently, don't increment
+      return
     }
-    // Any other error: fail silently, don't increment
-    return
-  }
-  await supabase.rpc('increment_flag_count', { comment_id: commentId })
-  alert('Thank you — this comment has been flagged for review.')
-}
-
-    if (hasResonated) {
-      await supabase.from('comment_resonances').delete()
-        .eq('comment_id', commentId).eq('user_id', user.id)
-      setUserResonances(prev => { const s = new Set(prev); s.delete(commentId); return s })
-      setComments(prev => prev.map(c => c.id === commentId ? { ...c, resonance_count: c.resonance_count - 1 } : c))
-    } else {
-      await supabase.from('comment_resonances').insert({ comment_id: commentId, user_id: user.id })
-      setUserResonances(prev => new Set([...prev, commentId]))
-      setComments(prev => prev.map(c => c.id === commentId ? { ...c, resonance_count: c.resonance_count + 1 } : c))
-    }
+    await supabase.rpc('increment_flag_count', { comment_id: commentId })
+    alert('Thank you — this comment has been flagged for review.')
   }
 
   const filteredComments = filter === 'all'
