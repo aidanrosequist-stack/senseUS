@@ -22,7 +22,6 @@ export function useRegistration() {
     setLoading(true)
     setError(null)
     try {
-      console.log('Sending code to:', phone)
       const { error: otpError } = await supabase.auth.signInWithOtp({ phone })
       if (otpError) {
         setError(otpError.message)

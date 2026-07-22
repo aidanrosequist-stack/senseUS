@@ -51,15 +51,24 @@ export default function Vote() {
     const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : 0
     const pctNo = 100 - pctYes
 
-    // Check if this is a new vote or a change
-    const { data: existingVote } = await supabase
-      .from('votes')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('question_id', questionId)
-      .single()
+    // Check if this is a new vote or a change, and get the user's current
+    // integrity weight — run in parallel since they're independent
+    const [{ data: existingVote }, { data: profile }] = await Promise.all([
+      supabase
+        .from('votes')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('question_id', questionId)
+        .single(),
+      supabase
+        .from('profiles')
+        .select('integrity_weight')
+        .eq('id', user.id)
+        .single(),
+    ])
 
     const isNewVote = !existingVote
+    const currentWeight = profile?.integrity_weight ?? 1.0000
 
     const { error: voteError } = await supabase
       .from('votes')
@@ -67,7 +76,7 @@ export default function Vote() {
         user_id: user.id,
         question_id: questionId,
         choice,
-        integrity_weight_at_vote: 1.0000,
+        integrity_weight_at_vote: currentWeight,
         pct_yes_at_vote: pctYes,
         pct_no_at_vote: pctNo,
         updated_at: new Date().toISOString(),
@@ -89,7 +98,7 @@ export default function Vote() {
       return { yes: freshTally.yes, ly: freshTally.ly, ln: freshTally.ln, no: freshTally.no }
     }
   }
-
+  
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
