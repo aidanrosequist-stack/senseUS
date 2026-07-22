@@ -247,6 +247,23 @@ async function shareComment(commentId, commentBody) {
     }
   }
 
+async function deleteComment(commentId) {
+    if (!confirm('Delete this comment? This cannot be undone.')) return
+
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId)
+      .eq('user_id', user.id)
+
+    if (error) {
+      alert('Something went wrong deleting your comment.')
+      return
+    }
+
+    setComments(prev => prev.filter(c => c.id !== commentId && c.parent_id !== commentId))
+  }
+
     async function flagComment(commentId) {
   if (!user) return
   const { error: insertError } = await supabase.from('comment_flags').insert({
@@ -320,9 +337,9 @@ async function shareComment(commentId, commentBody) {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button
-              onClick={() => toggleResonate(comment.id)}
-              disabled={!canParticipate}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: canParticipate ? 'pointer' : 'default', color: hasResonated ? '#2D3DCA' : '#6B7280', opacity: canParticipate ? 1 : 0.5 }}
+              onClick={() => comment.user_id !== user?.id && toggleResonate(comment.id)}
+              disabled={!canParticipate || comment.user_id === user?.id}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: (canParticipate && comment.user_id !== user?.id) ? 'pointer' : 'default', color: hasResonated ? '#2D3DCA' : '#6B7280', opacity: (canParticipate && comment.user_id !== user?.id) ? 1 : 0.5 }}
             >
               <IconWaveSine size={14} />
               <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>{comment.resonance_count}</span>
@@ -348,13 +365,23 @@ async function shareComment(commentId, commentBody) {
               )}
             </div>
 
-            {!isReply && canParticipate && (
+            {!isReply && canParticipate && comment.user_id !== user?.id && (
               <button
                 onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
                 style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', fontSize: '12px', fontFamily: 'Merriweather, serif' }}
               >
                 <IconCornerDownRight size={14} />
                 {replies.length > 0 ? `${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}` : 'reply'}
+              </button>
+            )}
+
+            {comment.user_id === user?.id && (
+              <button
+                onClick={() => deleteComment(comment.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
+                title="Delete this comment"
+              >
+                <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Delete</span>
               </button>
             )}
           </div>
