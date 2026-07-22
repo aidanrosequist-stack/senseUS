@@ -29,6 +29,11 @@ async function deleteAfterDelay(messageSid: string) {
   }
 }
 
+import { createClient } from "jsr:@supabase/supabase-js@2"
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
@@ -46,6 +51,20 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Phone number required" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
+      )
+    }
+
+    // Verify the caller is actually the owner of this phone number
+    const authHeader = req.headers.get("Authorization")
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader ?? "" } },
+    })
+    const { data: { user }, error: authError } = await userClient.auth.getUser()
+
+    if (authError || !user || user.phone !== phone.replace(/^\+/, "")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
       )
     }
 

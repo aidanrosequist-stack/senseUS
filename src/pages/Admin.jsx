@@ -58,6 +58,7 @@ export default function Admin() {
     category: 'deep',
     domain: 'ethics & philosophy',
     geo_scope: 'global',
+    country_code: '',
     is_tracking_anchor: false,
     human_moderation_required: false,
     ai_question: false,
@@ -169,6 +170,9 @@ export default function Admin() {
 
   async function addQuestion() {
     if (!newQuestion.text.trim()) return showMessage('Question text is required.', true)
+      if ((newQuestion.geo_scope === 'country' || newQuestion.geo_scope === 'regional') && !newQuestion.country_code) {
+      return showMessage('Please select a target country for this scope.', true)
+    }
     const { error } = await supabase.from('questions').insert({
       ...newQuestion,
       published_at: new Date().toISOString(),
@@ -177,7 +181,7 @@ export default function Admin() {
       showMessage('Error adding question: ' + error.message, true)
     } else {
       showMessage('Question added!')
-      setNewQuestion({ text: '', category: 'deep', domain: 'ethics & philosophy', geo_scope: 'global', is_tracking_anchor: false, human_moderation_required: false, ai_question: false })
+      setNewQuestion({ text: '', category: 'deep', domain: 'ethics & philosophy', geo_scope: 'global', country_code: '', is_tracking_anchor: false, human_moderation_required: false, ai_question: false })
       loadQuestions()
     }
   }
@@ -422,6 +426,43 @@ export default function Admin() {
             </label>
           </div>
 
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 700 }}>
+              Geographic scope
+              <select
+                value={newQuestion.geo_scope}
+                onChange={(e) => setNewQuestion(p => ({ ...p, geo_scope: e.target.value, country_code: e.target.value === 'global' ? '' : p.country_code }))}
+                style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '9px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+              >
+                <option value="global">Global</option>
+                <option value="country">Country-specific</option>
+                <option value="regional">Regional</option>
+                <option value="country_own">Country (own only)</option>
+              </select>
+            </label>
+
+            {(newQuestion.geo_scope === 'country' || newQuestion.geo_scope === 'regional') && (
+              <label style={{ fontSize: '13px', fontWeight: 700 }}>
+                Target country
+                <select
+                  value={newQuestion.country_code}
+                  onChange={(e) => setNewQuestion(p => ({ ...p, country_code: e.target.value }))}
+                  style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '9px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+                >
+                  <option value="">Select country...</option>
+                  <option value="US">United States</option>
+                  <option value="CA">Canada</option>
+                  <option value="GB">United Kingdom</option>
+                  <option value="AU">Australia</option>
+                  <option value="DE">Germany</option>
+                  <option value="FR">France</option>
+                  <option value="JP">Japan</option>
+                  <option value="BR">Brazil</option>
+                  <option value="IN">India</option>
+                </select>
+              </label>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: '1.5rem' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
               <input type="checkbox" checked={newQuestion.is_tracking_anchor} onChange={(e) => setNewQuestion(p => ({ ...p, is_tracking_anchor: e.target.checked }))} />
