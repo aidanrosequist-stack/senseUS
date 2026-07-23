@@ -25,9 +25,22 @@ function vibrate(pattern) {
   }
 }
 
+// Reused across the whole session instead of creating (and leaking)
+// a new AudioContext on every sound effect.
+let sharedAudioCtx = null
+function getAudioContext() {
+  if (!sharedAudioCtx) {
+    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  }
+  if (sharedAudioCtx.state === 'suspended') {
+    sharedAudioCtx.resume()
+  }
+  return sharedAudioCtx
+}
+
 function playSound(type) {
   if (localStorage.getItem('senseus_sound') === 'off') return
-  const ctx = new (window.AudioContext || window.webkitAudioContext)()
+  const ctx = getAudioContext()
   const oscillator = ctx.createOscillator()
   const gainNode = ctx.createGain()
   oscillator.connect(gainNode)
@@ -141,7 +154,7 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
 
         if (navigator.vibrate) navigator.vibrate([80, 40, 80, 40, 120])
         try {
-          const ctx = new (window.AudioContext || window.webkitAudioContext)()
+          const ctx = getAudioContext()
           const osc = ctx.createOscillator()
           const gain = ctx.createGain()
           osc.connect(gain)
