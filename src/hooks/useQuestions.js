@@ -109,8 +109,16 @@ export function useQuestions(userId) {
         }))
 
         // Separate tracking anchors — they always go first
-        const trackingQuestions = questionsWithTallies.filter(q => q.is_tracking_anchor)
-        const regularQuestions = questionsWithTallies.filter(q => !q.is_tracking_anchor)
+        const now = new Date()
+        const priorityQuestions = questionsWithTallies.filter(
+          q => q.is_priority && (!q.priority_expires_at || new Date(q.priority_expires_at) > now)
+        )
+        const trackingQuestions = questionsWithTallies.filter(
+          q => q.is_tracking_anchor && !priorityQuestions.includes(q)
+        )
+        const regularQuestions = questionsWithTallies.filter(
+          q => !q.is_tracking_anchor && !priorityQuestions.includes(q)
+        )
 
         // Stratified sampling by category ratio (regular questions only)
         const categorized = {}
@@ -150,7 +158,7 @@ Object.keys(categorized).forEach(cat => {
 
         // Tracking questions first, then stratified regular questions
         setUsingFallbackPool(usingFallbackPool)
-        setQuestions([...trackingQuestions, ...result])
+        setQuestions([...priorityQuestions, ...trackingQuestions, ...result])
       } catch (err) {
         setError(err.message)
       } finally {

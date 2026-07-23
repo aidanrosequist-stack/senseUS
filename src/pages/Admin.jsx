@@ -208,6 +208,44 @@ export default function Admin() {
     }
   }
 
+  async function pushAsBreakingNews(q) {
+    const confirmed = confirm(
+      `Push "${q.text}" to the top of every user's feed and notify everyone? This can't be easily undone once sent.`
+    )
+    if (!confirmed) return
+
+    try {
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+
+      const { error: updateError } = await supabase
+        .from('questions')
+        .update({ is_priority: true, priority_expires_at: expiresAt })
+        .eq('id', q.id)
+      if (updateError) throw updateError
+
+      const { data: users, error: usersError } = await supabase.from('profiles').select('id')
+      if (usersError) throw usersError
+      if (!users?.length) return showMessage('No users found.', true)
+
+      const notifications = users.map(u => ({
+        user_id: u.id,
+        type: 'breaking_question',
+        priority: 'urgent',
+        title: 'New question just added',
+        body: q.text,
+        action_url: `/vote?question=${q.id}`,
+      }))
+
+      const { error: notifyError } = await supabase.from('notifications').insert(notifications)
+      if (notifyError) throw notifyError
+
+      showMessage(`Pushed to top of feed and notified ${users.length} users!`)
+      loadQuestions()
+    } catch (err) {
+      showMessage('Error pushing question: ' + err.message, true)
+    }
+  }
+
   async function deleteQuestion(question) {
     if (!window.confirm(`Delete "${question.text.substring(0, 50)}..."? This cannot be undone.`)) return
     const { error } = await supabase
@@ -362,6 +400,13 @@ export default function Admin() {
                         >
                           📍
                         </button>
+                        <button
+                          onClick={() => pushAsBreakingNews(q)}
+                          style={{ padding: '5px 10px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', background: q.is_priority ? '#f9d8d8' : '#F3F4F6', color: q.is_priority ? '#7a1313' : '#6B7280' }}
+                          title="Push to top of feed + notify everyone"
+                        >
+                          📢
+                          </button>
                         <button
                           onClick={() => togglePublish(q)}
                           style={{
