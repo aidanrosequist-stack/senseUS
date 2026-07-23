@@ -84,7 +84,7 @@ function ProgressRing({ progress, color }) {
   )
 }
 
-export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null }) {
+export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, voteError = null, onDismissError }) {
   const [zone, setZone] = useState(initialZone)
 
   useEffect(() => {
@@ -102,7 +102,7 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
   const holdTimer = useRef(null)
   const holdInterval = useRef(null)
   function startHold(currentZone) {
-    if (!currentZone) return
+    if (!currentZone || submitting) return
     setHoldZone(currentZone)
     setHoldProgress(0)
 
@@ -280,6 +280,11 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
     // Cancel any hold timer
     cancelHold()
 
+    if (submitting) {
+      resetVisual()
+      return
+    }
+
     // Swipe up with no horizontal selection = skip
     if (dy < -THRESH_SWIPE_UP && Math.abs(dy) > Math.abs(dx) && !zone) {
       onSkip()
@@ -309,6 +314,7 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
   }
 
   function handleButtonVote(value) {
+    if (submitting) return
     const isFull = value === 'yes' || value === 'no'
     vibrate(isFull ? 40 : 12)
     playSound(value)
@@ -541,6 +547,24 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
           I don't want to see this question again
         </button>
       </div>
+
+      {submitting && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, fontFamily: 'Merriweather, serif', fontSize: '13px', color: '#1A1A1A' }}>
+          Saving your vote...
+        </div>
+      )}
+
+      {voteError && (
+        <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', right: '1rem', background: '#7a1313', color: 'white', borderRadius: '10px', padding: '12px 14px', fontFamily: 'Merriweather, serif', fontSize: '13px', zIndex: 21, boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}>
+          <div style={{ marginBottom: '8px' }}>{voteError}</div>
+          <button
+            onClick={() => onDismissError && onDismissError()}
+            style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+          >
+            Dismiss and try again
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import VoteCard from './VoteCard'
 import ResultsCard from './ResultsCard'
 
-export default function QuestionFlow({ questions , onVote, onHideQuestion, targetQuestionId, targetQuestion, initialVoteForTarget }) {
+export default function QuestionFlow({ questions, onVote, onHideQuestion, targetQuestionId, targetQuestion, initialVoteForTarget }) {
   const navigate = useNavigate()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [extraQuestion, setExtraQuestion] = useState(null)
@@ -11,6 +11,8 @@ export default function QuestionFlow({ questions , onVote, onHideQuestion, targe
   const [userVote, setUserVote] = useState(null)
   const [tallies, setTallies] = useState({})
   const [changingVote, setChangingVote] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [voteError, setVoteError] = useState(null)
   const skipHistory = useRef([])
   const swipeStart = useRef(null)
 
@@ -44,29 +46,42 @@ export default function QuestionFlow({ questions , onVote, onHideQuestion, targe
       return
     }
 
+    setSubmitting(true)
+    setVoteError(null)
+
     const isChange = userVote !== null
-    if (!isChange) {
-      const updatedTally = { ...tally, [value]: (tally[value] || 0) + 1 }
-      setTallies((prev) => ({ ...prev, [currentQuestion.id]: updatedTally }))
-    }
 
-    setUserVote(value)
-    setView('results')
+    try {
+      let freshTally = null
+      if (onVote) {
+        freshTally = await onVote(currentQuestion.id, value, tally)
+      }
 
-    if (onVote) {
-      const freshTally = await onVote(currentQuestion.id, value, tally)
-      if (freshTally) {
+      // Only now — after the save is confirmed — update local state and transition
+      if (!isChange) {
+        const updatedTally = freshTally || { ...tally, [value]: (tally[value] || 0) + 1 }
+        setTallies((prev) => ({ ...prev, [currentQuestion.id]: updatedTally }))
+      } else if (freshTally) {
         setTallies((prev) => ({ ...prev, [currentQuestion.id]: freshTally }))
       }
+
+      setUserVote(value)
+      setView('results')
+    } catch (err) {
+      setVoteError(err.message || 'Something went wrong saving your vote. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   function handleSkip() {
+    if (submitting) return
     skipHistory.current.push(currentIndex)
     advance()
   }
 
   function handleHideQuestion() {
+    if (submitting) return
     if (onHideQuestion) onHideQuestion(currentQuestion.id)
     advance()
   }
@@ -82,6 +97,7 @@ export default function QuestionFlow({ questions , onVote, onHideQuestion, targe
   function advance() {
     setExtraQuestion(null)
     setUserVote(null)
+    setVoteError(null)
     setView('voting')
     setCurrentIndex((prev) => Math.min(prev + 1, questions.length))
   }
@@ -141,11 +157,15 @@ export default function QuestionFlow({ questions , onVote, onHideQuestion, targe
           question={currentQuestion}
           onVote={handleVote}
           onSkip={handleSkip}
+          onHideQuestion={handleHideQuestion}
           onMakeUpMyMind={() => navigate(`/make-up-my-mind/${currentQuestion.id}`)}
           onViewConversation={() => navigate(`/conversation/${currentQuestion.id}`)}
           showHint={currentIndex === 0}
           initialZone={currentInitialZone || userVote}
           changingVote={changingVote}
+          submitting={submitting}
+          voteError={voteError}
+          onDismissError={() => setVoteError(null)}
         />
       )}
       {view === 'results' && (

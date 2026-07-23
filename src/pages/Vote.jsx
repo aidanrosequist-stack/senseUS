@@ -45,14 +45,12 @@ export default function Vote() {
   }, [targetQuestionId, user])
 
   async function handleVote(questionId, choice, tally) {
-    if (!user) return
+    if (!user) return null
 
     const total = tally.yes + tally.ly + tally.ln + tally.no
     const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : 0
     const pctNo = 100 - pctYes
 
-    // Check if this is a new vote or a change, and get the user's current
-    // integrity weight — run in parallel since they're independent
     const [{ data: existingVote }, { data: profile }] = await Promise.all([
       supabase
         .from('votes')
@@ -82,21 +80,22 @@ export default function Vote() {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,question_id' })
 
-    if (voteError) console.error('Vote error:', voteError)
+    if (voteError) {
+      console.error('Vote error:', voteError)
+      throw new Error('Your vote could not be saved. Please check your connection and try again.')
+    }
 
-    // Only increment answers_count for new votes, not changes
     if (isNewVote) {
       await supabase.rpc('increment_answers_count', { user_id: user.id })
     }
 
-    // Fetch real tally from DB and update local state
     const { data: freshTally } = await supabase
       .rpc('get_vote_tally', { p_question_id: questionId })
       .single()
 
-    if (freshTally) {
-      return { yes: freshTally.yes, ly: freshTally.ly, ln: freshTally.ln, no: freshTally.no }
-    }
+    return freshTally
+      ? { yes: freshTally.yes, ly: freshTally.ly, ln: freshTally.ln, no: freshTally.no }
+      : { yes: 0, ly: 0, ln: 0, no: 0 }
   }
   
   async function handleHideQuestion(questionId) {
