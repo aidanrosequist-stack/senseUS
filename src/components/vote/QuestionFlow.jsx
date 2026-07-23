@@ -138,7 +138,13 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
         <div style={{ fontSize: '16px', fontWeight: 500, color: '#1A1A1A', marginBottom: '0.5rem' }}>
           You've answered every available question right now
         </div>
-        <p style={{ fontSize: '13px', color: '#6B7280' }}>Check back soon for more questions.</p>
+        <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '1.25rem' }}>Check back soon for more questions.</p>
+        <button
+          onClick={() => navigate('/explore')}
+          style={{ padding: '10px 20px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+        >
+          Browse Explore instead
+        </button>
       </div>
     )
   }

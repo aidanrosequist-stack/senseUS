@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 
 export function useQuestions(userId) {
   const [questions, setQuestions] = useState([])
+  const [usingFallbackPool, setUsingFallbackPool] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -50,19 +51,43 @@ export function useQuestions(userId) {
 
         const skippedIds = new Set((userSkips || []).map(s => s.question_id))
 
-        // Filter out already-voted questions
-        // For country/regional questions that don't match user — only include ~1% of the time
-        const unanswered = allQuestions.filter(q => {
+        // First pass: the "matching" pool — global, own-country, and any
+        // country-scoped question that actually matches the user's country
+        const matchingPool = allQuestions.filter(q => {
           if (votedIds.has(q.id)) return false
           if (skippedIds.has(q.id)) return false
           if (q.geo_scope === 'global' || q.geo_scope === 'country_own') return true
           if (q.geo_scope === 'country' || q.geo_scope === 'regional') {
-          if (!userCountry || !q.country_code) return true // can't determine a match, show it
-          if (q.country_code === userCountry) return true // matches — show normally
-          return Math.random() < 0.01 // doesn't match — very slight chance
-        }
+            return userCountry ? q.country_code === userCountry : true
+          }
           return true
         })
+
+        let unanswered
+        let usingFallbackPool = false
+
+        if (matchingPool.length > 0) {
+          // Normal case — sprinkle in non-matching country questions at a low rate
+          unanswered = allQuestions.filter(q => {
+            if (votedIds.has(q.id)) return false
+            if (skippedIds.has(q.id)) return false
+            if (q.geo_scope === 'global' || q.geo_scope === 'country_own') return true
+            if (q.geo_scope === 'country' || q.geo_scope === 'regional') {
+              if (!userCountry || q.country_code === userCountry) return true
+              return Math.random() < 0.01
+            }
+            return true
+          })
+        } else {
+          // Matching pool is exhausted — show everything remaining rather
+          // than leaving the user with an empty feed
+          usingFallbackPool = true
+          unanswered = allQuestions.filter(q => {
+            if (votedIds.has(q.id)) return false
+            if (skippedIds.has(q.id)) return false
+            return true
+          })
+        }
 
         // Get vote tallies for each question — one batch call instead of
         // one query per question (previously N+1: a separate full vote-row
@@ -124,6 +149,7 @@ Object.keys(categorized).forEach(cat => {
         }
 
         // Tracking questions first, then stratified regular questions
+        setUsingFallbackPool(usingFallbackPool)
         setQuestions([...trackingQuestions, ...result])
       } catch (err) {
         setError(err.message)
@@ -135,5 +161,5 @@ Object.keys(categorized).forEach(cat => {
     fetchQuestions()
   }, [userId])
 
-  return { questions, loading, error }
+  return { questions, loading, error, usingFallbackPool }
 }

@@ -9,7 +9,10 @@ import { useState, useEffect } from 'react'
 
 export default function Vote() {
   const { user } = useAuth()
-  const { questions, loading, error } = useQuestions(user?.id)
+  const { questions, loading, error, usingFallbackPool } = useQuestions(user?.id)
+  const [showGlobalNotice, setShowGlobalNotice] = useState(
+    usingFallbackPool && localStorage.getItem('senseus_seen_global_notice') !== 'true'
+  )
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const targetQuestionId = searchParams.get('question')
@@ -136,6 +139,20 @@ export default function Vote() {
       }}
     >
       <Header />
+      {showGlobalNotice && (
+        <div style={{ position: 'absolute', top: '60px', left: '16px', right: '16px', background: '#2D3DCA', color: 'white', borderRadius: '10px', padding: '12px 14px', fontSize: '13px', fontFamily: 'Merriweather, serif', zIndex: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+          <span>You've answered everything from your country and around the world — now showing questions from other countries too.</span>
+          <button
+            onClick={() => {
+              localStorage.setItem('senseus_seen_global_notice', 'true')
+              setShowGlobalNotice(false)
+            }}
+            style={{ background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer', flexShrink: 0, lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
       <div style={{
         flex: 1,
         width: '100%',
