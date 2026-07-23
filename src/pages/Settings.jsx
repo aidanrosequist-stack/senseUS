@@ -1,3 +1,5 @@
+import PhoneInput from 'react-phone-number-input'
+import 'react-phone-number-input/style.css'
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -54,7 +56,13 @@ export default function Settings() {
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-
+  const [showPhoneChange, setShowPhoneChange] = useState(false)
+  const [phoneChangeStep, setPhoneChangeStep] = useState('enter') // 'enter' | 'verify'
+  const [newPhone, setNewPhone] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [phoneChangeLoading, setPhoneChangeLoading] = useState(false)
+  const [phoneChangeError, setPhoneChangeError] = useState(null)
+  
   // Sound preference stored in localStorage
   const [soundEnabled, setSoundEnabled] = useState(() => {
     return localStorage.getItem('senseus_sound') !== 'off'
@@ -94,6 +102,54 @@ export default function Settings() {
       setSaveMessage('Error saving. Please try again.')
     }
     setSaving(false)
+  }
+
+function maskPhone(phone) {
+    if (!phone) return '—'
+    return `•••• ${phone.slice(-4)}`
+  }
+
+  async function sendPhoneChangeOtp() {
+    if (!newPhone) return
+    setPhoneChangeLoading(true)
+    setPhoneChangeError(null)
+    const { error } = await supabase.auth.updateUser({ phone: newPhone })
+    setPhoneChangeLoading(false)
+    if (error) {
+      setPhoneChangeError(error.message)
+      return
+    }
+    setPhoneChangeStep('verify')
+  }
+
+  async function confirmPhoneChange() {
+    if (!otpCode) return
+    setPhoneChangeLoading(true)
+    setPhoneChangeError(null)
+    const { error } = await supabase.auth.verifyOtp({
+      phone: newPhone,
+      token: otpCode,
+      type: 'phone_change',
+    })
+    setPhoneChangeLoading(false)
+    if (error) {
+      setPhoneChangeError(error.message)
+      return
+    }
+    setShowPhoneChange(false)
+    setPhoneChangeStep('enter')
+    setNewPhone('')
+    setOtpCode('')
+    setSaveMessage('Phone number updated!')
+    setTimeout(() => setSaveMessage(null), 2000)
+  }
+
+  function cancelPhoneChange() {
+    setShowPhoneChange(false)
+    setPhoneChangeStep('enter')
+    setNewPhone('')
+    setOtpCode('')
+    setPhoneChangeError(null)
   }
 
   async function handleSignOut() {
@@ -195,6 +251,91 @@ export default function Settings() {
             style={{ fontSize: '13px', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '6px 8px', fontFamily: 'Merriweather, serif', width: '160px' }}
           />
         </Row>
+      </Section>
+
+{/* Account */}
+      <Section title="Account">
+        {!showPhoneChange ? (
+          <Row label="Phone number" border={false}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '13px', color: '#6B7280' }}>{maskPhone(user?.phone)}</span>
+              <button
+                onClick={() => setShowPhoneChange(true)}
+                style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+              >
+                Change
+              </button>
+            </div>
+          </Row>
+        ) : (
+          <div style={{ padding: '14px 16px' }}>
+            {phoneChangeStep === 'enter' ? (
+              <>
+                <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '10px', lineHeight: 1.5 }}>
+                  Enter your new phone number. We'll text you a code to confirm it's yours.
+                </p>
+                <div className="senseus-phone-input" style={{ marginBottom: '10px' }}>
+                  <PhoneInput
+                    defaultCountry={profile?.country_code || 'US'}
+                    value={newPhone}
+                    onChange={(value) => setNewPhone(value || '')}
+                    placeholder="Enter new phone number"
+                  />
+                </div>
+                {phoneChangeError && (
+                  <p style={{ fontSize: '12px', color: '#7a1313', marginBottom: '10px' }}>{phoneChangeError}</p>
+                )}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={sendPhoneChangeOtp}
+                    disabled={phoneChangeLoading || !newPhone}
+                    style={{ flex: 1, padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontFamily: 'Merriweather, serif', opacity: (phoneChangeLoading || !newPhone) ? 0.5 : 1 }}
+                  >
+                    {phoneChangeLoading ? 'Sending...' : 'Send code'}
+                  </button>
+                  <button
+                    onClick={cancelPhoneChange}
+                    style={{ flex: 1, padding: '8px', background: '#F3F4F6', color: '#1A1A1A', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '10px', lineHeight: 1.5 }}>
+                  Enter the code we texted to your new number.
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="6-digit code"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  style={{ width: '100%', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', marginBottom: '10px' }}
+                />
+                {phoneChangeError && (
+                  <p style={{ fontSize: '12px', color: '#7a1313', marginBottom: '10px' }}>{phoneChangeError}</p>
+                )}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={confirmPhoneChange}
+                    disabled={phoneChangeLoading || !otpCode}
+                    style={{ flex: 1, padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontFamily: 'Merriweather, serif', opacity: (phoneChangeLoading || !otpCode) ? 0.5 : 1 }}
+                  >
+                    {phoneChangeLoading ? 'Verifying...' : 'Confirm'}
+                  </button>
+                  <button
+                    onClick={cancelPhoneChange}
+                    style={{ flex: 1, padding: '8px', background: '#F3F4F6', color: '#1A1A1A', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </Section>
 
       {/* Location */}
