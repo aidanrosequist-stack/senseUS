@@ -58,6 +58,7 @@ export default function Activity() {
   const [badges, setBadges] = useState([])
   const [loading, setLoading] = useState(true)
   const { notifications, markAsRead, markAllAsRead } = useNotificationsContext()
+  const [skipped, setSkipped] = useState([])
 
   useEffect(() => {
     if (!user) return
