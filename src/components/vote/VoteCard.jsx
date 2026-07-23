@@ -266,16 +266,17 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
       x: clientX - startPos.current.x,
       y: clientY - startPos.current.y,
     }
-    
-    // Only process if movement is significant
-    const moveDiff = Math.abs(newDelta.x - delta.current.x) + Math.abs(newDelta.y - delta.current.y)
-    
+
     delta.current = newDelta
     const newZone = zoneFromDelta(delta.current.x)
+    const zoneChanged = newZone !== lastZone.current
+
     applyZone(newZone)
 
-    // Only reset hold timer if user actually moved significantly
-    if (moveDiff > 3) {
+    // Only reset the hold timer when the user actually crosses into a
+    // different zone (or out of any zone) — natural hand tremor while
+    // holding still inside the same zone should never cancel progress.
+    if (zoneChanged) {
       cancelHold()
       clearTimeout(moveTimeout.current)
       if (newZone) {
@@ -293,11 +294,6 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
     // Cancel any hold timer
     cancelHold()
 
-    if (submitting) {
-      resetVisual()
-      return
-    }
-
     // Swipe up with no horizontal selection = skip
     if (dy < -THRESH_SWIPE_UP && Math.abs(dy) > Math.abs(dx) && !zone) {
       onSkip()
@@ -305,18 +301,8 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
       return
     }
 
-    // Swipe up after selecting a zone = commit
-    if (zone && dy < -THRESH_SWIPE_UP && Math.abs(dy) > Math.abs(dx) * 0.5) {
-      if (changingVote && zone === initialZone) {
-        resetVisual()
-        return
-      }
-      onVote(zone)
-      resetVisual()
-      return
-    }
-
-    // Snap back
+    // Releasing without completing the hold just snaps back — committing
+    // now happens only via hold-to-vote or the buttons, never a raw release.
     resetVisual()
   }
 
