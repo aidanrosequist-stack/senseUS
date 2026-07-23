@@ -230,8 +230,8 @@ export default function Admin() {
       const notifications = users.map(u => ({
         user_id: u.id,
         type: 'breaking_question',
-        priority: 'urgent',
-        title: 'New question just added',
+        priority: 'high',
+        title: 'We want your thoughts on a new question that was just added',
         body: q.text,
         action_url: `/vote?question=${q.id}`,
       }))
