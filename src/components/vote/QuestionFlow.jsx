@@ -3,14 +3,20 @@ import { useNavigate } from 'react-router-dom'
 import VoteCard from './VoteCard'
 import ResultsCard from './ResultsCard'
 
-export default function QuestionFlow({ questions , onVote, targetQuestionId, targetQuestion, initialVoteForTarget }) {
+export default function QuestionFlow({ questions , onVote, onHideQuestion, targetQuestionId, targetQuestion, initialVoteForTarget }) {
   const navigate = useNavigate()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [extraQuestion, setExtraQuestion] = useState(null)
+  const [view, setView] = useState('voting') // 'voting' | 'results'
+  const [userVote, setUserVote] = useState(null)
+  const [tallies, setTallies] = useState({})
+  const [changingVote, setChangingVote] = useState(false)
+  const skipHistory = useRef([])
+  const swipeStart = useRef(null)
 
   useEffect(() => {
     if (!targetQuestionId) return
-    
+
     const idx = questions.findIndex(q => q.id === targetQuestionId)
     if (idx >= 0) {
       setCurrentIndex(idx)
@@ -20,16 +26,9 @@ export default function QuestionFlow({ questions , onVote, targetQuestionId, tar
       setCurrentIndex(0)
     }
   }, [targetQuestionId, questions, targetQuestion])
-  const [view, setView] = useState('voting') // 'voting' | 'results'
-  const [userVote, setUserVote] = useState(null)
-  const [tallies, setTallies] = useState({})
-  const skipHistory = useRef([])
-  
+
   const currentQuestion = (extraQuestion && currentIndex === 0) ? extraQuestion : questions[currentIndex]
   const currentInitialZone = (extraQuestion && currentIndex === 0) ? initialVoteForTarget : null
-  if (!currentQuestion) return null
-
-const [changingVote, setChangingVote] = useState(false)
 
   function getTallyFor(question) {
     return tallies[question.id] || question.votes || { yes: 0, ly: 0, ln: 0, no: 0 }
@@ -53,7 +52,6 @@ const [changingVote, setChangingVote] = useState(false)
 
     setUserVote(value)
     setView('results')
-    skipHistory.current = []
 
     if (onVote) {
       const freshTally = await onVote(currentQuestion.id, value, tally)
@@ -65,6 +63,11 @@ const [changingVote, setChangingVote] = useState(false)
 
   function handleSkip() {
     skipHistory.current.push(currentIndex)
+    advance()
+  }
+
+  function handleHideQuestion() {
+    if (onHideQuestion) onHideQuestion(currentQuestion.id)
     advance()
   }
 
@@ -87,6 +90,21 @@ const [changingVote, setChangingVote] = useState(false)
     navigate(`/conversation/${currentQuestion.id}`)
   }
 
+  function handleTouchStart(e) {
+    swipeStart.current = e.touches[0].clientY
+  }
+
+  function handleTouchEnd(e) {
+    if (swipeStart.current === null) return
+    const dy = e.changedTouches[0].clientY - swipeStart.current
+    if (dy > 70 && view === 'voting') {
+      handleSwipeDownRecover()
+    }
+    swipeStart.current = null
+  }
+
+  if (!currentQuestion) return null
+
   if (currentIndex >= questions.length) {
     return (
       <div
@@ -107,21 +125,6 @@ const [changingVote, setChangingVote] = useState(false)
         <p style={{ fontSize: '13px', color: '#6B7280' }}>Check back soon for more questions.</p>
       </div>
     )
-  }
-
-  const swipeStart = useRef(null)
-
-  function handleTouchStart(e) {
-    swipeStart.current = e.touches[0].clientY
-  }
-
-  function handleTouchEnd(e) {
-    if (swipeStart.current === null) return
-    const dy = e.changedTouches[0].clientY - swipeStart.current
-    if (dy > 70 && view === 'voting') {
-      handleSwipeDownRecover()
-    }
-    swipeStart.current = null
   }
 
   return (

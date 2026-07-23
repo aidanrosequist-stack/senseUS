@@ -99,6 +99,11 @@ export default function Vote() {
     }
   }
   
+  async function handleHideQuestion(questionId) {
+    if (!user) return
+    await supabase.from('question_skips').insert({ user_id: user.id, question_id: questionId })
+  }
+
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
@@ -179,6 +184,7 @@ export default function Vote() {
         <QuestionFlow
           questions={questions}
           onVote={handleVote}
+          onHideQuestion={handleHideQuestion}
           targetQuestionId={targetQuestionId}
           targetQuestion={targetQuestion}
           initialVoteForTarget={currentVoteParam}

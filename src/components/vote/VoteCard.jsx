@@ -84,7 +84,7 @@ function ProgressRing({ progress, color }) {
   )
 }
 
-export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, showHint = false, initialZone = null }) {
+export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null }) {
   const [zone, setZone] = useState(initialZone)
 
   useEffect(() => {
@@ -532,6 +532,13 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
         >
           <IconMessageCircle size={16} color="#6B7280" />
           View the Conversation
+        </button>
+
+        <button
+          onClick={() => onHideQuestion && onHideQuestion()}
+          style={{ width: '100%', background: 'none', border: 'none', color: '#9CA3AF', fontSize: '11px', cursor: 'pointer', padding: '8px 0 0', fontFamily: 'Merriweather, serif', textDecoration: 'underline' }}
+        >
+          I don't want to see this question again
         </button>
       </div>
     </div>

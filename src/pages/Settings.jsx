@@ -256,17 +256,39 @@ function maskPhone(phone) {
 {/* Account */}
       <Section title="Account">
         {!showPhoneChange ? (
-          <Row label="Phone number" border={false}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '13px', color: '#6B7280' }}>{maskPhone(user?.phone)}</span>
-              <button
-                onClick={() => setShowPhoneChange(true)}
-                style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-              >
-                Change
-              </button>
-            </div>
-          </Row>
+          <>
+            <Row label="Phone number">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '13px', color: '#6B7280' }}>{maskPhone(user?.phone)}</span>
+                <button
+                  onClick={() => setShowPhoneChange(true)}
+                  style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                >
+                  Change
+                </button>
+              </div>
+            </Row>
+            <Row label="Recovery email" border={false}>
+              <input
+                type="email"
+                placeholder="optional"
+                defaultValue={profile?.recovery_email || ''}
+                onBlur={(e) => {
+                  const val = e.target.value.trim()
+                  if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+                    setSaveMessage('Please enter a valid email address.')
+                    return
+                  }
+                  saveProfile({ recovery_email: val || null })
+                }}
+                maxLength={255}
+                style={{ fontSize: '13px', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '6px 8px', fontFamily: 'Merriweather, serif', width: '160px' }}
+              />
+            </Row>
+            <p style={{ fontSize: '11px', color: '#9CA3AF', lineHeight: 1.5, padding: '0 16px 14px', margin: 0 }}>
+              Used only if you lose access to your phone number — never for marketing.
+            </p>
+          </>
         ) : (
           <div style={{ padding: '14px 16px' }}>
             {phoneChangeStep === 'enter' ? (

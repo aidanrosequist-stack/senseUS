@@ -127,6 +127,14 @@ export default function Activity() {
           .single()
         setBadges(profile?.badges || [])
 
+        // Fetch skipped ("Revisit") questions
+        const { data: skipsData } = await supabase
+          .from('question_skips')
+          .select('id, question_id, created_at, questions (id, text, category)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+        setSkipped(skipsData || [])
+
       } catch (err) {
         console.error(err)
       } finally {
@@ -137,7 +145,7 @@ export default function Activity() {
     fetchActivity()
   }, [user])
 
-  function getDisplayName(profile) {
+   function getDisplayName(profile) {
     if (!profile) return 'Anonymous'
     if (profile.display_preference === 'anon') return profile.anon_name || 'Anonymous'
     if (profile.display_preference === 'first_only') return profile.first_name
@@ -180,6 +188,7 @@ export default function Activity() {
           { key: 'replies', label: 'Replies' },
           { key: 'shifts', label: 'Shifts' },
           { key: 'badges', label: 'Badges' },
+          { key: 'revisit', label: 'Revisit' },
           { key: 'notifications', label: 'Notifications' },
         ].map(t => (
           <button
@@ -293,6 +302,44 @@ export default function Activity() {
                         {shift.total} {shift.total === 1 ? 'human' : 'humans'} answered to date
                       </div>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+{tab === 'revisit' && (
+        <div>
+          {skipped.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+              Nothing here. Questions you choose not to see disappear from your feed and show up here instead.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {skipped.map(skip => (
+                <div
+                  key={skip.id}
+                  style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}
+                >
+                  <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, marginBottom: '8px' }}>
+                    {skip.questions?.text}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                      {skip.questions?.category} · {timeAgo(skip.created_at)}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await supabase.from('question_skips').delete().eq('id', skip.id)
+                        setSkipped(prev => prev.filter(s => s.id !== skip.id))
+                        navigate(`/vote?question=${skip.question_id}`)
+                      }}
+                      style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', fontWeight: 500 }}
+                    >
+                      Revisit →
+                    </button>
                   </div>
                 </div>
               ))}

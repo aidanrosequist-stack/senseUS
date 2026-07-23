@@ -40,10 +40,21 @@ export function useQuestions(userId) {
 
         const votedIds = new Set((userVotes || []).map(v => v.question_id))
 
+        // Get questions this user has permanently skipped ("Revisit" list)
+        const { data: userSkips, error: sError } = await supabase
+          .from('question_skips')
+          .select('question_id')
+          .eq('user_id', userId)
+
+        if (sError) throw sError
+
+        const skippedIds = new Set((userSkips || []).map(s => s.question_id))
+
         // Filter out already-voted questions
         // For country/regional questions that don't match user — only include ~1% of the time
         const unanswered = allQuestions.filter(q => {
           if (votedIds.has(q.id)) return false
+          if (skippedIds.has(q.id)) return false
           if (q.geo_scope === 'global' || q.geo_scope === 'country_own') return true
           if (q.geo_scope === 'country' || q.geo_scope === 'regional') {
           if (!userCountry || !q.country_code) return true // can't determine a match, show it

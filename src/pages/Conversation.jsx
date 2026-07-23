@@ -230,14 +230,13 @@ export default function Conversation() {
     }
   }
 
-  async function shareComment(commentId, commentBody) {
+  async function shareComment(commentId) {
     if (!question?.question_number) return
 
     const url = `https://senseus.app/q/${question.question_number}#comment-${commentId}`
-    const excerpt = commentBody.length > 100 ? commentBody.slice(0, 100) + '…' : commentBody
     const shareData = {
       title: 'senseUS',
-      text: `"${excerpt}" — join the conversation on senseUS`,
+      text: 'Join the conversation on senseUS',
       url,
     }
 
@@ -250,7 +249,6 @@ export default function Conversation() {
       return
     }
 
-    // Fallback for browsers without native share support (mostly desktop)
     try {
       await navigator.clipboard.writeText(url)
       alert('Link copied to clipboard!')
@@ -347,7 +345,7 @@ export default function Conversation() {
 
             <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
               <button
-                onClick={() => shareComment(comment.id, comment.body)}
+                onClick={() => shareComment(comment.id)}
                 style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
                 title="Share this comment"
               >
