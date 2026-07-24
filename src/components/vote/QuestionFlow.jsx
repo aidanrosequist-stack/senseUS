@@ -33,6 +33,10 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
   const currentInitialZone = (extraQuestion && currentIndex === 0) ? initialVoteForTarget : null
 
   function getTallyFor(question) {
+    // TEMP — previewing the results reveal animation. Remove this block after testing.
+    if (question.id === '04c300d0-1205-4211-8bfe-1814b605dce3') {
+      return { yes: 8412, ly: 2003, ln: 25488, no: 8546 }
+    }
     return tallies[question.id] || question.votes || { yes: 0, ly: 0, ln: 0, no: 0 }
   }
 

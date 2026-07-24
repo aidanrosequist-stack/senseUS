@@ -39,8 +39,6 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
   const total = tally.yes + tally.ly + tally.ln + tally.no
   const yesTrue = tally.yes + tally.ly
   const noTrue = tally.ln + tally.no
-  const pctYesTrue = total > 0 ? Math.round((yesTrue / total) * 100) : 50
-  const pctNoTrue = 100 - pctYesTrue
 
   const segments = [
     { key: 'yes', value: tally.yes },
@@ -64,10 +62,12 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
     return () => clearTimeout(t)
   }, [question.id])
 
-  // The core reveal sequence: both sides count up together. Whichever side
-  // is smaller finishes first and locks — that's the signal to morph the
-  // bar from its neutral 50/50 placeholder into the real segmented split.
-  // The leading side keeps counting until it reaches its own true total.
+  // Both sides count up in lockstep — same step size, same interval — so
+  // they stay glued at 50/50 for as long as both are still climbing. The
+  // moment the smaller side reaches its true total, it stops and the
+  // leading side keeps climbing alone, which is what makes the percentages
+  // (derived live from these two numbers, below) start to drift apart in
+  // real time rather than jumping straight to their final values.
   useEffect(() => {
     setYesDisplayed(0)
     setNoDisplayed(0)
@@ -75,7 +75,9 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
 
     if (total === 0) return
 
-    const targetTicks = 40
+    const durationMs = 3000
+    const intervalMs = 50
+    const targetTicks = durationMs / intervalMs
     const step = Math.max(1, Math.ceil(Math.max(yesTrue, noTrue, 1) / targetTicks))
 
     const interval = setInterval(() => {
@@ -93,16 +95,11 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
         return next
       })
 
-      setRevealed(prevRevealed => {
-        if (prevRevealed) return true
-        if ((yesTrue <= noTrue && yesDone) || (noTrue <= yesTrue && noDone)) return true
-        return prevRevealed
-      })
-
       if (yesDone && noDone) {
+        setRevealed(true)
         clearInterval(interval)
       }
-    }, 35)
+    }, intervalMs)
 
     return () => clearInterval(interval)
   }, [question.id, yesTrue, noTrue, total])
@@ -129,9 +126,11 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
   }, [onNext])
 
   const totalDisplayed = yesDisplayed + noDisplayed
-  const leaderKey = pctYesTrue >= pctNoTrue ? 'yes' : 'no'
-  const leaderPct = leaderKey === 'yes' ? pctYesTrue : pctNoTrue
-  const leaderColor = leaderKey === 'yes' ? '#4d6214' : '#8a1616'
+  // Both percentages derive live from the two counters above — this is
+  // what makes them sit at 50/50 during the tied phase and drift apart
+  // in real time once the leader is climbing alone.
+  const pctYesLive = totalDisplayed > 0 ? Math.round((yesDisplayed / totalDisplayed) * 100) : 50
+  const pctNoLive = 100 - pctYesLive
 
   return (
     <div
@@ -217,18 +216,31 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
         {VOTE_LABELS[userVote]}
       </div>
 
-      {/* Hero verdict — the actual payoff of voting */}
-      <div style={{ marginBottom: '0.5rem' }}>
-        <div style={{ fontSize: '40px', fontWeight: 700, fontFamily: 'Georgia, serif', color: leaderColor, lineHeight: 1 }}>
-          {total > 0 ? `${revealed ? leaderPct : 50}%` : '—'}
+      {/* Head-to-head hero — both percentages ticking live, side by side */}
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '2rem', marginBottom: '0.75rem' }}>
+        <div>
+          <div style={{ fontSize: '36px', fontWeight: 700, fontFamily: 'Georgia, serif', color: '#4d6214', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+            {total > 0 ? `${pctYesLive}%` : '—'}
+          </div>
+          <div style={{ fontSize: '11px', fontWeight: 500, color: '#4d6214', letterSpacing: '0.04em', textTransform: 'uppercase', marginTop: '2px' }}>
+            yes
+          </div>
         </div>
-        <div style={{ fontSize: '12px', fontWeight: 500, color: leaderColor, letterSpacing: '0.04em', textTransform: 'uppercase', marginTop: '2px' }}>
-          {total > 0 ? leaderKey : 'no votes yet'}
+        <div style={{ width: '1px', background: 'rgba(0,0,0,0.1)', alignSelf: 'stretch', marginTop: '4px' }} />
+        <div>
+          <div style={{ fontSize: '36px', fontWeight: 700, fontFamily: 'Georgia, serif', color: '#8a1616', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+            {total > 0 ? `${pctNoLive}%` : '—'}
+          </div>
+          <div style={{ fontSize: '11px', fontWeight: 500, color: '#8a1616', letterSpacing: '0.04em', textTransform: 'uppercase', marginTop: '2px' }}>
+            no
+          </div>
         </div>
       </div>
 
-      {/* Bar: neutral 50/50 placeholder during the count-up, morphs into the
-          real segmented split the instant the underdog side locks in */}
+      {/* Bar: tracks the same live 50/50-then-drifting ratio as the
+          percentages above, in flat yes/no color. Swaps to the real
+          four-segment breakdown the instant both counters finish, at
+          which point the widths already match exactly. */}
       <div style={{ width: '100%', marginBottom: '0.5rem', boxSizing: 'border-box' }}>
         <div
           style={{
@@ -248,14 +260,13 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
                   width: total > 0 ? `${(seg.value / total) * 100}%` : '25%',
                   background: VOTE_COLORS[seg.key],
                   flexShrink: 0,
-                  transition: 'width 0.6s cubic-bezier(0.22, 1, 0.36, 1)',
                 }}
               />
             ))
           ) : (
             <>
-              <div style={{ width: '50%', background: '#6d8a1c', opacity: 0.55, animation: 'senseus-pulse 1.1s ease-in-out infinite' }} />
-              <div style={{ width: '50%', background: '#c21f1f', opacity: 0.55, animation: 'senseus-pulse 1.1s ease-in-out infinite' }} />
+              <div style={{ width: `${pctYesLive}%`, background: '#6d8a1c', transition: 'width 0.05s linear' }} />
+              <div style={{ width: `${pctNoLive}%`, background: '#c21f1f', transition: 'width 0.05s linear' }} />
             </>
           )}
         </div>
@@ -336,13 +347,6 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
           Change my vote
         </button>
       </div>
-
-      <style>{`
-        @keyframes senseus-pulse {
-          0%, 100% { opacity: 0.55; }
-          50% { opacity: 0.85; }
-        }
-      `}</style>
     </div>
   )
 }
