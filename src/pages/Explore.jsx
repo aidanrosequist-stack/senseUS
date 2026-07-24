@@ -93,6 +93,7 @@ export default function Explore() {
   const [loading, setLoading] = useState(true)
   const [unansweredOnly, setUnansweredOnly] = useState(false)
   const scrollRefs = useRef({})
+  const [userCountry, setUserCountry] = useState(null)
 
   function scrollRow(domain, direction) {
     const el = scrollRefs.current[domain]
@@ -107,12 +108,21 @@ export default function Explore() {
     async function fetchData() {
       try {
         // Fetch all published questions with vote counts
-        const { data: questionsData } = await supabase
-          .from('questions')
-          .select('id, text, category, domain')
-          .not('published_at', 'is', null)
-          .lte('published_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
+        const [{ data: questionsData }, { data: profileData }] = await Promise.all([
+          supabase
+            .from('questions')
+            .select('id, text, category, domain, geo_scope, country_code')
+            .not('published_at', 'is', null)
+            .lte('published_at', new Date().toISOString())
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('profiles')
+            .select('country_code')
+            .eq('id', user.id)
+            .single(),
+        ])
+
+        setUserCountry(profileData?.country_code || null)
 
         function shuffle(array) {
           for (let i = array.length - 1; i > 0; i--) {
@@ -152,9 +162,42 @@ export default function Explore() {
     }
   }
 
+  function isCountrySpecific(q) {
+    return q.geo_scope === 'country' || q.geo_scope === 'regional'
+  }
+
+  function isForMyCountry(q) {
+    if (!isCountrySpecific(q)) return false
+    if (!q.country_code || !userCountry) return false
+    return q.country_code === userCountry
+  }
+
+  function isForOtherCountry(q) {
+    if (!isCountrySpecific(q)) return false
+    if (!q.country_code || !userCountry) return false
+    return q.country_code !== userCountry
+  }
+
   const getQuestionsForDomain = (domain) => {
     return questions.filter(q => {
       if (q.domain !== domain) return false
+      if (isCountrySpecific(q)) return false
+      if (unansweredOnly && userVotes[q.id]) return false
+      return true
+    })
+  }
+
+  const getMyCountryQuestions = () => {
+    return questions.filter(q => {
+      if (!isForMyCountry(q)) return false
+      if (unansweredOnly && userVotes[q.id]) return false
+      return true
+    })
+  }
+
+  const getOtherCountryQuestions = () => {
+    return questions.filter(q => {
+      if (!isForOtherCountry(q)) return false
       if (unansweredOnly && userVotes[q.id]) return false
       return true
     })
@@ -265,6 +308,112 @@ export default function Explore() {
           </div>
         )
       })}
+
+{(() => {
+        const myCountryQuestions = getMyCountryQuestions()
+        if (myCountryQuestions.length === 0) return null
+        return (
+          <div style={{ marginBottom: '1.75rem' }}>
+            <div style={{ padding: '0 1.25rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+                  My Country
+                </div>
+                <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '2px' }}>
+                  Questions specific to where you live
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                  {myCountryQuestions.length} question{myCountryQuestions.length !== 1 ? 's' : ''}
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    onClick={() => scrollRow('__mycountry__', -1)}
+                    aria-label="Scroll left"
+                    style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => scrollRow('__mycountry__', 1)}
+                    aria-label="Scroll right"
+                    style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+              ref={(el) => (scrollRefs.current['__mycountry__'] = el)}
+              style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '8px', scrollbarWidth: 'none' }}
+            >
+              {myCountryQuestions.map(question => (
+                <QuestionThumbnail
+                  key={question.id}
+                  question={question}
+                  userVote={userVotes[question.id]}
+                  onClick={() => handleThumbnailClick(question)}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
+      {(() => {
+        const otherCountryQuestions = getOtherCountryQuestions()
+        if (otherCountryQuestions.length === 0) return null
+        return (
+          <div style={{ marginBottom: '1.75rem' }}>
+            <div style={{ padding: '0 1.25rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+                  Around the World
+                </div>
+                <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '2px' }}>
+                  Questions specific to other countries
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                  {otherCountryQuestions.length} question{otherCountryQuestions.length !== 1 ? 's' : ''}
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    onClick={() => scrollRow('__global__', -1)}
+                    aria-label="Scroll left"
+                    style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => scrollRow('__global__', 1)}
+                    aria-label="Scroll right"
+                    style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+              ref={(el) => (scrollRefs.current['__global__'] = el)}
+              style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '8px', scrollbarWidth: 'none' }}
+            >
+              {otherCountryQuestions.map(question => (
+                <QuestionThumbnail
+                  key={question.id}
+                  question={question}
+                  userVote={userVotes[question.id]}
+                  onClick={() => handleThumbnailClick(question)}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {questions.length === 0 && (
         <div style={{ textAlign: 'center', padding: '4rem 1.5rem', color: '#6B7280', fontSize: '14px' }}>
