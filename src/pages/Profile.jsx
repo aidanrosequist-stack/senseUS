@@ -160,7 +160,7 @@ export default function Profile() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
-          sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
+          sense<AnimatedWordmark />
         </div>
         <Link to="/settings" style={{ color: '#6B7280', textDecoration: 'none' }}>
           <span style={{ fontSize: '20px' }}>⚙</span>
