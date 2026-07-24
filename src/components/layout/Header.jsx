@@ -1,14 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
+import AnimatedWordmark from './AnimatedWordmark'
+
+export default function Header() {
+  return (
 
 const CYCLE_WORDS = [
-  { text: 'you', color: '#993C1D', hold: 1400 },
-  { text: 'me', color: '#0C447C', hold: 1400 },
-  { text: 'he', color: '#712B13', hold: 420 },
-  { text: 'she', color: '#993556', hold: 420 },
-  { text: 'they', color: '#3C3489', hold: 420 },
-  { text: 'we', color: '#085041', hold: 420 },
-  { text: "y'all", color: '#7A6B0E', hold: 420 },
-  { text: 'everyone', color: '#3B6D11', hold: 420 },
+  { text: 'you', color: '#993C1D', hold: 1000 },
+  { text: 'me', color: '#0C447C', hold: 1000 },
+  { text: 'he', color: '#0bb1a3', hold: 500 },
+  { text: 'she', color: '#993556', hold: 400 },
+  { text: 'they', color: '#3C3489', hold: 300 },
+  { text: 'we', color: '#94522c', hold: 200 },
+  { text: "y'all", color: '#c5b632', hold: 100 },
+  { text: 'everyone', color: '#8d21be', hold: 100 },
 ]
 
 const SETTLED_COLOR = '#6da627' // matches the wordmark everywhere else in the app
