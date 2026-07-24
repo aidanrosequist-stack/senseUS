@@ -1,5 +1,5 @@
 import Header from '../components/layout/Header'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -20,7 +20,7 @@ const DOMAINS = [
 ]
 
 const VOTE_COLORS = {
-  yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f',
+  yes: '#E8F0D1', ly: '#F2EECE', ln: '#F1E1D0', no: '#F1D0D0',
 }
 
 const VOTE_LABELS = {
@@ -41,8 +41,8 @@ function QuestionThumbnail({ question, userVote, onClick }) {
     <div
       onClick={onClick}
       style={{
-        width: '140px',
-        minHeight: '160px',
+        width: '160px',
+        minHeight: '200px',
         flexShrink: 0,
         background: bgColor,
         border: voted ? 'none' : '0.5px solid #E5E7EB',
@@ -69,14 +69,17 @@ function QuestionThumbnail({ question, userVote, onClick }) {
         </div>
       </div>
       <div>
-        {voted && (
-          <div style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,255,255,0.25)', color: 'white', display: 'inline-block', marginBottom: '6px', fontWeight: 500 }}>
+        {voted ? (
+          <div style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: VOTE_COLORS[userVote] + '30', color: VOTE_COLORS[userVote], display: 'inline-block', fontWeight: 500 }}>
             {VOTE_LABELS[userVote]}
           </div>
+        ) : (
+          <div
+            style={{ fontSize: '11px', fontWeight: 500, color: 'white', background: '#2D3DCA', borderRadius: '4px', padding: '4px 0', textAlign: 'center' }}
+          >
+            Vote now
+          </div>
         )}
-        <div style={{ fontSize: '10px', color: subtextColor }}>
-          {(question.vote_count || 0).toLocaleString()} answered
-        </div>
       </div>
     </div>
   )
@@ -89,6 +92,12 @@ export default function Explore() {
   const [userVotes, setUserVotes] = useState({})
   const [loading, setLoading] = useState(true)
   const [unansweredOnly, setUnansweredOnly] = useState(false)
+  const scrollRefs = useRef({})
+
+  function scrollRow(domain, direction) {
+    const el = scrollRefs.current[domain]
+    if (el) el.scrollBy({ left: direction * 320, behavior: 'smooth' })
+  }
 
   useEffect(() => {
     if (!user) {
@@ -105,18 +114,15 @@ export default function Explore() {
           .lte('published_at', new Date().toISOString())
           .order('created_at', { ascending: false })
 
-        // Get vote counts for each question
-        const questionsWithCounts = await Promise.all(
-          (questionsData || []).map(async (q) => {
-            const { count } = await supabase
-              .from('votes')
-              .select('*', { count: 'exact', head: true })
-              .eq('question_id', q.id)
-            return { ...q, vote_count: count || 0 }
-          })
-        )
+        function shuffle(array) {
+          for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1))
+            ;[array[i], array[j]] = [array[j], array[i]]
+          }
+          return array
+        }
 
-        setQuestions(questionsWithCounts)
+        setQuestions(shuffle(questionsData || []))
 
         // Fetch user's votes
         const { data: votesData } = await supabase
@@ -221,11 +227,32 @@ export default function Explore() {
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
                 {domainLabel(domain)}
               </div>
-              <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-                {domainQuestions.length} question{domainQuestions.length !== 1 ? 's' : ''}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                  {domainQuestions.length} question{domainQuestions.length !== 1 ? 's' : ''}
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    onClick={() => scrollRow(domain, -1)}
+                    aria-label="Scroll left"
+                    style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => scrollRow(domain, 1)}
+                    aria-label="Scroll right"
+                    style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    ›
+                  </button>
+                </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '8px', scrollbarWidth: 'none' }}>
+            <div
+              ref={(el) => (scrollRefs.current[domain] = el)}
+              style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '8px', scrollbarWidth: 'none' }}
+            >
               {domainQuestions.map(question => (
                 <QuestionThumbnail
                   key={question.id}

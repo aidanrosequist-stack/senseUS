@@ -411,8 +411,8 @@ function maskPhone(phone) {
         <div style={{ padding: '14px 16px' }}>
           <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, margin: '0 0 10px' }}>
             senseUS is entirely self-funded, with no ads and no selling of your data.
-            If you'd like to help keep it running, check out the photography shop —
-            proceeds go directly toward running costs.
+            If you'd like to help keep it running, or just like pretty pictures, check out lightwillprevail.com —
+            proceeds go directly toward running costs, and help keep the light on.
           </p>
           
             <a href="https://lightwillprevail.com"
