@@ -178,7 +178,7 @@ export default function Explore() {
   }
 
   return (
-    <div style={{ maxWidth: '100%', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', minHeight: '100dvh', paddingBottom: '80px', background: '#F9FAFB' }}>
+    <div style={{ maxWidth: '100%', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', minHeight: '100dvh', paddingBottom: '90px', background: '#F9FAFB' }}>
 
       {/* Header */}
       <div style={{ padding: '1.25rem 1.25rem 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
