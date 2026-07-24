@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 
 const CYCLE_WORDS = [
-  { text: 'you', color: '#1e4e21', hold: 1000 },
+  { text: 'you', color: '#e0c797', hold: 1000 },
   { text: 'me', color: '#3978ac', hold: 1000 },
-  { text: 'he', color: '#a3340f', hold: 400 },
+  { text: 'he', color: '#257532', hold: 400 },
   { text: 'she', color: '#d1527c', hold: 300 },
   { text: 'they', color: '#361485', hold: 200 },
-  { text: 'we', color: '#56acac', hold: 100 },
+  { text: 'we', color: '#8fe9e9', hold: 100 },
   { text: "y'all", color: '#c3ce32', hold: 100 },
   { text: 'everyone', color: '#9844be', hold: 100 },
 ]
@@ -67,23 +67,15 @@ export default function AnimatedWordmark() {
   return (
     <span
       style={{
+        fontWeight: 700,
+        color: settled ? SETTLED_COLOR : color,
         display: 'inline-block',
-        width: settled ? 'auto' : '5.5em',
-        textAlign: 'left',
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(4px)',
+        transition: 'opacity 0.18s ease, transform 0.18s ease',
       }}
     >
-      <span
-        style={{
-          fontWeight: 700,
-          color: settled ? SETTLED_COLOR : color,
-          display: 'inline-block',
-          opacity: visible ? 1 : 0,
-          transform: visible ? 'translateY(0)' : 'translateY(4px)',
-          transition: 'opacity 0.18s ease, transform 0.18s ease',
-        }}
-      >
-        {word}
-      </span>
+      {word}
     </span>
   )
 }

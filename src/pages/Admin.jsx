@@ -1,3 +1,5 @@
+import Header from '../components/layout/Header'
+import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'

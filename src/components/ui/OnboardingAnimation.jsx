@@ -4,7 +4,7 @@ const STEPS = [
   {
     icon: '👉',
     title: 'Swipe right to vote Yes',
-    subtitle: 'and hold in the green zone for 3 seconds',
+    subtitle: 'and hold in the green zone for about 2 seconds',
     color: '#6d8a1c',
     bg: '#eef3e0',
     animDirection: 'right',
@@ -12,7 +12,7 @@ const STEPS = [
   {
     icon: '👈',
     title: 'Swipe left to vote No',
-    subtitle: 'and hold in the red zone for 3 seconds',
+    subtitle: 'and hold in the red zone for about 2 seconds',
     color: '#c21f1f',
     bg: '#f9d8d8',
     animDirection: 'left',
@@ -28,7 +28,7 @@ const STEPS = [
   {
     icon: '⏱',
     title: 'Hold to confirm',
-    subtitle: 'Hold still in a color zone for 3 seconds to commit your vote',
+    subtitle: 'Hold still in a color zone for about 2 seconds to commit your vote or you can also use the voting buttons',
     color: '#6B7280',
     bg: '#F3F4F6',
     animDirection: 'hold',
@@ -139,7 +139,7 @@ export default function OnboardingAnimation({ onComplete }) {
         <div style={{ fontSize: '17px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>
           {current.title}
         </div>
-        <div style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+        <div style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '1.5rem', whiteSpace: 'pre-line' }}>
           {current.subtitle}
         </div>
 
