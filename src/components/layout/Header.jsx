@@ -16,13 +16,13 @@ export default function Header() {
         padding: '1px 1rem',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
+        gap: '12px',
         boxSizing: 'border-box',
       }}>
         <img
           src="/senseUS-logo.png"
           alt="senseUS"
-          style={{ height: '90px', width: 'auto' }}
+          style={{ height: '80px', width: 'auto' }}
         />
         <div style={{ fontFamily: 'Merriweather, serif' }}>
           <div style={{ fontSize: '24px', fontWeight: 400, color: '#1A1A1A', lineHeight: 1 }}>

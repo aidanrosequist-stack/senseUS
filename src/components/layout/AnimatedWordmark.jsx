@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 
 const CYCLE_WORDS = [
-  { text: 'you', color: '#993C1D', hold: 1000 },
-  { text: 'me', color: '#0C447C', hold: 1000 },
-  { text: 'he', color: '#712B13', hold: 400 },
-  { text: 'she', color: '#993556', hold: 300 },
-  { text: 'they', color: '#3C3489', hold: 200 },
-  { text: 'we', color: '#085041', hold: 100 },
-  { text: "y'all", color: '#7A6B0E', hold: 100 },
-  { text: 'everyone', color: '#3B6D11', hold: 100 },
+  { text: 'you', color: '#1e4e21', hold: 1000 },
+  { text: 'me', color: '#3978ac', hold: 1000 },
+  { text: 'he', color: '#a3340f', hold: 400 },
+  { text: 'she', color: '#d1527c', hold: 300 },
+  { text: 'they', color: '#361485', hold: 200 },
+  { text: 'we', color: '#56acac', hold: 100 },
+  { text: "y'all", color: '#c3ce32', hold: 100 },
+  { text: 'everyone', color: '#9844be', hold: 100 },
 ]
 
 const SETTLED_COLOR = '#6da627' // matches the wordmark's static color everywhere else
@@ -32,7 +32,7 @@ export default function AnimatedWordmark() {
   useEffect(() => {
     if (alreadyPlayed) return
 
-    let i = 0
+    let i = 1
 
     function showNext() {
       if (i >= CYCLE_WORDS.length) {
@@ -67,15 +67,23 @@ export default function AnimatedWordmark() {
   return (
     <span
       style={{
-        fontWeight: 700,
-        color: settled ? SETTLED_COLOR : color,
         display: 'inline-block',
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(4px)',
-        transition: 'opacity 0.18s ease, transform 0.18s ease',
+        width: settled ? 'auto' : '5.5em',
+        textAlign: 'left',
       }}
     >
-      {word}
+      <span
+        style={{
+          fontWeight: 700,
+          color: settled ? SETTLED_COLOR : color,
+          display: 'inline-block',
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'translateY(0)' : 'translateY(4px)',
+          transition: 'opacity 0.18s ease, transform 0.18s ease',
+        }}
+      >
+        {word}
+      </span>
     </span>
   )
 }

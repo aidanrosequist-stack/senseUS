@@ -1,4 +1,5 @@
 import Header from '../components/layout/Header'
+import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useNotifications } from '../hooks/useNotifications'
 import { useNotificationsContext } from '../context/NotificationsContext'
 import { useState, useEffect } from 'react'
@@ -175,12 +176,12 @@ export default function Activity() {
     <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', minHeight: '100dvh', paddingBottom: '80px' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
           sense<AnimatedWordmark />
         </div>
-        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Activity</div>
-        <div style={{ width: '60px' }} />
+        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center' }}>Activity</div>
+        <div />
       </div>
 
       {/* Tabs */}

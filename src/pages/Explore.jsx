@@ -1,4 +1,5 @@
 import Header from '../components/layout/Header'
+import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -224,12 +225,12 @@ export default function Explore() {
     <div style={{ maxWidth: '100%', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', minHeight: '100dvh', paddingBottom: '90px', background: '#F9FAFB' }}>
 
       {/* Header */}
-      <div style={{ padding: '1.25rem 1.25rem 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+      <div style={{ padding: '1.25rem 1.25rem 0', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '1rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
           sense<AnimatedWordmark />
         </div>
-        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Explore</div>
-        <div style={{ width: '60px' }} />
+        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center' }}>Explore</div>
+        <div />
       </div>
 
       {/* Toggle */}
