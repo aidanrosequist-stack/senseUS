@@ -20,7 +20,7 @@ const DOMAINS = [
 ]
 
 const VOTE_COLORS = {
-  yes: '#E8F0D1', ly: '#F2EECE', ln: '#F1E1D0', no: '#F1D0D0',
+  yes: '#DAE9AF', ly: '#EEE5AA', ln: '#EBCDAD', no: '#EBADAD',
 }
 
 const VOTE_LABELS = {
