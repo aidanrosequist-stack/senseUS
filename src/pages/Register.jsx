@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 import { useRegistration } from '../hooks/useRegistration'
 import PhoneInput from 'react-phone-number-input'
 import { getExampleNumber } from 'libphonenumber-js'
@@ -55,6 +56,47 @@ export default function Register() {
   const currentYear = new Date().getFullYear()
   const meetsAgeRequirement = birthYear && (currentYear - parseInt(birthYear, 10)) >= 18
   const [showOnboarding, setShowOnboarding] = useState(true)
+  const [registrationOpen, setRegistrationOpen] = useState(true)
+  const [checkingStatus, setCheckingStatus] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'registration_open')
+      .single()
+      .then(({ data }) => {
+        setRegistrationOpen(data?.value !== false)
+        setCheckingStatus(false)
+      })
+  }, [])
+
+if (checkingStatus) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+        Loading...
+      </div>
+    )
+  }
+
+  if (!registrationOpen) {
+    return (
+      <div style={{ maxWidth: '420px', margin: '0 auto', padding: '2rem 1.5rem', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
+          Registration is temporarily closed
+        </h1>
+        <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+          We're not accepting new accounts right now. Check back soon, or join the waitlist to be notified when we reopen.
+        </p>
+        <Link
+          to="/"
+          style={{ display: 'inline-block', padding: '10px 20px', background: '#2D3DCA', color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}
+        >
+          Back to home
+        </Link>
+      </div>
+    )
+  }
 
   return (
     <div style={{ maxWidth: '420px', margin: '0 auto', padding: '2rem 1.5rem' }}>

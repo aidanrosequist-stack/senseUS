@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -13,9 +13,15 @@ const VOTE_LABELS = {
   yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no', dec: 'undecided'
 }
 
-const ANON_COLORS = [
-  '#2D3DCA', '#52B788', '#c2731f', '#c21f1f', '#6d8a1c',
-  '#d9c01a', '#8B5CF6', '#EC4899', '#06B6D4', '#F59E0B'
+// Comments are now color-coded by how the commenter voted rather than a
+// random per-user hue — a comment's avatar always reflects yes/leaning
+// yes/leaning no/no/undecided, same palette as everywhere else on senseUS.
+const NEUTRAL_AVATAR_COLOR = '#9CA3AF' // fallback for a comment with no vote on record
+
+const SORT_OPTIONS = [
+  { key: 'top', label: 'Top' },
+  { key: 'newest', label: 'Newest' },
+  { key: 'oldest', label: 'Oldest' },
 ]
 
 function timeAgo(dateString) {
@@ -101,6 +107,7 @@ export default function Conversation() {
   const [tally, setTally] = useState({ yes: 0, ly: 0, ln: 0, no: 0 })
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [sort, setSort] = useState('top')
   const [newComment, setNewComment] = useState('')
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyText, setReplyText] = useState('')
@@ -291,27 +298,65 @@ export default function Conversation() {
     alert('Thank you — this comment has been flagged for review.')
   }
 
-  const filteredComments = filter === 'all'
-    ? comments.filter(c => !c.parent_id)
-    : comments.filter(c => !c.parent_id && c.votes?.[0]?.choice === filter)
-
   const getReplies = (parentId) => comments.filter(c => c.parent_id === parentId)
 
-  function getAnonColor(userId) {
-    const index = userId.charCodeAt(0) % ANON_COLORS.length
-    return ANON_COLORS[index]
+  function getVoteColor(comment) {
+    const choice = comment.votes?.[0]?.choice
+    return VOTE_COLORS[choice] || NEUTRAL_AVATAR_COLOR
   }
 
-  function CommentCard({ comment, isReply = false }) {
+  // Top-level comments only, filtered by vote-choice tab, then sorted.
+  const filteredComments = useMemo(() => {
+    const topLevel = comments.filter(c => !c.parent_id)
+    const byFilter = filter === 'all'
+      ? topLevel
+      : topLevel.filter(c => c.votes?.[0]?.choice === filter)
+
+    const sorted = [...byFilter]
+    if (sort === 'top') {
+      sorted.sort((a, b) => b.resonance_count - a.resonance_count)
+    } else if (sort === 'newest') {
+      sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    } else if (sort === 'oldest') {
+      sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    }
+    return sorted
+  }, [comments, filter, sort])
+
+  // Featured: the single highest-resonance comment from the yes side and
+  // from the no side (leaning votes fold into their nearest side, same as
+  // the breakdown bar). Only shown on the "All" tab.
+  const { topYesComment, topNoComment } = useMemo(() => {
+    const topLevel = comments.filter(c => !c.parent_id)
+    const yesSide = topLevel.filter(c => ['yes', 'ly'].includes(c.votes?.[0]?.choice))
+    const noSide = topLevel.filter(c => ['no', 'ln'].includes(c.votes?.[0]?.choice))
+
+    const best = (arr) => arr.length
+      ? arr.reduce((a, b) => (b.resonance_count > a.resonance_count ? b : a))
+      : null
+
+    return { topYesComment: best(yesSide), topNoComment: best(noSide) }
+  }, [comments])
+
+  const showFeatured = filter === 'all' && (topYesComment || topNoComment)
+
+  function CommentCard({ comment, isReply = false, featured = false }) {
     const displayName = getDisplayName(comment.profiles)
     const voteChoice = comment.votes?.[0]?.choice
     const hasResonated = userResonances.has(comment.id)
     const replies = getReplies(comment.id)
-    const avatarColor = getAnonColor(comment.user_id)
+    const avatarColor = getVoteColor(comment)
 
     return (
       <div style={{ marginLeft: isReply ? '1.5rem' : 0, marginBottom: '12px' }}>
-        <div style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: featured ? `1.5px solid ${avatarColor}` : '0.5px solid #E5E7EB',
+            borderRadius: '10px',
+            padding: '12px 14px',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -323,6 +368,11 @@ export default function Conversation() {
               {voteChoice && (
                 <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: VOTE_COLORS[voteChoice] + '20', color: VOTE_COLORS[voteChoice], fontWeight: 500 }}>
                   {VOTE_LABELS[voteChoice]}
+                </span>
+              )}
+              {featured && (
+                <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: '#F3F4F6', color: '#6B7280', fontWeight: 500 }}>
+                  Top {voteChoice === 'yes' || voteChoice === 'ly' ? 'yes' : 'no'} comment
                 </span>
               )}
             </div>
@@ -459,7 +509,7 @@ export default function Conversation() {
       <VoteBreakdownBar tally={tally} />
 
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '1.25rem', overflowX: 'auto', paddingBottom: '4px' }}>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '0.75rem', overflowX: 'auto', paddingBottom: '4px' }}>
         {['all', 'yes', 'ly', 'ln', 'no'].map(f => (
           <button
             key={f}
@@ -472,6 +522,25 @@ export default function Conversation() {
             }}
           >
             {f === 'all' ? 'All' : VOTE_LABELS[f]}
+          </button>
+        ))}
+      </div>
+
+      {/* Sort control */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1.25rem' }}>
+        <span style={{ fontSize: '11px', color: '#9CA3AF' }}>Sort:</span>
+        {SORT_OPTIONS.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setSort(opt.key)}
+            style={{
+              fontSize: '11px', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer',
+              fontFamily: 'Merriweather, serif',
+              color: sort === opt.key ? '#2D3DCA' : '#9CA3AF',
+              textDecoration: sort === opt.key ? 'underline' : 'none',
+            }}
+          >
+            {opt.label}
           </button>
         ))}
       </div>
@@ -507,6 +576,17 @@ export default function Conversation() {
           </button>
         )}
       </div>
+
+      {/* Featured top comments — one from each side, only on the "All" tab */}
+      {showFeatured && (
+        <div style={{ marginBottom: '1.25rem' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
+            Top comments
+          </div>
+          {topYesComment && <CommentCard comment={topYesComment} featured />}
+          {topNoComment && <CommentCard comment={topNoComment} featured />}
+        </div>
+      )}
 
       {/* Comments */}
       {filteredComments.length === 0 ? (

@@ -51,6 +51,16 @@ export default function Admin() {
   const [flaggedComments, setFlaggedComments] = useState([])
   const [editingQuestion, setEditingQuestion] = useState(null)
   const [unresolvedCount, setUnresolvedCount] = useState(0)
+  const [registrationOpen, setRegistrationOpen] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'registration_open')
+      .single()
+      .then(({ data }) => setRegistrationOpen(data?.value !== false))
+  }, [])
 
   // New question form
   const [newQuestion, setNewQuestion] = useState({
@@ -126,6 +136,19 @@ export default function Admin() {
     const interval = setInterval(loadUnresolvedCount, 60000)
     return () => clearInterval(interval)
   }, [isAdmin])
+
+async function toggleRegistration(open) {
+    const { error } = await supabase
+      .from('app_settings')
+      .update({ value: open, updated_at: new Date().toISOString() })
+      .eq('key', 'registration_open')
+    if (error) {
+      showMessage('Error updating registration status: ' + error.message, true)
+      return
+    }
+    setRegistrationOpen(open)
+    showMessage(open ? 'Registration is now open.' : 'Registration is now closed.')
+  }
 
   async function loadQuestions() {
     setLoadingData(true)
@@ -293,6 +316,18 @@ export default function Admin() {
           sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
           <span style={{ fontSize: '13px', color: '#6B7280', marginLeft: '8px' }}>Admin</span>
         </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: registrationOpen ? '#eef3e0' : '#f9d8d8', border: `1px solid ${registrationOpen ? '#4d621d' : '#7a1313'}`, borderRadius: '10px', padding: '10px 16px', marginBottom: '1.5rem' }}>
+        <span style={{ fontSize: '13px', fontWeight: 500, color: registrationOpen ? '#4d621d' : '#7a1313' }}>
+          Registration is currently {registrationOpen ? 'OPEN' : 'CLOSED'}
+        </span>
+        <button
+          onClick={() => toggleRegistration(!registrationOpen)}
+          style={{ padding: '6px 16px', background: registrationOpen ? '#c21f1f' : '#4d621d', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+        >
+          {registrationOpen ? 'Close registration' : 'Open registration'}
+        </button>
       </div>
 
       {message && (

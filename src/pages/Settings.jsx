@@ -406,6 +406,25 @@ function maskPhone(phone) {
         </Row>
       </Section>
 
+{/* Support */}
+      <Section title="Support senseUS">
+        <div style={{ padding: '14px 16px' }}>
+          <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, margin: '0 0 10px' }}>
+            senseUS is entirely self-funded, with no ads and no selling of your data.
+            If you'd like to help keep it running, check out the photography shop —
+            proceeds go directly toward running costs.
+          </p>
+          
+            <a href="https://lightwillprevail.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: '13px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none' }}
+          >
+            Visit the shop →
+          </a>
+        </div>
+      </Section>
+
       {/* Danger zone */}
       <Section title="Danger zone">
         {!showDeleteConfirm ? (
