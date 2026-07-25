@@ -7,7 +7,7 @@ const PRINCIPLES = [
   },
   {
     title: 'Your opinion belongs to you.',
-    body: 'We collect your vote. We collect almost nothing else. Not your name. Not your IP address. Not your browsing history. Not your location beyond the country you tell us. Your phone number is verified and discarded. What you think stays yours.',
+    body: 'We collect your vote. We collect almost nothing else. Not your full name. Not your IP address. Not your browsing history. Not your precise location, just your country (and optionally your broad region, if you choose to share it). Your phone number is verified and discarded from the main database, and is only stored for verification purposes. What you think stays yours.',
   },
   {
     title: 'Anonymity enables honesty.',

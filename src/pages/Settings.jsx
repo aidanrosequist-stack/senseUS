@@ -374,6 +374,21 @@ function maskPhone(phone) {
             ))}
           </select>
         </Row>
+        {profile?.country_code === 'US' && (
+          <Row label="Region (optional)" border={false}>
+            <select
+              value={profile?.region || ''}
+              onChange={(e) => saveProfile({ region: e.target.value || null })}
+              style={{ fontSize: '13px', color: '#1A1A1A', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '4px 8px', fontFamily: 'Merriweather, serif', background: 'white' }}
+            >
+              <option value="">Prefer not to say</option>
+              <option value="Northeast">Northeast</option>
+              <option value="Midwest">Midwest</option>
+              <option value="South">South</option>
+              <option value="West">West</option>
+            </select>
+          </Row>
+        )}
       </Section>
 
       {/* Data */}

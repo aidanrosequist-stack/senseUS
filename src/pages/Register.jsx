@@ -226,7 +226,7 @@ if (checkingStatus) {
               </label>
 
               <p style={{ fontSize: '12px', color: '#52B788', textAlign: 'center', lineHeight: 1.6, margin: '0' }}>
-                Just your vote. Not your name. Not anything that can be traced back to you.
+                Just your vote. Not your full name. Not anything that can be traced back to you.
               </p>
 
               <div>
@@ -314,7 +314,7 @@ if (checkingStatus) {
               </label>
 
               <p style={{ fontSize: '12px', color: '#52B788', textAlign: 'center', lineHeight: 1.6, margin: '0' }}>
-                Just your vote. Not your name. Not anything that can be traced back to you.
+                Just your vote. Not your full name. Not anything that can be traced back to you.
               </p>
 
               <button

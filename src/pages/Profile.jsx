@@ -38,6 +38,26 @@ export default function Profile() {
   const [error, setError] = useState(null)
   const navigate = useNavigate()
   const [showResonanceInfo, setShowResonanceInfo] = useState(false)
+  const [showIntegrityInfo, setShowIntegrityInfo] = useState(false)
+  const [integrityStatus, setIntegrityStatus] = useState(null)
+
+async function openIntegrityInfo() {
+    setShowIntegrityInfo(true)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+    const [{ count: voteCount }, { count: commentCount }] = await Promise.all([
+      supabase.from('votes').select('*', { count: 'exact', head: true }).eq('user_id', profile.id).gte('updated_at', thirtyDaysAgo),
+      supabase.from('comments').select('*', { count: 'exact', head: true }).eq('user_id', profile.id).eq('is_deleted', false).gte('created_at', thirtyDaysAgo),
+    ])
+
+    setIntegrityStatus({
+      voteStarted: (voteCount || 0) >= 10,
+      voteMaxed: (voteCount || 0) >= 50,
+      commentStarted: (commentCount || 0) >= 5,
+      commentMaxed: (commentCount || 0) >= 10,
+      consistent: (profile.streak_days || 0) >= 7,
+    })
+  }
 
   useEffect(() => {
     async function loadProfile() {
@@ -198,10 +218,12 @@ export default function Profile() {
           <div style={{ fontSize: '24px', fontWeight: 700, color: '#1A1A1A' }}>{profile.streak_days}</div>
           <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '4px', fontWeight: 300 }}>days</div>
         </div>
-        <div style={{ background: '#F9FAFB', borderRadius: '8px', padding: '1rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '6px', fontWeight: 300 }}>Integrity weight</div>
+        <div
+          onClick={openIntegrityInfo}
+          style={{ background: '#F9FAFB', borderRadius: '8px', padding: '1rem', textAlign: 'center', cursor: 'pointer' }}
+        >
+          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '6px', fontWeight: 300 }}>Integrity weight ⓘ</div>
           <div style={{ fontSize: '24px', fontWeight: 700, color: '#1A1A1A' }}>{profile.integrity_weight?.toFixed(4)}</div>
-          <div style={{ fontSize: '11px', color: '#52B788', marginTop: '4px' }}>verified</div>
         </div>
       </div>
 
@@ -333,6 +355,70 @@ export default function Profile() {
             <button
               onClick={() => setShowResonanceInfo(false)}
               style={{ width: '100%', padding: '10px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+      {showIntegrityInfo && (
+        <div
+          onClick={() => setShowIntegrityInfo(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: '1.5rem', boxSizing: 'border-box',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#FFFFFF', borderRadius: '16px', padding: '1.5rem',
+              maxWidth: '360px', width: '100%', fontFamily: 'Merriweather, serif',
+            }}
+          >
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
+              Reach your full weight
+            </div>
+            <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.7, marginBottom: '1rem' }}>
+              Your integrity weight reflects sustained, genuine participation. It only ever moves up, and it's based on your activity over the last 30 days.
+            </p>
+            {!integrityStatus ? (
+              <p style={{ fontSize: '13px', color: '#9CA3AF' }}>Loading...</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '1rem' }}>
+                {[
+                  { label: 'Vote more', done: integrityStatus.voteMaxed, started: integrityStatus.voteStarted },
+                  { label: 'Interact more', done: integrityStatus.commentMaxed, started: integrityStatus.commentStarted },
+                  { label: 'Be consistent', done: integrityStatus.consistent, started: integrityStatus.consistent },
+                ].map(item => (
+                  <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div
+                      style={{
+                        width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: item.done ? '#6d8a1c' : item.started ? '#d9c01a' : '#F3F4F6',
+                        color: item.done || item.started ? 'white' : '#9CA3AF',
+                        fontSize: '11px', fontWeight: 700,
+                      }}
+                    >
+                      {item.done ? '✓' : item.started ? '~' : ''}
+                    </div>
+                    <span style={{ fontSize: '13px', color: item.done ? '#1A1A1A' : '#6B7280', textDecoration: item.done ? 'line-through' : 'none' }}>
+                      {item.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <a href="/how-it-works"
+              style={{ display: 'block', fontSize: '12px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem', textAlign: 'center' }}
+            >
+              Learn more about how weighting works →
+            </a>
+            <button
+              onClick={() => setShowIntegrityInfo(false)}
+              style={{ width: '100%', padding: '9px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
             >
               Got it
             </button>
