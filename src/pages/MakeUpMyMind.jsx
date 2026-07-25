@@ -2,7 +2,6 @@ import Header from '../components/layout/Header'
 import BottomNav from '../components/layout/BottomNav'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { IconWaveSine, IconCornerDownRight, IconNews } from '@tabler/icons-react'
 import { supabase } from '../lib/supabase'
 
 const STANCE_CONFIG = {

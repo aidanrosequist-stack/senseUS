@@ -162,7 +162,24 @@ export default function Conversation() {
           .eq('is_deleted', false)
           .order('resonance_count', { ascending: false })
 
-        setComments(commentsData || [])
+        // Comments don't have a direct DB relationship to votes (they're
+        // linked only by matching user_id + question_id), so we fetch
+        // every vote on this question separately and merge each
+        // commenter's own choice in — this is what colors each comment
+        // by how that person actually voted.
+        const { data: votesForQuestion } = await supabase
+          .from('votes')
+          .select('user_id, choice')
+          .eq('question_id', questionId)
+
+        const voteByUser = new Map((votesForQuestion || []).map(v => [v.user_id, v.choice]))
+
+        const commentsWithVotes = (commentsData || []).map(c => ({
+          ...c,
+          votes: [{ choice: voteByUser.get(c.user_id) }],
+        }))
+
+        setComments(commentsWithVotes)
 
         // Fetch user's resonances
         if (user) {
@@ -310,9 +327,19 @@ export default function Conversation() {
   // Top-level comments only, filtered by vote-choice tab, then sorted.
   const filteredComments = useMemo(() => {
     const topLevel = comments.filter(c => !c.parent_id)
-    const byFilter = filter === 'all'
+    let byFilter = filter === 'all'
       ? topLevel
       : topLevel.filter(c => c.votes?.[0]?.choice === filter)
+
+    if (filter === 'all') {
+      // Don't show the same comment twice — anything already shown in the
+      // "Top comments" featured section above gets excluded from this list.
+      const yesSide = topLevel.filter(c => ['yes', 'ly'].includes(c.votes?.[0]?.choice))
+      const noSide = topLevel.filter(c => ['no', 'ln'].includes(c.votes?.[0]?.choice))
+      const best = (arr) => arr.length ? arr.reduce((a, b) => (b.resonance_count > a.resonance_count ? b : a)) : null
+      const featuredIds = new Set([best(yesSide)?.id, best(noSide)?.id].filter(Boolean))
+      byFilter = byFilter.filter(c => !featuredIds.has(c.id))
+    }
 
     const sorted = [...byFilter]
     if (sort === 'top') {
@@ -515,7 +542,7 @@ export default function Conversation() {
 
       <button
         onClick={() => navigate(`/make-up-my-mind/${questionId}`)}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#E6F1FB', border: '1.5px solid #0C447C', color: '#0C447C', borderRadius: '8px', padding: '9px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1.25rem' }}
+        style={{ width: 'auto', maxWidth: '400px', margin: '0 auto 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#E6F1FB', border: '1.5px solid #0C447C', color: '#0C447C', borderRadius: '8px', padding: '7px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
       >
         <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#378ADD', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <IconNews size={14} color="white" />
@@ -523,42 +550,7 @@ export default function Conversation() {
         Additional Research
       </button>
 
-      {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '0.75rem', overflowX: 'auto', paddingBottom: '4px' }}>
-        {['all', 'yes', 'ly', 'ln', 'no'].map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            style={{
-              padding: '5px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer',
-              fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', whiteSpace: 'nowrap', flexShrink: 0,
-              background: filter === f ? (f === 'all' ? '#2D3DCA' : VOTE_COLORS[f]) : '#F3F4F6',
-              color: filter === f ? 'white' : '#6B7280',
-            }}
-          >
-            {f === 'all' ? 'All' : VOTE_LABELS[f]}
-          </button>
-        ))}
-      </div>
-
-      {/* Sort control */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1.25rem' }}>
-        <span style={{ fontSize: '11px', color: '#9CA3AF' }}>Sort:</span>
-        {SORT_OPTIONS.map(opt => (
-          <button
-            key={opt.key}
-            onClick={() => setSort(opt.key)}
-            style={{
-              fontSize: '11px', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer',
-              fontFamily: 'Merriweather, serif',
-              color: sort === opt.key ? '#2D3DCA' : '#9CA3AF',
-              textDecoration: sort === opt.key ? 'underline' : 'none',
-            }}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+ <div style={{ borderBottom: '0.5px solid #E5E7EB', marginBottom: '1.25rem' }} />
 
       {/* Comment input */}
       <div style={{ marginBottom: '1.5rem' }}>
@@ -592,19 +584,46 @@ export default function Conversation() {
         )}
       </div>
 
+ <div style={{ borderBottom: '0.5px solid #E5E7EB', marginBottom: '1.25rem' }} />
+
+ <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', flex: 1, paddingBottom: '2px' }}>
+          {['all', 'yes', 'ly', 'ln', 'no'].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                padding: '5px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer',
+                fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', whiteSpace: 'nowrap', flexShrink: 0,
+                background: filter === f ? (f === 'all' ? '#2D3DCA' : VOTE_COLORS[f]) : '#F3F4F6',
+                color: filter === f ? 'white' : '#6B7280',
+              }}
+            >
+              {f === 'all' ? 'All' : VOTE_LABELS[f]}
+            </button>
+          ))}
+        </div>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+          style={{ fontSize: '11px', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '5px 8px', fontFamily: 'Merriweather, serif', background: 'white', flexShrink: 0 }}
+        >
+          <option value="top">Sort: Top</option>
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+        </select>
+      </div>
+
       {/* Featured top comments — one from each side, only on the "All" tab */}
       {showFeatured && (
         <div style={{ marginBottom: '1.25rem' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
-            Top comments
-          </div>
           {topYesComment && <CommentCard comment={topYesComment} featured />}
           {topNoComment && <CommentCard comment={topNoComment} featured />}
         </div>
       )}
 
       {/* Comments */}
-      {filteredComments.length === 0 ? (
+      {filteredComments.length === 0 && !showFeatured ? (
         <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '14px' }}>
           No comments yet. {canParticipate ? 'Be the first to share your thoughts.' : 'Vote to join the conversation.'}
         </div>
