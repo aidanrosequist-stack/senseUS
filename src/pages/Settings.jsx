@@ -425,6 +425,40 @@ function maskPhone(phone) {
         </div>
       </Section>
 
+{/* About */}
+      <Section title="About senseUS">
+        <Row label="How It Works">
+          <Link to="/how-it-works" style={{ fontSize: '12px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none' }}>
+            View →
+          </Link>
+        </Row>
+        <Row label="Our Mission">
+          <Link to="/mission" style={{ fontSize: '12px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none' }}>
+            View →
+          </Link>
+        </Row>
+        <Row label="Ethos">
+          <Link to="/ethos" style={{ fontSize: '12px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none' }}>
+            View →
+          </Link>
+        </Row>
+        <Row label="Transparency Report">
+          <Link to="/transparency" style={{ fontSize: '12px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none' }}>
+            View →
+          </Link>
+        </Row>
+        <Row label="Privacy Policy">
+          <Link to="/privacy" style={{ fontSize: '12px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none' }}>
+            View →
+          </Link>
+        </Row>
+        <Row label="Terms of Service" border={false}>
+          <Link to="/terms" style={{ fontSize: '12px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none' }}>
+            View →
+          </Link>
+        </Row>
+      </Section>
+
       {/* Danger zone */}
       <Section title="Danger zone">
         {!showDeleteConfirm ? (
