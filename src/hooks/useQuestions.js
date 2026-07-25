@@ -24,7 +24,7 @@ export function useQuestions(userId) {
         // Get all published questions
         const { data: allQuestions, error: qError } = await supabase
           .from('questions')
-          .select('id, text, category, domain, is_tracking_anchor, geo_scope, country_code')
+          .select('id, text, category, domain, is_tracking_anchor, geo_scope, country_code, question_number')
           .not('published_at', 'is', null)
           .lte('published_at', new Date().toISOString())
           .order('created_at', { ascending: false })

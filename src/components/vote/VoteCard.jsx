@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { IconThumbUp, IconThumbDown, IconBulb, IconMessageCircle } from '@tabler/icons-react'
+import { IconThumbUp, IconThumbDown, IconBulb, IconMessageCircle, IconShare } from '@tabler/icons-react'
 
 const COLORS = {
   yes: '#6d8a1c',
@@ -325,6 +325,32 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
     if (onMakeUpMyMind) onMakeUpMyMind()
   }
 
+  async function shareQuestion() {
+    if (!question?.question_number) return
+    const url = `https://senseus.app/q/${question.question_number}`
+    const shareData = {
+      title: 'senseUS',
+      text: 'Vote on this question on senseUS',
+      url,
+    }
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData)
+      } catch {
+        // User cancelled the share sheet — not an error, do nothing
+      }
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(url)
+      alert('Link copied to clipboard!')
+    } catch {
+      prompt('Copy this link:', url)
+    }
+  }
+
   const backgroundColor = zone ? COLORS[zone] : 'var(--bg, #FFFFFF)'
 
   return (
@@ -385,8 +411,7 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
           }}
         />
       )}
-
-      <div
+<div
         style={{
           height: '60%',
           display: 'flex',
@@ -426,8 +451,7 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
               Sponsored
             </span>
           )}
-        </div>
-        <div
+        </div>        <div
           style={{
             fontSize: '19px',
             fontWeight: 500,
@@ -438,6 +462,14 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
         >
           {question.text}
         </div>
+
+        <button
+          onClick={shareQuestion}
+          style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', cursor: 'pointer', marginTop: '10px', color: zone ? 'rgba(255,255,255,0.85)' : '#9CA3AF', fontSize: '12px', fontFamily: 'Merriweather, serif' }}
+        >
+          <IconShare size={14} color={zone ? 'rgba(255,255,255,0.85)' : '#9CA3AF'} />
+          Share this question
+        </button>
 
 {zone && (
           <div
@@ -539,12 +571,14 @@ export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onV
           View the Conversation
         </button>
 
-        <button
-          onClick={() => onHideQuestion && onHideQuestion()}
-          style={{ width: '100%', background: 'none', border: 'none', color: '#9CA3AF', fontSize: '11px', cursor: 'pointer', padding: '8px 0 0', fontFamily: 'Merriweather, serif', textDecoration: 'underline' }}
-        >
-          I don't want to see this question again
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '8px' }}>
+          <button
+            onClick={() => onHideQuestion && onHideQuestion()}
+            style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '11px', cursor: 'pointer', fontFamily: 'Merriweather, serif', textDecoration: 'underline' }}
+          >
+            I don't want to see this question again
+          </button>
+          </div>
       </div>
 
       {submitting && (

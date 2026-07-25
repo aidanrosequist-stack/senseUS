@@ -1,3 +1,4 @@
+import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -38,6 +39,9 @@ export default function QuestionPreview() {
           .from('questions')
           .select('id, text, category, domain, question_number')
           .eq('question_number', currentNum)
+          .not('published_at', 'is', null)
+          .lte('published_at', new Date().toISOString())
+          .eq('human_moderation_required', false)
           .single()
 
         if (!q) { setLoading(false); return }
@@ -143,12 +147,19 @@ export default function QuestionPreview() {
 
       {/* Header — never re-renders */}
       <div style={{ background: '#FFFFFF', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 8px rgba(0,0,0,0.08)', flexShrink: 0 }}>
-        <div>
-          <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
-            sense<AnimatedWordmark />
-          </div>
-          <div style={{ fontSize: '9px', color: '#9CA3AF', letterSpacing: '0.04em', marginTop: '1px' }}>
-            real humans. real opinions. real truth.
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img
+            src="/senseUS-logo.png"
+            alt="senseUS"
+            style={{ height: '40px', width: 'auto' }}
+          />
+          <div>
+            <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
+              sense<AnimatedWordmark />
+            </div>
+            <div style={{ fontSize: '9px', color: '#9CA3AF', letterSpacing: '0.04em', marginTop: '1px' }}>
+              real humans. real opinions. real truth.
+            </div>
           </div>
         </div>
         <Link
