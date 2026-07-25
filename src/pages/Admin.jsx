@@ -801,10 +801,14 @@ async function toggleRegistration(open) {
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button
                         onClick={async () => {
-                          await supabase
+                          const { error } = await supabase
                             .from('comments')
                             .update({ is_deleted: true })
                             .eq('id', comment.id)
+                          if (error) {
+                            showMessage('Error removing comment: ' + error.message, true)
+                            return
+                          }
                           showMessage('Comment removed.')
                           loadFlaggedComments()
                         }}
@@ -814,10 +818,14 @@ async function toggleRegistration(open) {
                       </button>
                       <button
                         onClick={async () => {
-                          await supabase
+                          const { error } = await supabase
                             .from('comments')
                             .update({ is_flagged: false, flag_count: 0 })
                             .eq('id', comment.id)
+                          if (error) {
+                            showMessage('Error clearing comment: ' + error.message, true)
+                            return
+                          }
                           showMessage('Comment cleared — no action taken.')
                           loadFlaggedComments()
                         }}
