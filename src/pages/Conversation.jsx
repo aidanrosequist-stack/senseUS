@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
+import Header from '../components/layout/Header'
+import BottomNav from '../components/layout/BottomNav'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-import { IconWaveSine, IconCornerDownRight } from '@tabler/icons-react'
+import { IconWaveSine, IconCornerDownRight, IconNews } from '@tabler/icons-react'
 import { checkComment } from '../lib/moderation'
 
 const VOTE_COLORS = {
@@ -478,7 +480,10 @@ export default function Conversation() {
   }
 
   return (
-    <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', minHeight: '100dvh', paddingBottom: '100px' }}>
+    <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC' }}>
+      <Header />
+      <div style={{ padding: '14px', boxSizing: 'border-box' }}>
+        <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '100px', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
@@ -508,14 +513,15 @@ export default function Conversation() {
       {/* Vote breakdown bar */}
       <VoteBreakdownBar tally={tally} />
 
-      <div style={{ marginBottom: '1.25rem' }}>
-        <button
-          onClick={() => navigate(`/make-up-my-mind/${questionId}`)}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#0C447C', fontSize: '12px', fontWeight: 500, fontFamily: 'Merriweather, serif', padding: 0 }}
-        >
-          📰 See the coverage
-        </button>
-      </div>
+      <button
+        onClick={() => navigate(`/make-up-my-mind/${questionId}`)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#E6F1FB', border: '1.5px solid #0C447C', color: '#0C447C', borderRadius: '8px', padding: '9px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1.25rem' }}
+      >
+        <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#378ADD', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <IconNews size={14} color="white" />
+        </span>
+        Additional Research
+      </button>
 
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '0.75rem', overflowX: 'auto', paddingBottom: '4px' }}>
@@ -608,6 +614,9 @@ export default function Conversation() {
         ))
       )}
 
+    </div>
+    </div>
+    <BottomNav />
     </div>
   )
 }

@@ -1,5 +1,8 @@
+import Header from '../components/layout/Header'
+import BottomNav from '../components/layout/BottomNav'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { IconWaveSine, IconCornerDownRight, IconNews } from '@tabler/icons-react'
 import { supabase } from '../lib/supabase'
 
 const STANCE_CONFIG = {
@@ -78,8 +81,10 @@ export default function MakeUpMyMind() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#C7C7CC', padding: '14px', boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
-    <div style={{ width: '100%', maxWidth: '480px', background: '#FFFFFF', borderRadius: '20px', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.22)', minHeight: 'calc(100dvh - 28px)' }}>
+    <div style={{ minHeight: '100dvh', background: '#C7C7CC', boxSizing: 'border-box', paddingBottom: '90px' }}>
+      <Header />
+      <div style={{ padding: '14px', boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+        <div style={{ width: '100%', maxWidth: '480px', background: '#FFFFFF', borderRadius: '20px', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
@@ -172,7 +177,9 @@ export default function MakeUpMyMind() {
         </button>
       </div>
 
-    </div>
+        </div>
+      </div>
+      <BottomNav />
     </div>
   )
 }
