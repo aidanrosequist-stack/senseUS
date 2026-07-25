@@ -508,6 +508,15 @@ export default function Conversation() {
       {/* Vote breakdown bar */}
       <VoteBreakdownBar tally={tally} />
 
+      <div style={{ marginBottom: '1.25rem' }}>
+        <button
+          onClick={() => navigate(`/make-up-my-mind/${questionId}`)}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#0C447C', fontSize: '12px', fontWeight: 500, fontFamily: 'Merriweather, serif', padding: 0 }}
+        >
+          📰 See the coverage
+        </button>
+      </div>
+
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '0.75rem', overflowX: 'auto', paddingBottom: '4px' }}>
         {['all', 'yes', 'ly', 'ln', 'no'].map(f => (
