@@ -313,6 +313,15 @@ async function toggleRegistration(open) {
   return (
     <div style={{ maxWidth: '680px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box' }}>
 
+      <div style={{ marginBottom: '0.75rem' }}>
+        <button
+          onClick={() => navigate('/vote')}
+          style={{ fontSize: '13px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', padding: 0 }}
+        >
+          ← back
+        </button>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
           sense<AnimatedWordmark />
@@ -339,12 +348,13 @@ async function toggleRegistration(open) {
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '1.5rem', background: '#F3F4F6', padding: '4px', borderRadius: '10px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '1.5rem', background: '#F3F4F6', padding: '4px', borderRadius: '10px' }}>
         <Tab label="Questions" active={tab === 'questions'} onClick={() => setTab('questions')} />
         <Tab label="Add Question" active={tab === 'add'} onClick={() => setTab('add')} />
         <Tab label="Add Article" active={tab === 'articles'} onClick={() => setTab('articles')} />
         <Tab label="Transparency" active={tab === 'transparency'} onClick={() => setTab('transparency')} />
         <Tab label="Review Queue" active={tab === 'review'} onClick={() => setTab('review')} />
+        <Tab label="Flagged Comments" active={tab === 'comments'} onClick={() => setTab('comments')} />
         <Tab label="Broadcast" active={tab === 'broadcast'} onClick={() => setTab('broadcast')} />
         <Tab label="Reports" active={tab === 'reports'} onClick={() => setTab('reports')} badge={unresolvedCount} />
       </div>
@@ -778,67 +788,69 @@ async function toggleRegistration(open) {
               ))}
             </div>
           )}
+        </div>
+      )}
 
-          {/* Flagged comments */}
-          <div style={{ marginTop: '2rem' }}>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
-              Flagged Comments ({flaggedComments.length})
-            </p>
-            {flaggedComments.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '1rem', color: '#6B7280', fontSize: '13px' }}>
-                No flagged comments.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {flaggedComments.map(comment => (
-                  <div key={comment.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
-                    <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '4px' }}>
-                      On: {comment.questions?.text?.substring(0, 60)}... · {comment.flag_count} flag{comment.flag_count !== 1 ? 's' : ''}
-                    </div>
-                    <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '10px' }}>
-                      {comment.body}
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={async () => {
-                          const { error } = await supabase
-                            .from('comments')
-                            .update({ is_deleted: true })
-                            .eq('id', comment.id)
-                          if (error) {
-                            showMessage('Error removing comment: ' + error.message, true)
-                            return
-                          }
-                          showMessage('Comment removed.')
-                          loadFlaggedComments()
-                        }}
-                        style={{ flex: 1, padding: '7px', background: '#f9d8d8', color: '#7a1313', border: '1px solid #7a1313', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-                      >
-                        Remove comment
-                      </button>
-                      <button
-                        onClick={async () => {
-                          const { error } = await supabase
-                            .from('comments')
-                            .update({ is_flagged: false, flag_count: 0 })
-                            .eq('id', comment.id)
-                          if (error) {
-                            showMessage('Error clearing comment: ' + error.message, true)
-                            return
-                          }
-                          showMessage('Comment cleared — no action taken.')
-                          loadFlaggedComments()
-                        }}
-                        style={{ flex: 1, padding: '7px', background: '#eef3e0', color: '#4d621d', border: '1px solid #4d621d', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-                      >
-                        Clear flag
-                      </button>
-                    </div>
+{/* Flagged Comments */}
+      {tab === 'comments' && (
+        <div>
+          <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
+            Flagged Comments ({flaggedComments.length})
+          </p>
+          {flaggedComments.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '1rem', color: '#6B7280', fontSize: '13px' }}>
+              No flagged comments.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {flaggedComments.map(comment => (
+                <div key={comment.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                  <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '4px' }}>
+                    On: {comment.questions?.text?.substring(0, 60)}... · {comment.flag_count} flag{comment.flag_count !== 1 ? 's' : ''}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '10px' }}>
+                    {comment.body}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={async () => {
+                        const { error } = await supabase
+                          .from('comments')
+                          .update({ is_deleted: true })
+                          .eq('id', comment.id)
+                        if (error) {
+                          showMessage('Error removing comment: ' + error.message, true)
+                          return
+                        }
+                        showMessage('Comment removed.')
+                        loadFlaggedComments()
+                      }}
+                      style={{ flex: 1, padding: '7px', background: '#f9d8d8', color: '#7a1313', border: '1px solid #7a1313', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                    >
+                      Remove comment
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const { error } = await supabase
+                          .from('comments')
+                          .update({ is_flagged: false, flag_count: 0 })
+                          .eq('id', comment.id)
+                        if (error) {
+                          showMessage('Error clearing comment: ' + error.message, true)
+                          return
+                        }
+                        showMessage('Comment cleared — no action taken.')
+                        loadFlaggedComments()
+                      }}
+                      style={{ flex: 1, padding: '7px', background: '#eef3e0', color: '#4d621d', border: '1px solid #4d621d', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                    >
+                      Clear flag
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
