@@ -532,18 +532,18 @@ export default function Conversation() {
               </div>
             </div>
           ) : (
-            <p style={{ fontSize: '14px', color: '#1A1A1A', lineHeight: 1.8, margin: '0 0 10px' }}>
-              <span
-                style={{
-                  background: VOTE_WASH[voteChoice] || '#F9FAFB',
-                  boxDecorationBreak: 'clone',
-                  WebkitBoxDecorationBreak: 'clone',
-                  padding: '2px 5px',
-                  borderRadius: '4px',
-                }}
-              >
-                {comment.body}
-              </span>
+            <p
+              style={{
+                fontSize: '14px',
+                color: '#1A1A1A',
+                lineHeight: 1.6,
+                margin: '0 0 10px',
+                padding: '8px 10px',
+                borderRadius: '6px',
+                background: VOTE_WASH[voteChoice] || '#F9FAFB',
+              }}
+            >
+              {comment.body}
             </p>
           )}
 
