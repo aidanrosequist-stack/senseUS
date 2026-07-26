@@ -15,6 +15,13 @@ const VOTE_LABELS = {
   yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no', dec: 'undecided'
 }
 
+const VOTE_WASH = {
+  yes: '#DAE9AF',
+  ly: '#EEE5AA',
+  ln: '#EBCDAD',
+  no: '#EBADAD',
+}
+
 // Comments are color-coded by how the commenter voted rather than a
 // random per-user hue — a comment's avatar always reflects yes/leaning
 // yes/leaning no/no/undecided, same palette as everywhere else on senseUS.
@@ -525,8 +532,18 @@ export default function Conversation() {
               </div>
             </div>
           ) : (
-            <p style={{ fontSize: '14px', color: '#1A1A1A', lineHeight: 1.6, margin: '0 0 10px' }}>
-              {comment.body}
+            <p style={{ fontSize: '14px', color: '#1A1A1A', lineHeight: 1.8, margin: '0 0 10px' }}>
+              <span
+                style={{
+                  background: VOTE_WASH[voteChoice] || '#F9FAFB',
+                  boxDecorationBreak: 'clone',
+                  WebkitBoxDecorationBreak: 'clone',
+                  padding: '2px 5px',
+                  borderRadius: '4px',
+                }}
+              >
+                {comment.body}
+              </span>
             </p>
           )}
 
@@ -668,9 +685,9 @@ export default function Conversation() {
 
       <button
         onClick={() => navigate(`/make-up-my-mind/${questionId}`)}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#FFFFFF', border: '1.5px solid #0C447C', color: '#0C447C', borderRadius: '8px', padding: '7px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '0.75rem' }}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#FFFFFF', border: '1.5px solid #2D3DCA', color: '#2D3DCA', borderRadius: '8px', padding: '7px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '0.75rem' }}
       >
-        <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#378ADD', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#2D3DCA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <IconNews size={14} color="white" />
         </span>
         Additional Research
