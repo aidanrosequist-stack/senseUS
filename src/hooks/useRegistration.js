@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useState, useEffect } from 'react'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -17,6 +18,22 @@ export function useRegistration() {
   const [step, setStep] = useState('phone')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+useEffect(() => {
+    async function checkExistingSession() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (!profile) {
+        setStep('details')
+      }
+    }
+    checkExistingSession()
+  }, [])
 
   async function sendCode() {
     setLoading(true)
