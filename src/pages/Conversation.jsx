@@ -693,7 +693,7 @@ export default function Conversation() {
         Additional Research
       </button>
 
-      <div style={{ borderBottom: '3px solid #6B7280', marginBottom: '1rem' }} />
+      <div style={{ borderBottom: '5px solid #E5E7EB', marginBottom: '1rem' }} />
 
       {/* Comment input — replaced by your own pinned comment once you've posted one */}
       {myComment ? (
