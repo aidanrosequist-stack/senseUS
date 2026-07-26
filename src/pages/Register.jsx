@@ -57,7 +57,9 @@ export default function Register() {
 
   const currentYear = new Date().getFullYear()
   const meetsAgeRequirement = birthYear && (currentYear - parseInt(birthYear, 10)) >= 18
-  const [showOnboarding, setShowOnboarding] = useState(true)
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+  return localStorage.getItem('senseus_onboarded') !== 'true'
+})
   const [registrationOpen, setRegistrationOpen] = useState(true)
   const [checkingStatus, setCheckingStatus] = useState(true)
 
