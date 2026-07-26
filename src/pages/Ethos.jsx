@@ -39,7 +39,7 @@ export default function Ethos() {
   return (
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: '3rem 1.5rem 4rem', fontFamily: 'Merriweather, serif', color: '#1A1A1A' }}>
       <h1 style={{ fontSize: '26px', fontWeight: 700, marginBottom: '2rem', textAlign: 'center' }}>
-        sense<span style={{ color: '#2D3DCA' }}>US</span> — Our Ethos
+        sense<span style={{ color: '#6da627' }}>US</span> — Our Ethos
       </h1>
 
       {/* Aidan's intro, styled like a handwritten letter block */}

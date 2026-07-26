@@ -43,8 +43,8 @@ export default function HowItWorks() {
       </div>
 
       <div style={{ marginBottom: '2.5rem' }}>
-        <div style={{ fontSize: '28px', fontWeight: 500, color: '#2D3DCA', marginBottom: '4px' }}>
-          sense<span style={{ fontWeight: 700 }}>US</span>
+        <div style={{ fontSize: '28px', fontWeight: 500, color: '#1A1A1A', marginBottom: '4px' }}>
+          sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
         </div>
         <h1 style={{ fontSize: '22px', fontWeight: 500, color: '#1A1A1A', margin: 0 }}>
           How It Works
