@@ -523,10 +523,7 @@ export default function Conversation() {
       </div>
 
       {/* Question */}
-      <div style={{ marginBottom: '1.25rem' }}>
-        <span style={{ fontSize: '11px', fontWeight: 500, padding: '3px 10px', borderRadius: '20px', background: '#E6F1FB', color: '#0C447C', display: 'inline-block', marginBottom: '6px' }}>
-          {question?.category}
-        </span>
+      <div style={{ marginBottom: '0.75rem' }}>
         <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', lineHeight: 1.5, margin: 0 }}>
           {question?.text}
         </h1>
@@ -542,18 +539,18 @@ export default function Conversation() {
 
       <button
         onClick={() => navigate(`/make-up-my-mind/${questionId}`)}
-        style={{ width: 'auto', maxWidth: '400px', margin: '0 auto 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#E6F1FB', border: '1.5px solid #0C447C', color: '#0C447C', borderRadius: '8px', padding: '7px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#FFFFFF', border: '1.5px solid #2D3DCA', color: '#2D3DCA', borderRadius: '8px', padding: '7px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1.25rem' }}
       >
-        <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#378ADD', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#2D3DCA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <IconNews size={14} color="white" />
         </span>
         Additional Research
       </button>
 
- <div style={{ borderBottom: '0.5px solid #E5E7EB', marginBottom: '1.25rem' }} />
+      <div style={{ borderBottom: '5px solid #E5E7EB', marginBottom: '1rem' }} />
 
       {/* Comment input */}
-      <div style={{ marginBottom: '1.5rem' }}>
+      <div style={{ marginBottom: '1rem' }}>
         <textarea
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
@@ -584,22 +581,28 @@ export default function Conversation() {
         )}
       </div>
 
- <div style={{ borderBottom: '0.5px solid #E5E7EB', marginBottom: '1.25rem' }} />
+         <div style={{ borderBottom: '0.5px solid #E5E7EB', marginBottom: '1rem' }} />
 
- <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
         <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', flex: 1, paddingBottom: '2px' }}>
-          {['all', 'yes', 'ly', 'ln', 'no'].map(f => (
+          {[
+            { key: 'all', label: 'All', wash: '#E6F1FB', bold: '#2D3DCA', text: '#0C447C' },
+            { key: 'yes', label: 'Yes', wash: '#F4F8EC', bold: VOTE_COLORS.yes, text: VOTE_COLORS.yes },
+            { key: 'ly', label: 'LY', wash: '#FBF8E4', bold: VOTE_COLORS.ly, text: '#7a6b0e' },
+            { key: 'ln', label: 'LN', wash: '#FBF1E6', bold: VOTE_COLORS.ln, text: VOTE_COLORS.ln },
+            { key: 'no', label: 'No', wash: '#FBEAEA', bold: VOTE_COLORS.no, text: VOTE_COLORS.no },
+          ].map(f => (
             <button
-              key={f}
-              onClick={() => setFilter(f)}
+              key={f.key}
+              onClick={() => setFilter(f.key)}
               style={{
                 padding: '5px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer',
                 fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', whiteSpace: 'nowrap', flexShrink: 0,
-                background: filter === f ? (f === 'all' ? '#2D3DCA' : VOTE_COLORS[f]) : '#F3F4F6',
-                color: filter === f ? 'white' : '#6B7280',
+                background: filter === f.key ? f.bold : f.wash,
+                color: filter === f.key ? 'white' : f.text,
               }}
             >
-              {f === 'all' ? 'All' : VOTE_LABELS[f]}
+              {f.label}
             </button>
           ))}
         </div>
@@ -616,7 +619,7 @@ export default function Conversation() {
 
       {/* Featured top comments — one from each side, only on the "All" tab */}
       {showFeatured && (
-        <div style={{ marginBottom: '1.25rem' }}>
+        <div style={{ marginBottom: '0.75rem' }}>
           {topYesComment && <CommentCard comment={topYesComment} featured />}
           {topNoComment && <CommentCard comment={topNoComment} featured />}
         </div>
@@ -633,9 +636,9 @@ export default function Conversation() {
         ))
       )}
 
-    </div>
-    </div>
-    <BottomNav />
+        </div>
+      </div>
+      <BottomNav />
     </div>
   )
 }
