@@ -15,16 +15,12 @@ const VOTE_LABELS = {
   yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no', dec: 'undecided'
 }
 
-// Comments are now color-coded by how the commenter voted rather than a
+// Comments are color-coded by how the commenter voted rather than a
 // random per-user hue — a comment's avatar always reflects yes/leaning
 // yes/leaning no/no/undecided, same palette as everywhere else on senseUS.
 const NEUTRAL_AVATAR_COLOR = '#9CA3AF' // fallback for a comment with no vote on record
 
-const SORT_OPTIONS = [
-  { key: 'top', label: 'Top' },
-  { key: 'newest', label: 'Newest' },
-  { key: 'oldest', label: 'Oldest' },
-]
+const MAX_REPLY_DEPTH = 2 // comment (0) -> reply (1) -> reply (2), then no further replying
 
 function timeAgo(dateString) {
   const now = new Date()
@@ -113,6 +109,8 @@ export default function Conversation() {
   const [newComment, setNewComment] = useState('')
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyText, setReplyText] = useState('')
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [userResonances, setUserResonances] = useState(new Set())
 
@@ -155,7 +153,7 @@ export default function Conversation() {
         const { data: commentsData } = await supabase
           .from('comments')
           .select(`
-            id, body, resonance_count, created_at, parent_id, user_id,
+            id, body, resonance_count, created_at, parent_id, user_id, edited_at, is_removed,
             profiles (first_name, last_initial, display_preference, anon_name)
           `)
           .eq('question_id', questionId)
@@ -166,7 +164,9 @@ export default function Conversation() {
         // linked only by matching user_id + question_id), so we fetch
         // every vote on this question separately and merge each
         // commenter's own choice in — this is what colors each comment
-        // by how that person actually voted.
+        // by how that person actually voted. This is fetched once per
+        // page load, so a vote change elsewhere won't recolor a comment
+        // until the next visit to this page.
         const { data: votesForQuestion } = await supabase
           .from('votes')
           .select('user_id, choice')
@@ -219,12 +219,22 @@ export default function Conversation() {
         is_flagged: check.flagged || false,
       })
       .select(`
-        id, body, resonance_count, created_at, parent_id, user_id,
+        id, body, resonance_count, created_at, parent_id, user_id, edited_at, is_removed,
         profiles (first_name, last_initial, display_preference, anon_name)
       `)
       .single()
 
-    if (!error && data) {
+    if (error) {
+      if (error.code === '23505') {
+        alert('You\'ve already shared your top-level comment on this question. You can edit it instead.')
+      } else {
+        alert('Something went wrong posting your comment.')
+      }
+      setSubmitting(false)
+      return
+    }
+
+    if (data) {
       const newCommentWithVote = { ...data, votes: [{ choice: userVote }] }
       setComments(prev => parentId
         ? [...prev, newCommentWithVote]
@@ -238,6 +248,38 @@ export default function Conversation() {
       }
     }
     setSubmitting(false)
+  }
+
+  async function updateComment(commentId) {
+    if (!editText.trim() || !user) return
+
+    const check = checkComment(editText)
+    if (!check.allowed) {
+      alert(check.reason)
+      return
+    }
+
+    const { error } = await supabase
+      .from('comments')
+      .update({
+        body: editText.trim(),
+        edited_at: new Date().toISOString(),
+        is_flagged: check.flagged || false,
+      })
+      .eq('id', commentId)
+      .eq('user_id', user.id)
+
+    if (error) {
+      alert('Something went wrong saving your edit.')
+      return
+    }
+
+    setComments(prev => prev.map(c => c.id === commentId
+      ? { ...c, body: editText.trim(), edited_at: new Date().toISOString() }
+      : c
+    ))
+    setEditingId(null)
+    setEditText('')
   }
 
   async function toggleResonate(commentId) {
@@ -284,6 +326,32 @@ export default function Conversation() {
   }
 
   async function deleteComment(commentId) {
+    const hasReplies = comments.some(c => c.parent_id === commentId)
+
+    if (hasReplies) {
+      const confirmed = confirm(
+        'This comment has replies, so deleting it would remove those too. Instead, we\'ll clear your comment\'s text but leave the thread intact. Continue?'
+      )
+      if (!confirmed) return
+
+      const { error } = await supabase
+        .from('comments')
+        .update({ is_removed: true, body: '[deleted by user]' })
+        .eq('id', commentId)
+        .eq('user_id', user.id)
+
+      if (error) {
+        alert('Something went wrong removing your comment.')
+        return
+      }
+
+      setComments(prev => prev.map(c => c.id === commentId
+        ? { ...c, is_removed: true, body: '[deleted by user]' }
+        : c
+      ))
+      return
+    }
+
     if (!confirm('Delete this comment? This cannot be undone.')) return
 
     const { error } = await supabase
@@ -324,16 +392,23 @@ export default function Conversation() {
     return VOTE_COLORS[choice] || NEUTRAL_AVATAR_COLOR
   }
 
+  // Your own top-level comment, if you have one — pinned separately,
+  // never shown again inside the regular ranked list below.
+  const myComment = useMemo(() => {
+    if (!user) return null
+    return comments.find(c => c.user_id === user.id && !c.parent_id) || null
+  }, [comments, user])
+
   // Top-level comments only, filtered by vote-choice tab, then sorted.
+  // Your own comment (shown pinned separately) and the two featured
+  // comments are excluded here so nothing appears twice.
   const filteredComments = useMemo(() => {
-    const topLevel = comments.filter(c => !c.parent_id)
+    const topLevel = comments.filter(c => !c.parent_id && c.id !== myComment?.id)
     let byFilter = filter === 'all'
       ? topLevel
       : topLevel.filter(c => c.votes?.[0]?.choice === filter)
 
     if (filter === 'all') {
-      // Don't show the same comment twice — anything already shown in the
-      // "Top comments" featured section above gets excluded from this list.
       const yesSide = topLevel.filter(c => ['yes', 'ly'].includes(c.votes?.[0]?.choice))
       const noSide = topLevel.filter(c => ['no', 'ln'].includes(c.votes?.[0]?.choice))
       const best = (arr) => arr.length ? arr.reduce((a, b) => (b.resonance_count > a.resonance_count ? b : a)) : null
@@ -350,13 +425,14 @@ export default function Conversation() {
       sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
     }
     return sorted
-  }, [comments, filter, sort])
+  }, [comments, filter, sort, myComment])
 
   // Featured: the single highest-resonance comment from the yes side and
   // from the no side (leaning votes fold into their nearest side, same as
-  // the breakdown bar). Only shown on the "All" tab.
+  // the breakdown bar). Only shown on the "All" tab. Your own comment is
+  // excluded here too, since it's already pinned separately.
   const { topYesComment, topNoComment } = useMemo(() => {
-    const topLevel = comments.filter(c => !c.parent_id)
+    const topLevel = comments.filter(c => !c.parent_id && c.id !== myComment?.id)
     const yesSide = topLevel.filter(c => ['yes', 'ly'].includes(c.votes?.[0]?.choice))
     const noSide = topLevel.filter(c => ['no', 'ln'].includes(c.votes?.[0]?.choice))
 
@@ -365,29 +441,31 @@ export default function Conversation() {
       : null
 
     return { topYesComment: best(yesSide), topNoComment: best(noSide) }
-  }, [comments])
+  }, [comments, myComment])
 
   const showFeatured = filter === 'all' && (topYesComment || topNoComment)
 
-  function CommentCard({ comment, isReply = false, featured = false }) {
+  function CommentCard({ comment, depth = 0, featured = false, pinned = false }) {
     const displayName = getDisplayName(comment.profiles)
     const voteChoice = comment.votes?.[0]?.choice
     const hasResonated = userResonances.has(comment.id)
     const replies = getReplies(comment.id)
     const avatarColor = getVoteColor(comment)
+    const isOwn = comment.user_id === user?.id
+    const isEditing = editingId === comment.id
 
     return (
-      <div style={{ marginLeft: isReply ? '1.5rem' : 0, marginBottom: '12px' }}>
+      <div style={{ marginLeft: depth > 0 ? `${depth * 1.25}rem` : 0, marginBottom: '12px' }}>
         <div
           style={{
             background: '#FFFFFF',
-            border: featured ? `1.5px solid ${avatarColor}` : '0.5px solid #E5E7EB',
+            border: (featured || pinned) ? `1.5px solid ${avatarColor}` : '0.5px solid #E5E7EB',
             borderRadius: '10px',
             padding: '12px 14px',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: '10px', color: 'white', fontWeight: 700 }}>
                   {displayName.charAt(0)}
@@ -404,64 +482,115 @@ export default function Conversation() {
                   Top {voteChoice === 'yes' || voteChoice === 'ly' ? 'yes' : 'no'} comment
                 </span>
               )}
+              {pinned && (
+                <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: '#F3F4F6', color: '#6B7280', fontWeight: 500 }}>
+                  Your comment
+                </span>
+              )}
+              {comment.edited_at && !comment.is_removed && (
+                <span style={{ fontSize: '10px', color: '#9CA3AF', fontStyle: 'italic' }}>
+                  --edited--
+                </span>
+              )}
             </div>
             <span style={{ fontSize: '10px', color: '#9CA3AF' }}>{timeAgo(comment.created_at)}</span>
           </div>
 
-          <p style={{ fontSize: '14px', color: '#1A1A1A', lineHeight: 1.6, margin: '0 0 10px' }}>
-            {comment.body}
-          </p>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <button
-              onClick={() => comment.user_id !== user?.id && toggleResonate(comment.id)}
-              disabled={!canParticipate || comment.user_id === user?.id}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: (canParticipate && comment.user_id !== user?.id) ? 'pointer' : 'default', color: hasResonated ? '#2D3DCA' : '#6B7280', opacity: (canParticipate && comment.user_id !== user?.id) ? 1 : 0.5 }}
-            >
-              <IconWaveSine size={14} />
-              <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>{comment.resonance_count}</span>
-            </button>
-
-            <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
-              <button
-                onClick={() => shareComment(comment.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
-                title="Share this comment"
-              >
-                <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⤴</span>
-                <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Share</span>
-              </button>
-              {canParticipate && comment.user_id !== user?.id && (
+          {comment.is_removed ? (
+            <p style={{ fontSize: '14px', color: '#9CA3AF', fontStyle: 'italic', lineHeight: 1.6, margin: '0 0 10px' }}>
+              [deleted by user]
+            </p>
+          ) : isEditing ? (
+            <div style={{ marginBottom: '10px' }}>
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                rows={3}
+                style={{ width: '100%', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '8px', fontSize: '14px', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', resize: 'none' }}
+              />
+              <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
                 <button
-                  onClick={() => flagComment(comment.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
-                  title="Flag this comment"
+                  onClick={() => updateComment(comment.id)}
+                  disabled={!editText.trim()}
+                  style={{ padding: '6px 14px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'Merriweather, serif', opacity: !editText.trim() ? 0.5 : 1 }}
                 >
-                  <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⚑</span>
+                  Save
+                </button>
+                <button
+                  onClick={() => { setEditingId(null); setEditText('') }}
+                  style={{ padding: '6px 14px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p style={{ fontSize: '14px', color: '#1A1A1A', lineHeight: 1.6, margin: '0 0 10px' }}>
+              {comment.body}
+            </p>
+          )}
+
+          {!comment.is_removed && !isEditing && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => !isOwn && toggleResonate(comment.id)}
+                disabled={!canParticipate || isOwn}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: (canParticipate && !isOwn) ? 'pointer' : 'default', color: hasResonated ? '#2D3DCA' : '#6B7280', opacity: (canParticipate && !isOwn) ? 1 : 0.5 }}
+              >
+                <IconWaveSine size={14} />
+                <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>{comment.resonance_count}</span>
+              </button>
+
+              <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                <button
+                  onClick={() => shareComment(comment.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
+                  title="Share this comment"
+                >
+                  <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⤴</span>
+                  <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Share</span>
+                </button>
+                {canParticipate && !isOwn && (
+                  <button
+                    onClick={() => flagComment(comment.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
+                    title="Flag this comment"
+                  >
+                    <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⚑</span>
+                  </button>
+                )}
+              </div>
+
+              {depth < MAX_REPLY_DEPTH && canParticipate && !isOwn && (
+                <button
+                  onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', fontSize: '12px', fontFamily: 'Merriweather, serif' }}
+                >
+                  <IconCornerDownRight size={14} />
+                  {replies.length > 0 ? `${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}` : 'reply'}
                 </button>
               )}
+
+              {isOwn && (
+                <>
+                  <button
+                    onClick={() => { setEditingId(comment.id); setEditText(comment.body) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
+                    title="Edit this comment"
+                  >
+                    <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Edit</span>
+                  </button>
+                  <button
+                    onClick={() => deleteComment(comment.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
+                    title="Delete this comment"
+                  >
+                    <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Delete</span>
+                  </button>
+                </>
+              )}
             </div>
-
-            {!isReply && canParticipate && comment.user_id !== user?.id && (
-              <button
-                onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', fontSize: '12px', fontFamily: 'Merriweather, serif' }}
-              >
-                <IconCornerDownRight size={14} />
-                {replies.length > 0 ? `${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}` : 'reply'}
-              </button>
-            )}
-
-            {comment.user_id === user?.id && (
-              <button
-                onClick={() => deleteComment(comment.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
-                title="Delete this comment"
-              >
-                <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Delete</span>
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         {replyingTo === comment.id && (
@@ -492,7 +621,7 @@ export default function Conversation() {
         )}
 
         {replies.length > 0 && replies.map(reply => (
-          <CommentCard key={reply.id} comment={reply} isReply />
+          <CommentCard key={reply.id} comment={reply} depth={depth + 1} />
         ))}
       </div>
     )
@@ -539,49 +668,55 @@ export default function Conversation() {
 
       <button
         onClick={() => navigate(`/make-up-my-mind/${questionId}`)}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#FFFFFF', border: '1.5px solid #2D3DCA', color: '#2D3DCA', borderRadius: '8px', padding: '7px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1.25rem' }}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#FFFFFF', border: '1.5px solid #0C447C', color: '#0C447C', borderRadius: '8px', padding: '7px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '0.75rem' }}
       >
-        <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#2D3DCA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#378ADD', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <IconNews size={14} color="white" />
         </span>
         Additional Research
       </button>
 
-      <div style={{ borderBottom: '5px solid #E5E7EB', marginBottom: '1rem' }} />
+      <div style={{ borderBottom: '3px solid #6B7280', marginBottom: '1rem' }} />
 
-      {/* Comment input */}
-      <div style={{ marginBottom: '1rem' }}>
-        <textarea
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder={canParticipate ? 'Share your thoughts...' : 'vote to speak your mind'}
-          disabled={!canParticipate}
-          rows={3}
-          style={{
-            width: '100%', border: '1px solid #D1D5DB', borderRadius: '10px',
-            padding: '10px', fontSize: '14px', fontFamily: 'Merriweather, serif',
-            boxSizing: 'border-box', resize: 'none',
-            background: canParticipate ? 'white' : '#F9FAFB',
-            color: canParticipate ? '#1A1A1A' : '#9CA3AF',
-          }}
-        />
-        {canParticipate && (
-          <button
-            onClick={() => submitComment(newComment)}
-            disabled={submitting || !newComment.trim()}
+      {/* Comment input — replaced by your own pinned comment once you've posted one */}
+      {myComment ? (
+        <div style={{ marginBottom: '1rem' }}>
+          <CommentCard comment={myComment} pinned />
+        </div>
+      ) : (
+        <div style={{ marginBottom: '1rem' }}>
+          <textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder={canParticipate ? 'Share your thoughts...' : 'vote to speak your mind'}
+            disabled={!canParticipate}
+            rows={3}
             style={{
-              marginTop: '8px', padding: '9px 20px', background: '#2D3DCA', color: 'white',
-              border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
-              cursor: 'pointer', fontFamily: 'Merriweather, serif',
-              opacity: submitting || !newComment.trim() ? 0.5 : 1,
+              width: '100%', border: '1px solid #D1D5DB', borderRadius: '10px',
+              padding: '10px', fontSize: '14px', fontFamily: 'Merriweather, serif',
+              boxSizing: 'border-box', resize: 'none',
+              background: canParticipate ? 'white' : '#F9FAFB',
+              color: canParticipate ? '#1A1A1A' : '#9CA3AF',
             }}
-          >
-            {submitting ? 'Posting...' : 'Post'}
-          </button>
-        )}
-      </div>
+          />
+          {canParticipate && (
+            <button
+              onClick={() => submitComment(newComment)}
+              disabled={submitting || !newComment.trim()}
+              style={{
+                marginTop: '8px', padding: '9px 20px', background: '#2D3DCA', color: 'white',
+                border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'Merriweather, serif',
+                opacity: submitting || !newComment.trim() ? 0.5 : 1,
+              }}
+            >
+              {submitting ? 'Posting...' : 'Post'}
+            </button>
+          )}
+        </div>
+      )}
 
-         <div style={{ borderBottom: '0.5px solid #E5E7EB', marginBottom: '1rem' }} />
+      <div style={{ borderBottom: '0.5px solid #E5E7EB', marginBottom: '1rem' }} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
         <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', flex: 1, paddingBottom: '2px' }}>
@@ -626,7 +761,7 @@ export default function Conversation() {
       )}
 
       {/* Comments */}
-      {filteredComments.length === 0 && !showFeatured ? (
+      {filteredComments.length === 0 && !showFeatured && !myComment ? (
         <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '14px' }}>
           No comments yet. {canParticipate ? 'Be the first to share your thoughts.' : 'Vote to join the conversation.'}
         </div>
