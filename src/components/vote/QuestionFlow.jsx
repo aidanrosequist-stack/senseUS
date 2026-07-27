@@ -160,6 +160,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
     >
       {view === 'voting' && (
         <VoteCard
+          key={currentQuestion.id}
           question={currentQuestion}
           onVote={handleVote}
           onSkip={handleSkip}

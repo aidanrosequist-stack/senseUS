@@ -100,6 +100,13 @@ function ProgressRing({ progress, color }) {
 export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, voteError = null, onDismissError }) {
   const [zone, setZone] = useState(initialZone)
 
+useEffect(() => {
+    return () => {
+      clearInterval(holdInterval.current)
+      clearTimeout(moveTimeout.current)
+    }
+  }, [])
+
   useEffect(() => {
     if (initialZone) setZone(initialZone)
   }, [initialZone])
