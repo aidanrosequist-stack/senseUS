@@ -51,8 +51,8 @@ export default function Vote() {
     if (!user) return null
 
     const total = tally.yes + tally.ly + tally.ln + tally.no
-    const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : 0
-    const pctNo = 100 - pctYes
+    const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : null
+    const pctNo = total > 0 ? 100 - pctYes : null
 
     const [{ data: existingVote }, { data: profile }] = await Promise.all([
       supabase

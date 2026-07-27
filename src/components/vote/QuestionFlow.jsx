@@ -39,13 +39,6 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
   async function handleVote(value) {
     const tally = getTallyFor(currentQuestion)
 
-    if (value === 'undecided') {
-      setUserVote('undecided')
-      setTallies((prev) => ({ ...prev, [currentQuestion.id]: tally }))
-      setView('results')
-      return
-    }
-
     setSubmitting(true)
     setVoteError(null)
 
