@@ -50,26 +50,20 @@ export default function Vote() {
   async function handleVote(questionId, choice, tally) {
     if (!user) return null
 
-    const total = tally.yes + tally.ly + tally.ln + tally.no
-    const pctYes = total > 0 ? Math.round(((tally.yes + tally.ly) / total) * 100) : null
-    const pctNo = total > 0 ? 100 - pctYes : null
+    // integrity_weight_at_vote and pct_yes_at_vote/pct_no_at_vote are no
+    // longer computed here — the secure_vote_fields_trigger on the votes
+    // table overwrites both server-side on every insert/update, so the
+    // client can no longer influence a vote's weight or recorded tally
+    // snapshot. See migration 007_secure_vote_fields.sql.
 
-    const [{ data: existingVote }, { data: profile }] = await Promise.all([
-      supabase
-        .from('votes')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('question_id', questionId)
-        .single(),
-      supabase
-        .from('profiles')
-        .select('integrity_weight')
-        .eq('id', user.id)
-        .single(),
-    ])
+    const { data: existingVote } = await supabase
+      .from('votes')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('question_id', questionId)
+      .single()
 
     const isNewVote = !existingVote
-    const currentWeight = profile?.integrity_weight ?? 1.0000
 
     const { error: voteError } = await supabase
       .from('votes')
@@ -77,9 +71,6 @@ export default function Vote() {
         user_id: user.id,
         question_id: questionId,
         choice,
-        integrity_weight_at_vote: currentWeight,
-        pct_yes_at_vote: pctYes,
-        pct_no_at_vote: pctNo,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,question_id' })
 
