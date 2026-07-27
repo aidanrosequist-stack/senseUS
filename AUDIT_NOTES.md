@@ -249,3 +249,12 @@ where v.id is null;
 ```
 
 All five should return zero rows. Confirmed clean on 2026-07-27.
+
+---
+
+## Automated Weekly Integrity Checks
+
+`run_integrity_checks()` runs every Sunday at 6am UTC via pg_cron.
+Checks all five invariants documented above. Silent when clean —
+failures are logged to `anomaly_log` as `integrity_check_failed`
+with severity `critical`, visible in the Admin Reports tab.
