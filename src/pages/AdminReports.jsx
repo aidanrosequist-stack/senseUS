@@ -93,8 +93,9 @@ export default function AdminReports({ supabase }) {
           .limit(25),
         supabase
           .from("questions")
-          .select("id, text, domain, human_moderation_required, created_at")
-          .limit(100),
+          .select("id, text, domain, human_moderation_required, created_at, votes(count)")
+          .order("created_at", { ascending: false })
+          .limit(400),
       ]);
 
       setStats({
