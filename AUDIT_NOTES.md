@@ -212,3 +212,40 @@ stored in the application database (`profiles` table). After SMS verification vi
 Twilio, the message log is deleted from Twilio's servers via their API.
 
 See Privacy Policy at senseus.app/privacy for full details.
+
+---
+
+## Pre-Launch Data Integrity Checks
+
+Run these before wiping test data and before soft launch to confirm
+the voting pipeline is clean:
+
+```sql
+-- 1. answers_count matches actual votes
+select p.id, p.answers_count, count(v.id) as actual, 
+  p.answers_count - count(v.id) as discrepancy
+from profiles p left join votes v on v.user_id = p.id
+group by p.id, p.answers_count
+having p.answers_count != count(v.id);
+
+-- 2. No invalid choice values
+select choice, count(*) from votes 
+where choice not in ('yes','ly','ln','no','dec') group by choice;
+
+-- 3. No duplicate votes
+select user_id, question_id, count(*) from votes 
+group by user_id, question_id having count(*) > 1;
+
+-- 4. pct_yes + pct_no = 100
+select id, pct_yes_at_vote, pct_no_at_vote
+from votes where pct_yes_at_vote is not null
+and pct_yes_at_vote + pct_no_at_vote != 100;
+
+-- 5. No orphaned vote_changes
+select vc.id from vote_changes vc
+left join votes v on v.user_id = vc.user_id 
+and v.question_id = vc.question_id
+where v.id is null;
+```
+
+All five should return zero rows. Confirmed clean on 2026-07-27.
