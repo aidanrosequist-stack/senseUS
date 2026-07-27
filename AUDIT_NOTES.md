@@ -195,6 +195,93 @@ before the fix was applied.
 Alerts are logged to `anomaly_log` and trigger email notifications via the
 `send-alert-email` Edge Function.
 
+**Design decision (confirmed 2026-07-27):** These triggers are alert-only —
+they log and notify but never block a signup or a vote change themselves.
+This is intentional, not a gap to close: automated blocking of "coordinated"
+signups or vote changes risks false-positive lockouts of real users (e.g. a
+school or workplace signing up together, or someone genuinely reconsidering
+several votes). Anomalies are meant to be reviewed by a human via the Admin
+Reports tab, not auto-enforced.
+
+---
+
+## Security Fixes — 2026-07-27 Audit
+
+A security review of the full repo (frontend, DB functions, Edge Functions)
+surfaced two direct data-manipulation vulnerabilities, both fixed in
+migration `007_secure_vote_fields.sql`:
+
+**1. Vote integrity fields were entirely client-supplied.** `Vote.jsx`
+previously computed `integrity_weight_at_vote`, `pct_yes_at_vote`, and
+`pct_no_at_vote` in the browser and sent them directly in the upsert.
+Nothing server-side validated or recomputed them, and `get_vote_tally()`
+sums `integrity_weight_at_vote` straight from the stored row — so anyone
+who intercepted or scripted the request could set their own vote's weight
+to any value, defeating the integrity-weighting system entirely.
+
+Fixed with a `BEFORE INSERT OR UPDATE` trigger (`secure_vote_fields_trigger`
+/ `secure_vote_fields()`) that overwrites all three fields server-side on
+every write, ignoring whatever the client sends. `integrity_weight_at_vote`
+is pulled from `profiles.integrity_weight` at first vote only (preserved
+as-is on vote changes, matching existing documented behavior above). The
+pct fields are recomputed from the live weighted tally. A `CHECK` constraint
+(`integrity_weight_at_vote between 1.0000 and 1.0050`) backstops the trigger
+independently, along with a `valid_choice` constraint restricting `choice`
+to `yes/ly/ln/no/dec`.
+
+**2. `increment_answers_count(user_id)` had no ownership check.** Any
+authenticated user could call the RPC directly with someone else's UUID and
+inflate their `answers_count`, which feeds badges and profile stats. Fixed
+by adding `if auth.uid() != user_id then raise exception` at the top of the
+function.
+
+**3. `send-export-email` Edge Function removed entirely.** It accepted
+`{ email, name, downloadUrl }` from the raw request body with no ownership
+check, and — because Supabase's default `verify_jwt = true` is satisfied by
+the public anon key — was reachable by anyone on the internet. It could have
+been used to send phishing emails from `hello@senseus.app` to arbitrary
+addresses with an attacker-chosen link. It was also unwired scaffolding: the
+actual export pipeline was never built (`Settings.jsx` inserts a `pending`
+row into `exports` and nothing ever processes it). Removed rather than
+hardened since nothing currently depends on it — see "Export Pipeline Not
+Yet Built" below. If/when the pipeline is built, any new version of this
+function must look up a real `exports` row owned by `auth.uid()` with
+`status = 'completed'` and pull `download_url` from that row — never from
+the request body.
+
+**Still open from the same audit (not yet fixed):**
+- No RLS policies, table schema, or several existing triggers
+  (`protect_admin_columns`, `moderate_comment`) are committed to git —
+  the authorization layer is unversioned and can't be diffed or audited
+  from the repo alone. Needs a `supabase db dump` before soft launch.
+- `calculate-integrity` Edge Function has `verify_jwt = false` and no
+  internal check — publicly triggerable, running with service-role
+  privileges. Low direct damage (idempotent ratchet) but should require
+  a shared secret or be restricted to cron.
+- `send-daily-report`, `send-weekly-report`, `send-alert-email` have no
+  internal caller check either — the public anon key satisfies the
+  default `verify_jwt = true`, so anyone can trigger them. `send-alert-email`
+  in particular could be spammed with fake alerts to bury a real one.
+- Public `waitlist` insert (`Home.jsx`) has no CAPTCHA or rate limit.
+- `og-preview` interpolates `question.text` unescaped into raw HTML —
+  low risk today since only admins add questions, but would need escaping
+  before any user-suggested-question feature ships.
+
+---
+
+## Export Pipeline Not Yet Built
+
+`Settings.jsx` → "Export my data" inserts a row into `exports` with
+`user_id` and default `status = 'pending'`. Nothing currently watches that
+table, generates the actual export file, flips `status` to `completed`, or
+sends an email. `Privacy.jsx` promises delivery within 48 hours — that
+promise is not yet backed by working code. Needs: a process (cron or
+trigger-invoked function) that picks up pending exports, generates the
+file, uploads it somewhere the user can retrieve it, sets `download_url`
+and `status = 'completed'`, and only then notifies the user — with the
+notification function looking up the export row itself rather than trusting
+any input about what to send or where.
+
 ---
 
 ## No IP Addresses
