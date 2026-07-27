@@ -165,6 +165,11 @@ where pct_yes + pct_no != 100
 
 A result with zero rows means all snapshots are mathematically consistent.
 
+**Note (2026-07-27):** Fixed rounding invariant — `pct_no` is now derived as
+`100 - pct_yes` rather than a second `round()` call, guaranteeing
+`pct_yes + pct_no = 100` always. No bad data was found in existing snapshots
+before the fix was applied.
+
 ---
 
 ## Anomaly Detection Thresholds
