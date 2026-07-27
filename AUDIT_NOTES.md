@@ -93,6 +93,54 @@ with `previous_choice`, `new_choice`, and `changed_at`.
 
 ---
 
+## Trigger Inventory (as of 2026-07-27)
+
+Two issues were identified and fixed during a voting-math audit:
+
+### Fix 1 — vote_changes population (migration 004)
+Prior to 2026-07-27, no trigger wrote to `vote_changes`. The table existed and
+`check_vote_manipulation()` read from it, but nothing populated it — meaning
+vote-change logging and vote-manipulation anomaly detection were both silently
+inactive.
+
+Fixed by adding `on_vote_change_log` trigger (BEFORE UPDATE on votes, fires only
+when `old.choice IS DISTINCT FROM new.choice`). Now every vote change is logged
+with `previous_choice`, `new_choice`, `changed_at`, and `change_count` is incremented.
+
+### Fix 2 — update_streak fires on INSERT only (migration 004)
+Prior to 2026-07-27, `update_streak_on_vote` fired on both INSERT and UPDATE of
+the `votes` table (tgtype 21). Because `votes` uses upsert, changing an existing
+vote re-fired `update_streak()`, which could increment `streak_days` — and
+therefore the 7-day integrity_weight bonus — without the user answering any new
+question. Real integrity gap.
+
+Fixed by dropping and recreating `update_streak_on_vote` as INSERT-only.
+A vote change is not new activity and must not move the streak.
+
+**Verification:**
+```sql
+-- Confirm INSERT-only
+select tgname,
+  case when tgtype & 16 > 0 then 'fires on UPDATE (bad)' else 'INSERT only (good)' end as status
+from pg_trigger where tgname = 'update_streak_on_vote';
+
+-- Confirm vote_changes populates on vote change
+select * from vote_changes order by changed_at desc limit 5;
+```
+
+### Full trigger inventory
+| Table | Trigger | Event | Function |
+|-------|---------|-------|----------|
+| votes | update_streak_on_vote | INSERT | update_streak() |
+| votes | on_vote_change_log | UPDATE (choice change only) | log_vote_change() |
+| vote_changes | on_vote_change_check | INSERT | check_vote_manipulation() |
+| profiles | on_coordinated_signup_check | INSERT | check_coordinated_signup() |
+| profiles | on_registration_spike_check | INSERT | check_registration_spike() |
+| questions | on_flagged_question_check | UPDATE | check_flagged_question() |
+| transparency_events | on_new_transparency_event | INSERT | check_new_transparency_event() |
+
+---
+
 ## Daily Snapshots (`question_snapshots`)
 
 A daily cron at 2am UTC snapshots the current vote tallies for every published
