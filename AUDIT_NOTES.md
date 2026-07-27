@@ -7,6 +7,18 @@ for transparency and auditability purposes. Last updated: July 2026.
 
 ## Voting Math
 
+### Percentage Formula — Canonical Decision (2026-07-27)
+The canonical percentage formula for user-facing displays is
+**weighted-over-weighted**: `(yes_weighted + ly_weighted) / (yes_weighted + ly_weighted + ln_weighted + no_weighted)`.
+
+This is what ResultsCard and Vote.jsx display to users.
+
+Internal screens (Activity Shifts, AdminReports) use raw counts for their
+own calculations but do not display percentages to users, so no
+user-facing inconsistency exists. This was confirmed during the 2026-07-27
+audit.
+
+
 ### Vote Tallying (`get_vote_tally`, `get_vote_tallies_batch`)
 
 Vote counts for yes/ly/ln/no are **integrity-weighted** — each vote is multiplied by
