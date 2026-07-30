@@ -1,8 +1,10 @@
 import Header from '../components/layout/Header'
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
 
 export default function Home() {
   const [phone, setPhone] = useState('')
@@ -10,20 +12,66 @@ export default function Home() {
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [turnstileToken, setTurnstileToken] = useState(null)
+  const widgetRef = useRef(null)
+  const widgetIdRef = useRef(null)
+
+  // Load the Turnstile script once, then render the widget. Turnstile's
+  // "managed" mode runs invisibly in the background in the vast majority
+  // of cases — it only surfaces a simple checkbox (never image puzzles)
+  // on the rare request it can't verify automatically.
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return
+
+    function renderWidget() {
+      if (widgetRef.current && window.turnstile && widgetIdRef.current === null) {
+        widgetIdRef.current = window.turnstile.render(widgetRef.current, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: (token) => setTurnstileToken(token),
+          'expired-callback': () => setTurnstileToken(null),
+          'error-callback': () => setTurnstileToken(null),
+        })
+      }
+    }
+
+    if (window.turnstile) {
+      renderWidget()
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+    script.async = true
+    script.defer = true
+    script.onload = renderWidget
+    document.head.appendChild(script)
+
+    return () => {
+      if (widgetIdRef.current !== null && window.turnstile) {
+        window.turnstile.remove(widgetIdRef.current)
+      }
+    }
+  }, [])
 
   async function handleSubmit() {
     if (!phone) return
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setError('Please complete the verification check above.')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
-      const { error: insertError } = await supabase
-        .from('waitlist')
-        .insert({ phone, first_name: firstName })
-      if (insertError) {
-        if (insertError.code === '23505') {
-          setError('That number is already on the list.')
-        } else {
-          setError('Something went wrong. Please try again.')
+      const { data, error: fnError } = await supabase.functions.invoke('join-waitlist', {
+        body: { phone, first_name: firstName, turnstileToken },
+      })
+      if (fnError || data?.error) {
+        const message = data?.error || 'Something went wrong. Please try again.'
+        setError(message)
+        // Reset the widget so the person can retry with a fresh token.
+        if (widgetIdRef.current !== null && window.turnstile) {
+          window.turnstile.reset(widgetIdRef.current)
+          setTurnstileToken(null)
         }
       } else {
         setSubmitted(true)
@@ -157,9 +205,12 @@ export default function Home() {
                 opacity: submitted ? 0.5 : 1,
               }}
             />
+            {TURNSTILE_SITE_KEY && (
+              <div ref={widgetRef} style={{ display: 'flex', justifyContent: 'center', margin: '4px 0' }} />
+            )}
             <button
               onClick={handleSubmit}
-              disabled={loading || submitted || !phone || !firstName}
+              disabled={loading || submitted || !phone || !firstName || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
               style={{
                 width: '100%',
                 padding: '11px',
