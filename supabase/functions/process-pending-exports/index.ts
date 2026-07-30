@@ -179,7 +179,9 @@ Deno.serve(async (req) => {
 
       const { data: signedUrlData, error: signedUrlError } = await adminClient.storage
         .from("user-exports")
-        .createSignedUrl(filePath, SIGNED_URL_TTL_SECONDS)
+        .createSignedUrl(filePath, SIGNED_URL_TTL_SECONDS, {
+          download: "senseUS-data-export.json",
+        })
 
       if (signedUrlError || !signedUrlData?.signedUrl) {
         throw signedUrlError || new Error("Failed to create signed URL")
