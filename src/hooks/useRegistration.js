@@ -34,18 +34,24 @@ useEffect(() => {
     checkExistingSession()
   }, [])
 
-  async function sendCode() {
+  async function sendCode(captchaToken) {
     setLoading(true)
     setError(null)
     try {
-      const { error: otpError } = await supabase.auth.signInWithOtp({ phone })
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        phone,
+        options: captchaToken ? { captchaToken } : undefined,
+      })
       if (otpError) {
         setError(otpError.message)
+        return false
       } else {
         setStep('code')
+        return true
       }
     } catch (err) {
       setError(err.message)
+      return false
     } finally {
       setLoading(false)
     }
@@ -63,6 +69,13 @@ useEffect(() => {
       if (verifyError || !data.session) {
         setError(verifyError?.message || 'Incorrect code. Please try again.')
       } else {
+        // Fire-and-forget — never blocks registration on Lookup latency
+        // or failure. See check-line-type/index.ts and migration
+        // 010_voip_weight_withholding.sql for what this does.
+        supabase.functions.invoke('check-line-type', { body: { phone } }).catch(() => {
+          // Silent fail — this is a defense-in-depth signal, not a
+          // requirement for registration to succeed.
+        })
         setStep('details')
       }
     } catch (err) {

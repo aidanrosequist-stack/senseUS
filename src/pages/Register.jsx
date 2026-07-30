@@ -1,6 +1,6 @@
 import Header from '../components/layout/Header'
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRegistration } from '../hooks/useRegistration'
 import PhoneInput from 'react-phone-number-input'
@@ -9,6 +9,9 @@ import examples from 'libphonenumber-js/examples.mobile.json'
 import 'react-phone-number-input/style.css'
 import { Link } from 'react-router-dom'
 import OnboardingAnimation from '../components/ui/OnboardingAnimation'
+import TurnstileWidget from '../components/ui/TurnstileWidget'
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
 
 // Auto-detects a default country from the browser's locale (e.g. "en-US" -> "US").
 // Falls back to "US" if the locale doesn't include a region, since that's the
@@ -54,6 +57,17 @@ export default function Register() {
   const [country, setCountry] = useState('')
   const [defaultPhoneCountry] = useState(getDefaultCountryFromLocale)
   const [phoneCountry, setPhoneCountry] = useState(defaultPhoneCountry)
+  const [turnstileToken, setTurnstileToken] = useState(null)
+  const turnstileRef = useRef(null)
+
+  async function handleSendCode() {
+    if (TURNSTILE_SITE_KEY && !turnstileToken) return
+    const ok = await sendCode(turnstileToken)
+    if (!ok) {
+      turnstileRef.current?.reset()
+      setTurnstileToken(null)
+    }
+  }
 
   const currentYear = new Date().getFullYear()
   const meetsAgeRequirement = birthYear && (currentYear - parseInt(birthYear, 10)) >= 18
@@ -137,9 +151,18 @@ if (checkingStatus) {
               />
             </div>
           </label>
+          {TURNSTILE_SITE_KEY && (
+            <TurnstileWidget
+              ref={turnstileRef}
+              siteKey={TURNSTILE_SITE_KEY}
+              onVerify={setTurnstileToken}
+              onExpire={() => setTurnstileToken(null)}
+              onError={() => setTurnstileToken(null)}
+            />
+          )}
           <button
-            onClick={sendCode}
-            disabled={loading || !phone}
+            onClick={handleSendCode}
+            disabled={loading || !phone || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
             style={{ width: '100%', padding: '11px', borderRadius: '8px', background: '#2D3DCA', color: 'white', border: 'none', fontSize: '14px', fontWeight: 500, cursor: 'pointer', opacity: (loading || !isOver18 || !dataConsent || (displayPreference !== 'anon' && !firstName) || !country) ? 0.5 : 1 }}
           >
             {loading ? 'Sending...' : 'Send verification code'}
