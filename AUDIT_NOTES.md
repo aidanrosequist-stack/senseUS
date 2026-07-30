@@ -312,10 +312,51 @@ the request body.
   manual SQL-Editor queries in "Manual RLS/Schema Audit" below are the
   substitute — not committed as a live snapshot, just used ad hoc each
   time.
-- Whether Supabase Auth's own built-in OTP rate limiting (distinct
-  from the Turnstile CAPTCHA added below) is actually turned on in the
-  dashboard has not been explicitly confirmed. Worth checking
-  Authentication → Rate Limits before soft launch.
+- ~~Whether Supabase Auth's own built-in OTP rate limiting is turned
+  on~~ — confirmed 2026-07-27, see "Supabase Auth Rate Limits" below.
+
+---
+
+## Supabase Auth Rate Limits (confirmed 2026-07-27)
+
+Checked via the Management API rather than eyeballing the dashboard:
+
+```powershell
+$headers = @{ Authorization = "Bearer $env:SUPABASE_ACCESS_TOKEN" }
+Invoke-RestMethod -Uri "https://api.supabase.com/v1/projects/gckjlshfesyxualwxurj/config/auth" -Headers $headers -Method Get
+```
+
+| Setting | Value | Scope |
+|---|---|---|
+| `rate_limit_sms_sent` | 30 | per hour, per IP |
+| `rate_limit_otp` | 30 | per hour, per IP |
+| `rate_limit_verify` | 30 | per hour, per IP |
+| `rate_limit_token_refresh` | 150 | per hour, per IP |
+| `rate_limit_anonymous_users` | 30 | per hour, per IP — unused, senseUS has no anonymous auth |
+| `rate_limit_email_sent` | 2 | per hour, per IP — unused, senseUS is phone-only |
+
+These are Supabase's stock defaults — nobody had customized them, and
+they were never disabled. `sms_sent`/`otp`/`verify` at 30/hour/IP are
+the ones that matter: they're the actual backstop against SMS-bombing
+and OTP brute-forcing, and they're active. Judged reasonable for
+friends-and-family scale — tight enough to block abuse, loose enough
+that normal testing shouldn't hit them. Revisit upward only if real
+growth causes legitimate signups to get throttled (most likely
+scenario: many people registering from behind one shared IP, e.g. a
+campus or office network, since these limits are per-IP, not
+per-phone-number or per-account).
+
+There is a known, currently-open Supabase issue (`supabase/auth#2333`)
+where the *separate* "rate limit for sign-ups and sign-ins" setting
+doesn't fully enforce as configured. That setting is distinct from
+`sms_sent`/`otp`/`verify` above and doesn't appear to affect them —
+noted here in case it resurfaces or the bug's scope turns out to be
+broader than currently understood.
+
+Turnstile CAPTCHA on the registration OTP-send step (added in the
+Round 2 fixes above) is the primary defense against scripted
+phone-farm registration; these IP-based rate limits are a secondary
+backstop.
 
 ---
 
