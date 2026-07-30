@@ -1,8 +1,9 @@
 import Header from '../components/layout/Header'
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { Link } from 'react-router-dom'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import TurnstileWidget from '../components/ui/TurnstileWidget'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
 
@@ -13,45 +14,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [turnstileToken, setTurnstileToken] = useState(null)
-  const widgetRef = useRef(null)
-  const widgetIdRef = useRef(null)
-
-  // Load the Turnstile script once, then render the widget. Turnstile's
-  // "managed" mode runs invisibly in the background in the vast majority
-  // of cases — it only surfaces a simple checkbox (never image puzzles)
-  // on the rare request it can't verify automatically.
-  useEffect(() => {
-    if (!TURNSTILE_SITE_KEY) return
-
-    function renderWidget() {
-      if (widgetRef.current && window.turnstile && widgetIdRef.current === null) {
-        widgetIdRef.current = window.turnstile.render(widgetRef.current, {
-          sitekey: TURNSTILE_SITE_KEY,
-          callback: (token) => setTurnstileToken(token),
-          'expired-callback': () => setTurnstileToken(null),
-          'error-callback': () => setTurnstileToken(null),
-        })
-      }
-    }
-
-    if (window.turnstile) {
-      renderWidget()
-      return
-    }
-
-    const script = document.createElement('script')
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
-    script.async = true
-    script.defer = true
-    script.onload = renderWidget
-    document.head.appendChild(script)
-
-    return () => {
-      if (widgetIdRef.current !== null && window.turnstile) {
-        window.turnstile.remove(widgetIdRef.current)
-      }
-    }
-  }, [])
+  const turnstileRef = useRef(null)
 
   async function handleSubmit() {
     if (!phone) return
@@ -68,11 +31,8 @@ export default function Home() {
       if (fnError || data?.error) {
         const message = data?.error || 'Something went wrong. Please try again.'
         setError(message)
-        // Reset the widget so the person can retry with a fresh token.
-        if (widgetIdRef.current !== null && window.turnstile) {
-          window.turnstile.reset(widgetIdRef.current)
-          setTurnstileToken(null)
-        }
+        turnstileRef.current?.reset()
+        setTurnstileToken(null)
       } else {
         setSubmitted(true)
       }
@@ -206,7 +166,13 @@ export default function Home() {
               }}
             />
             {TURNSTILE_SITE_KEY && (
-              <div ref={widgetRef} style={{ display: 'flex', justifyContent: 'center', margin: '4px 0' }} />
+              <TurnstileWidget
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                onVerify={setTurnstileToken}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => setTurnstileToken(null)}
+              />
             )}
             <button
               onClick={handleSubmit}
