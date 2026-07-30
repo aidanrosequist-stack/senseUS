@@ -52,6 +52,8 @@ export default function Settings() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
+  const [latestExport, setLatestExport] = useState(null)
+  const [exportRequesting, setExportRequesting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState(null)
@@ -79,6 +81,14 @@ export default function Settings() {
         if (!error) setProfile(data)
         setLoading(false)
       })
+    supabase
+      .from('exports')
+      .select('id, status, requested_at, completed_at, download_url, expires_at, error_message')
+      .eq('user_id', user.id)
+      .order('requested_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setLatestExport(data))
   }, [user])
 
   function toggleSound() {
@@ -393,24 +403,65 @@ function maskPhone(phone) {
 
       {/* Data */}
       <Section title="Your data">
-        <Row label="Export my data">
-          <button
-            onClick={async () => {
-              try {
-                const { error } = await supabase
-                  .from('exports')
-                  .insert({ user_id: user.id })
-                if (error) throw error
-                setSaveMessage('Export requested! You will receive your data within 48 hours.')
-              } catch (err) {
-                setSaveMessage('Error requesting export. Please try again.')
-              }
-            }}
-            style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-          >
-            Request export
-          </button>
+        <Row label="Export my data" border={!!latestExport}>
+          {!profile?.recovery_email ? (
+            <span style={{ fontSize: '12px', color: '#9CA3AF' }}>
+              Add a recovery email above first
+            </span>
+          ) : (
+            <button
+              onClick={async () => {
+                setExportRequesting(true)
+                try {
+                  const { error } = await supabase
+                    .from('exports')
+                    .insert({ user_id: user.id })
+                  if (error) throw error
+                  setSaveMessage('Export requested! You\'ll receive an email within 48 hours.')
+                  setLatestExport({ status: 'pending', requested_at: new Date().toISOString() })
+                } catch (err) {
+                  setSaveMessage(err.message || 'Error requesting export. Please try again.')
+                } finally {
+                  setExportRequesting(false)
+                }
+              }}
+              disabled={exportRequesting || latestExport?.status === 'pending' || latestExport?.status === 'processing'}
+              style={{
+                fontSize: '12px',
+                color: '#2D3DCA',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'Merriweather, serif',
+                opacity: (exportRequesting || latestExport?.status === 'pending' || latestExport?.status === 'processing') ? 0.5 : 1,
+              }}
+            >
+              {latestExport?.status === 'pending' || latestExport?.status === 'processing'
+                ? 'Request in progress...'
+                : 'Request export'}
+            </button>
+          )}
         </Row>
+        {latestExport && (
+          <div style={{ padding: '10px 16px 14px' }}>
+            {latestExport.status === 'completed' && latestExport.download_url && (
+              <p style={{ fontSize: '12px', color: '#52B788', margin: 0, lineHeight: 1.6 }}>
+                Your export is ready.{' '}
+                <a href={latestExport.download_url} style={{ color: '#2D3DCA', fontWeight: 500 }}>
+                  Download it
+                </a>
+                {latestExport.expires_at && (
+                  <> (link expires {new Date(latestExport.expires_at).toLocaleDateString()})</>
+                )}
+              </p>
+            )}
+            {latestExport.status === 'failed' && (
+              <p style={{ fontSize: '12px', color: '#c21f1f', margin: 0, lineHeight: 1.6 }}>
+                Your last export request failed. Please try again, or contact privacy@senseus.app if it keeps happening.
+              </p>
+            )}
+          </div>
+        )}
         <Row label="Sign out" border={false}>
           <button
             onClick={handleSignOut}
