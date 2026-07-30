@@ -6,6 +6,15 @@ const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY")!
 
 const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url)
   const number = url.searchParams.get("number")
@@ -46,24 +55,27 @@ Deno.serve(async (req) => {
       ? `${total.toLocaleString()} people have answered. ${pctYes}% yes, ${pctNo}% no. What do you think?`
       : `Be the first to vote on this question at senseUS.`
 
+    const safeText = escapeHtml(question.text)
+    const safeDescription = escapeHtml(description)
+
     const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>${question.text} — senseUS</title>
-  <meta name="description" content="${description}" />
+  <title>${safeText} — senseUS</title>
+  <meta name="description" content="${safeDescription}" />
 
   <!-- Open Graph -->
-  <meta property="og:title" content="${question.text}" />
-  <meta property="og:description" content="${description}" />
+  <meta property="og:title" content="${safeText}" />
+  <meta property="og:description" content="${safeDescription}" />
   <meta property="og:url" content="https://senseus.app/q/${question.question_number}" />
   <meta property="og:site_name" content="senseUS" />
   <meta property="og:type" content="website" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="${question.text}" />
-  <meta name="twitter:description" content="${description}" />
+  <meta name="twitter:title" content="${safeText}" />
+  <meta name="twitter:description" content="${safeDescription}" />
   <meta name="twitter:site" content="@senseus" />
 
   <!-- Redirect real users to the React app -->

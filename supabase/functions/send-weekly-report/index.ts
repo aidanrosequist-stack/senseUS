@@ -115,7 +115,17 @@ function buildReportHtml(data: {
   `;
 }
 
-serve(async (_req: Request) => {
+function isAuthorized(req: Request): boolean {
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  return token === SUPABASE_SERVICE_ROLE_KEY;
+}
+
+serve(async (req: Request) => {
+  if (!isAuthorized(req)) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
+
   try {
     const now = Date.now();
     const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();

@@ -12,8 +12,24 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY");
 const ALERT_TO = "hello@senseus.app";
 const FROM_ADDRESS = "senseUS Alerts <hello@senseus.app>";
+
+function isAuthorized(req: Request): boolean {
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  return !!SERVICE_ROLE_KEY && token === SERVICE_ROLE_KEY;
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 interface AlertPayload {
   alertType: string;
@@ -31,15 +47,15 @@ const ALERT_LABELS: Record<string, string> = {
 };
 
 function buildAlertHtml(payload: AlertPayload) {
-  const label = ALERT_LABELS[payload.alertType] || payload.alertType;
+  const label = escapeHtml(ALERT_LABELS[payload.alertType] || payload.alertType);
   const color = payload.severity === "critical" ? "#c21f1f" : "#c2731f";
   const detailsRows = payload.details
     ? Object.entries(payload.details)
         .map(
           ([k, v]) => `
       <tr>
-        <td style="padding:6px 0; color:#666666; font-size:13px;">${k}</td>
-        <td style="padding:6px 0; color:#1a1a1a; font-size:13px; font-weight:bold; text-align:right;">${v}</td>
+        <td style="padding:6px 0; color:#666666; font-size:13px;">${escapeHtml(k)}</td>
+        <td style="padding:6px 0; color:#1a1a1a; font-size:13px; font-weight:bold; text-align:right;">${escapeHtml(v)}</td>
       </tr>`
         )
         .join("")
@@ -60,7 +76,7 @@ function buildAlertHtml(payload: AlertPayload) {
               </tr>
               <tr>
                 <td style="padding:24px 32px;">
-                  <p style="color:#1a1a1a; font-size:15px; line-height:1.6;">${payload.message}</p>
+                  <p style="color:#1a1a1a; font-size:15px; line-height:1.6;">${escapeHtml(payload.message)}</p>
                   ${detailsRows ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px; border-top:1px solid #eeeeee; padding-top:12px;">${detailsRows}</table>` : ""}
                   <p style="color:#999999; font-size:12px; margin-top:20px;">Triggered ${new Date().toISOString()}</p>
                 </td>
@@ -77,6 +93,10 @@ function buildAlertHtml(payload: AlertPayload) {
 serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
+  }
+
+  if (!isAuthorized(req)) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
 
   if (!RESEND_API_KEY) {
