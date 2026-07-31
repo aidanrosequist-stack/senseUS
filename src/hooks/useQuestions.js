@@ -12,81 +12,72 @@ export function useQuestions(userId) {
 
     async function fetchQuestions() {
       try {
-        // Get user's country code
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('country_code')
-          .eq('id', userId)
-          .single()
-
-        const userCountry = profile?.country_code || null
-
-        // Get all published questions
-        const { data: allQuestions, error: qError } = await supabase
-          .from('questions')
-          .select('id, text, category, domain, is_tracking_anchor, geo_scope, country_code, question_number')
-          .not('published_at', 'is', null)
-          .lte('published_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
+        // Profile, questions, votes, and skips are independent of each
+        // other — fetch them together instead of one round trip at a time.
+        const [
+          { data: profile },
+          { data: allQuestions, error: qError },
+          { data: userVotes, error: vError },
+          { data: userSkips, error: sError },
+        ] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('country_code')
+            .eq('id', userId)
+            .single(),
+          supabase
+            .from('questions')
+            .select('id, text, category, domain, is_tracking_anchor, geo_scope, country_code, question_number')
+            .not('published_at', 'is', null)
+            .lte('published_at', new Date().toISOString())
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('votes')
+            .select('question_id')
+            .eq('user_id', userId),
+          supabase
+            .from('question_skips')
+            .select('question_id')
+            .eq('user_id', userId),
+        ])
 
         if (qError) throw qError
-
-        // Get questions this user has already voted on
-        const { data: userVotes, error: vError } = await supabase
-          .from('votes')
-          .select('question_id')
-          .eq('user_id', userId)
-
         if (vError) throw vError
-
-        const votedIds = new Set((userVotes || []).map(v => v.question_id))
-
-        // Get questions this user has permanently skipped ("Revisit" list)
-        const { data: userSkips, error: sError } = await supabase
-          .from('question_skips')
-          .select('question_id')
-          .eq('user_id', userId)
-
         if (sError) throw sError
 
+        const userCountry = profile?.country_code || null
+        const votedIds = new Set((userVotes || []).map(v => v.question_id))
         const skippedIds = new Set((userSkips || []).map(s => s.question_id))
 
-        // First pass: the "matching" pool — global, own-country, and any
-        // country-scoped question that actually matches the user's country
-        const matchingPool = allQuestions.filter(q => {
-          if (votedIds.has(q.id)) return false
-          if (skippedIds.has(q.id)) return false
+        const isCandidate = q => !votedIds.has(q.id) && !skippedIds.has(q.id)
+        const matchesUser = q => {
           if (q.geo_scope === 'global' || q.geo_scope === 'country_own') return true
           if (q.geo_scope === 'country' || q.geo_scope === 'regional') {
             return userCountry ? q.country_code === userCountry : true
           }
           return true
-        })
+        }
+
+        // Does the user have any strictly-matching questions left? .some()
+        // exits on the first hit instead of building a full pool array just
+        // to check its length.
+        const hasMatch = allQuestions.some(q => isCandidate(q) && matchesUser(q))
 
         let unanswered
         let usingFallbackPool = false
 
-        if (matchingPool.length > 0) {
+        if (hasMatch) {
           // Normal case — sprinkle in non-matching country questions at a low rate
           unanswered = allQuestions.filter(q => {
-            if (votedIds.has(q.id)) return false
-            if (skippedIds.has(q.id)) return false
-            if (q.geo_scope === 'global' || q.geo_scope === 'country_own') return true
-            if (q.geo_scope === 'country' || q.geo_scope === 'regional') {
-              if (!userCountry || q.country_code === userCountry) return true
-              return Math.random() < 0.01
-            }
-            return true
+            if (!isCandidate(q)) return false
+            if (matchesUser(q)) return true
+            return Math.random() < 0.01
           })
         } else {
           // Matching pool is exhausted — show everything remaining rather
           // than leaving the user with an empty feed
           usingFallbackPool = true
-          unanswered = allQuestions.filter(q => {
-            if (votedIds.has(q.id)) return false
-            if (skippedIds.has(q.id)) return false
-            return true
-          })
+          unanswered = allQuestions.filter(isCandidate)
         }
 
         // Get vote tallies for each question — one batch call instead of
@@ -108,17 +99,19 @@ export function useQuestions(userId) {
           replyCount: 0,
         }))
 
-        // Separate tracking anchors — they always go first
+        // Separate priority and tracking anchors — they always go first.
+        // Single pass instead of three separate filter() calls, each doing
+        // an O(n) includes() lookup against the priority list.
         const now = new Date()
-        const priorityQuestions = questionsWithTallies.filter(
-          q => q.is_priority && (!q.priority_expires_at || new Date(q.priority_expires_at) > now)
-        )
-        const trackingQuestions = questionsWithTallies.filter(
-          q => q.is_tracking_anchor && !priorityQuestions.includes(q)
-        )
-        const regularQuestions = questionsWithTallies.filter(
-          q => !q.is_tracking_anchor && !priorityQuestions.includes(q)
-        )
+        const priorityQuestions = []
+        const trackingQuestions = []
+        const regularQuestions = []
+        for (const q of questionsWithTallies) {
+          const isPriority = q.is_priority && (!q.priority_expires_at || new Date(q.priority_expires_at) > now)
+          if (isPriority) priorityQuestions.push(q)
+          else if (q.is_tracking_anchor) trackingQuestions.push(q)
+          else regularQuestions.push(q)
+        }
 
         // Stratified sampling by category ratio (regular questions only)
         const categorized = {}
@@ -141,7 +134,7 @@ Object.keys(categorized).forEach(cat => {
 })
 
         // Interleave by ratio
-        const total = questionsWithTallies.length
+        const total = regularQuestions.length
         const result = []
         const categories = Object.keys(categorized)
 

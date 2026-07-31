@@ -126,58 +126,70 @@ export default function Conversation() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch question
-        const { data: q } = await supabase
-          .from('questions')
-          .select('id, text, category, question_number')
-          .eq('id', questionId)
-          .single()
-        setQuestion(q)
-
-        // Fetch user's vote on this question
-        if (user) {
-          const { data: vote } = await supabase
-            .from('votes')
-            .select('choice')
+        // None of these six queries depend on each other's results, so
+        // fetch them all together instead of one round trip at a time.
+        const [
+          { data: q },
+          { data: vote },
+          { data: tallyRow },
+          { data: commentsData },
+          { data: votesForQuestion },
+          { data: resonances },
+        ] = await Promise.all([
+          supabase
+            .from('questions')
+            .select('id, text, category, question_number')
+            .eq('id', questionId)
+            .single(),
+          user
+            ? supabase
+                .from('votes')
+                .select('choice')
+                .eq('question_id', questionId)
+                .eq('user_id', user.id)
+                .single()
+            : Promise.resolve({ data: null }),
+          // Current vote tally for this question, for the breakdown bar.
+          // Only yes/ly/ln/no are counted — matches ResultsCard's math,
+          // which doesn't include 'dec' (declined) in the yes/no percentage.
+          supabase
+            .rpc('get_vote_tally', { p_question_id: questionId })
+            .single(),
+          // Comments with profiles
+          supabase
+            .from('comments')
+            .select(`
+              id, body, resonance_count, created_at, parent_id, user_id, edited_at, is_removed,
+              profiles (first_name, last_initial, display_preference, anon_name)
+            `)
             .eq('question_id', questionId)
-            .eq('user_id', user.id)
-            .single()
-          setUserVote(vote?.choice || null)
-        }
+            .eq('is_deleted', false)
+            .order('resonance_count', { ascending: false }),
+          // Comments don't have a direct DB relationship to votes (they're
+          // linked only by matching user_id + question_id), so we fetch
+          // every vote on this question separately and merge each
+          // commenter's own choice in — this is what colors each comment
+          // by how that person actually voted. This is fetched once per
+          // page load, so a vote change elsewhere won't recolor a comment
+          // until the next visit to this page.
+          supabase
+            .from('votes')
+            .select('user_id, choice')
+            .eq('question_id', questionId),
+          user
+            ? supabase
+                .from('comment_resonances')
+                .select('comment_id')
+                .eq('user_id', user.id)
+            : Promise.resolve({ data: null }),
+        ])
 
-        // Fetch current vote tally for this question, for the breakdown bar.
-        // Only yes/ly/ln/no are counted — matches ResultsCard's math,
-        // which doesn't include 'dec' (declined) in the yes/no percentage.
-        const { data: tallyRow } = await supabase
-          .rpc('get_vote_tally', { p_question_id: questionId })
-          .single()
+        setQuestion(q)
+        setUserVote(vote?.choice || null)
 
         if (tallyRow) {
           setTally({ yes: tallyRow.yes, ly: tallyRow.ly, ln: tallyRow.ln, no: tallyRow.no })
         }
-
-        // Fetch comments with profiles
-        const { data: commentsData } = await supabase
-          .from('comments')
-          .select(`
-            id, body, resonance_count, created_at, parent_id, user_id, edited_at, is_removed,
-            profiles (first_name, last_initial, display_preference, anon_name)
-          `)
-          .eq('question_id', questionId)
-          .eq('is_deleted', false)
-          .order('resonance_count', { ascending: false })
-
-        // Comments don't have a direct DB relationship to votes (they're
-        // linked only by matching user_id + question_id), so we fetch
-        // every vote on this question separately and merge each
-        // commenter's own choice in — this is what colors each comment
-        // by how that person actually voted. This is fetched once per
-        // page load, so a vote change elsewhere won't recolor a comment
-        // until the next visit to this page.
-        const { data: votesForQuestion } = await supabase
-          .from('votes')
-          .select('user_id, choice')
-          .eq('question_id', questionId)
 
         const voteByUser = new Map((votesForQuestion || []).map(v => [v.user_id, v.choice]))
 
@@ -188,12 +200,7 @@ export default function Conversation() {
 
         setComments(commentsWithVotes)
 
-        // Fetch user's resonances
         if (user) {
-          const { data: resonances } = await supabase
-            .from('comment_resonances')
-            .select('comment_id')
-            .eq('user_id', user.id)
           setUserResonances(new Set((resonances || []).map(r => r.comment_id)))
         }
       } catch (err) {

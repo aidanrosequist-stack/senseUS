@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   try {
     const { data: question } = await adminClient
       .from("questions")
-      .select("text, category, question_number")
+      .select("id, text, category, question_number")
       .eq("question_number", parseInt(number, 10))
       .single()
 
@@ -34,20 +34,20 @@ Deno.serve(async (req) => {
       return new Response("Question not found", { status: 404 })
     }
 
-    // Get vote tally
-    const { data: votes } = await adminClient
-      .from("votes")
-      .select("choice")
-      .eq("question_id", question.id)
+    // Get vote tally via the shared RPC (integrity-weighted, single aggregate
+    // query) instead of pulling every raw vote row down to compute counts here.
+    const { data: tally } = await adminClient
+      .rpc("get_vote_tally", { p_question_id: question.id })
+      .single()
 
-    const counts = { yes: 0, ly: 0, ln: 0, no: 0 }
-    ;(votes || []).forEach((v: any) => {
-      if (counts[v.choice as keyof typeof counts] !== undefined) {
-        counts[v.choice as keyof typeof counts]++
-      }
-    })
+    const counts = {
+      yes: Number(tally?.yes || 0),
+      ly: Number(tally?.ly || 0),
+      ln: Number(tally?.ln || 0),
+      no: Number(tally?.no || 0),
+    }
 
-    const total = counts.yes + counts.ly + counts.ln + counts.no
+    const total = Number(tally?.total || 0)
     const pctYes = total > 0 ? Math.round(((counts.yes + counts.ly) / total) * 100) : 0
     const pctNo = 100 - pctYes
 
