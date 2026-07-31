@@ -62,7 +62,7 @@ async function openIntegrityInfo() {
 async function startComparison() {
     const { data, error } = await supabase
       .from('comparison_tokens')
-      .insert({ sender_id: user.id })
+      .insert({ sender_id: profile.id })
       .select('token')
       .single()
 
@@ -264,9 +264,9 @@ async function startComparison() {
     {/* Comparison button */}
     <button
       onClick={startComparison}
-      style={{ width: '100%', padding: '10px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+      style={{ width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1.5rem' }}
     >
-      Compare with a friend
+      Compare your vote history with a friend
     </button>
 
       {/* Vote history */}
