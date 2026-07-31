@@ -157,7 +157,7 @@ export default function MakeUpMyMind() {
       {/* Back to vote CTA */}
       <div style={{ position: 'sticky', bottom: '1.5rem', marginTop: '2rem' }}>
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(`/vote?question=${questionId}`)}
           style={{
             width: '100%',
             padding: '13px',
