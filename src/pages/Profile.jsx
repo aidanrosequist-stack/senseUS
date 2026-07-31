@@ -69,33 +69,38 @@ async function openIntegrityInfo() {
           return
         }
 
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
+        // Profile and votes are independent queries — run them together
+        // instead of waiting on one before starting the other.
+        const [
+          { data: profileData, error: profileError },
+          { data: votesData, error: votesError },
+        ] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single(),
+          supabase
+            .from('votes')
+            .select(`
+              id,
+              choice,
+              created_at,
+              updated_at,
+              pct_yes_at_vote,
+              pct_no_at_vote,
+              questions (
+                id,
+                text,
+                category
+              )
+            `)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false }),
+        ])
 
         if (profileError) throw profileError
         setProfile(profileData)
-
-        const { data: votesData, error: votesError } = await supabase
-          .from('votes')
-          .select(`
-            id,
-            choice,
-            created_at,
-            updated_at,
-            pct_yes_at_vote,
-            pct_no_at_vote,
-            questions (
-              id,
-              text,
-              category,
-              votes (choice)
-            )
-          `)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
 
         if (votesError) throw votesError
 
