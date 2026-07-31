@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Home from './pages/Home'
 import Vote from './pages/Vote'
 import Profile from './pages/Profile'
+import Compare from './pages/Compare'
 import Register from './pages/Register'
 import Privacy from './pages/Privacy'
 import Login from './pages/Login'
@@ -75,6 +76,7 @@ function AppContent() {
         <Route path="/transparency" element={<Transparency />} />
         <Route path="/ethos" element={<Ethos />} />
         <Route path="/q/:number" element={<QuestionPreview />} />
+        <Route path="/compare/:token" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </NotificationsContext.Provider>
