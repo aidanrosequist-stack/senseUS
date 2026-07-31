@@ -18,6 +18,13 @@ const VOTE_LABELS = {
   yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no', dec: 'undecided'
 }
 
+const VOTE_WASH = {
+  yes: '#DAE9AF',
+  ly: '#EEE5AA',
+  ln: '#EBCDAD',
+  no: '#EBADAD',
+}
+
 function VoteIcon({ choice, size = 14 }) {
   const color = VOTE_COLORS[choice] || '#6B7280'
   if (choice === 'yes') return <IconThumbUp size={size} color={color} />
@@ -53,8 +60,8 @@ function formatVoteTimestamp(dateString) {
 export default function Activity() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [tab, setTab] = useState('replies')
-  const [replies, setReplies] = useState([])
+  const [tab, setTab] = useState('comments')
+  const [myComments, setMyComments] = useState([])
   const [shifts, setShifts] = useState([])
   const [badges, setBadges] = useState([])
   const [loading, setLoading] = useState(true)
@@ -65,29 +72,68 @@ export default function Activity() {
     if (!user) return
     async function fetchActivity() {
       try {
-        // Fetch replies to user's comments
-        const { data: userComments } = await supabase
+        
+        // Fetch all of the user's own comments (top-level or replies),
+        // with direct-reply count and total-downstream-reply count on each
+        const { data: myComments } = await supabase
           .from('comments')
-          .select('id, body, question_id')
+          .select(`
+            id, body, created_at, resonance_count,
+            questions (id, text, category)
+          `)
           .eq('user_id', user.id)
           .eq('is_deleted', false)
+          .order('created_at', { ascending: false })
 
-        if (userComments?.length > 0) {
-          const commentIds = userComments.map(c => c.id)
-          const { data: repliesData } = await supabase
+        if (myComments?.length > 0) {
+          const { data: allCommentsOnMyQuestions } = await supabase
             .from('comments')
-            .select(`
-              id, body, created_at, parent_id, resonance_count,
-              profiles (first_name, last_initial, display_preference, anon_name),
-              questions (id, text, category)
-            `)
-            .in('parent_id', commentIds)
+            .select('id, parent_id')
             .eq('is_deleted', false)
-            .order('created_at', { ascending: false })
-            .limit(20)
 
-          setReplies(repliesData || [])
+          const childrenByParent = new Map()
+          ;(allCommentsOnMyQuestions || []).forEach(c => {
+            if (!c.parent_id) return
+            if (!childrenByParent.has(c.parent_id)) childrenByParent.set(c.parent_id, [])
+            childrenByParent.get(c.parent_id).push(c.id)
+          })
+
+          function countDescendants(commentId) {
+            const children = childrenByParent.get(commentId) || []
+            return children.length + children.reduce((sum, childId) => sum + countDescendants(childId), 0)
+          }
+
+          const questionIds = [...new Set(myComments.map(c => c.questions?.id).filter(Boolean))]
+          const { data: ownVotes } = questionIds.length
+            ? await supabase
+                .from('votes')
+                .select('question_id, choice')
+                .eq('user_id', user.id)
+                .in('question_id', questionIds)
+            : { data: [] }
+          const voteByQuestion = new Map((ownVotes || []).map(v => [v.question_id, v.choice]))
+
+          setMyComments(myComments.map(c => ({
+            ...c,
+            directReplies: (childrenByParent.get(c.id) || []).length,
+            totalReplies: countDescendants(c.id),
+            voteChoice: voteByQuestion.get(c.questions?.id),
+          })))
+        } else {
+          setMyComments([])
         }
+
+        // Fetch your own vote choice on each question, to color-code
+        // the comment text the same way Conversation.jsx does
+        const questionIds = [...new Set((myComments || []).map(c => c.questions?.id).filter(Boolean))]
+        const { data: ownVotes } = questionIds.length
+          ? await supabase
+              .from('votes')
+              .select('question_id, choice')
+              .eq('user_id', user.id)
+              .in('question_id', questionIds)
+          : { data: [] }
+        const voteByQuestion = new Map((ownVotes || []).map(v => [v.question_id, v.choice]))
 
         // Fetch all questions user has voted on with current tallies
         const { data: userVotes } = await supabase
@@ -187,7 +233,7 @@ export default function Activity() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '1.5rem', background: '#F3F4F6', padding: '4px', borderRadius: '10px' }}>
         {[
-          { key: 'replies', label: 'Replies' },
+          { key: 'comments', label: 'Comments' },
           { key: 'shifts', label: 'Shifts' },
           { key: 'badges', label: 'Badges' },
           { key: 'revisit', label: 'Revisit' },
@@ -207,43 +253,51 @@ export default function Activity() {
         ))}
       </div>
 
-      {/* Replies tab */}
-      {tab === 'replies' && (
-        <div>
-          {replies.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
-              No replies yet. Join a conversation to get started.
+      {/* Comments tab */}
+      {tab === 'comments' && (
+  <div>
+    {myComments.length === 0 ? (
+      <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+        No comments yet. Vote on a question to join the conversation.
+      </div>
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {myComments.map(c => (
+          <div
+            key={c.id}
+            style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}
+          >
+            <div style={{ fontSize: '11px', color: '#0C447C', background: '#E6F1FB', display: 'inline-block', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
+              {c.questions?.category}
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {replies.map(reply => (
-                <div
-                  key={reply.id}
-                  onClick={() => navigate(`/conversation/${reply.questions?.id}`)}
-                  style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}
-                >
-                  <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 700, color: '#1A1A1A' }}>{getDisplayName(reply.profiles)}</span>
-                    {' '}replied to your comment
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, marginBottom: '6px' }}>
-                    {reply.body}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-                      {reply.questions?.category} · {timeAgo(reply.created_at)}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#6B7280' }}>
-                      <IconWaveSine size={11} />
-                      {reply.resonance_count}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '6px', lineHeight: 1.4 }}>
+              {c.questions?.text}
             </div>
-          )}
-        </div>
-      )}
+            <div style={{ fontSize: '14px', color: '#1A1A1A', lineHeight: 1.8, marginBottom: '10px' }}>
+              <span
+                style={{
+                  background: VOTE_WASH[c.voteChoice] || '#F9FAFB',
+                  boxDecorationBreak: 'clone',
+                  WebkitBoxDecorationBreak: 'clone',
+                  padding: '2px 5px',
+                  borderRadius: '4px',
+                }}
+              >
+                {c.body}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '14px', fontSize: '11px', color: '#9CA3AF' }}>
+              <span>{c.resonance_count} resonate{c.resonance_count !== 1 ? 's' : ''}</span>
+              <span>{c.directReplies} direct repl{c.directReplies !== 1 ? 'ies' : 'y'}</span>
+              <span>{c.totalReplies} overall</span>
+              <span style={{ marginLeft: 'auto' }}>{timeAgo(c.created_at)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
       {/* Shifts tab */}
       {tab === 'shifts' && (
@@ -334,7 +388,11 @@ export default function Activity() {
                     </div>
                     <button
                       onClick={async () => {
-                        await supabase.from('question_skips').delete().eq('id', skip.id)
+                        const { error } = await supabase.from('question_skips').delete().eq('id', skip.id)
+                        if (error) {
+                          alert('Something went wrong: ' + error.message)
+                          return
+                        }
                         setSkipped(prev => prev.filter(s => s.id !== skip.id))
                         navigate(`/vote?question=${skip.question_id}`)
                       }}
