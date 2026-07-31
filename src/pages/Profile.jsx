@@ -59,6 +59,35 @@ async function openIntegrityInfo() {
     })
   }
 
+async function startComparison() {
+    const { data, error } = await supabase
+      .from('comparison_tokens')
+      .insert({ sender_id: user.id })
+      .select('token')
+      .single()
+
+    if (error || !data) {
+      alert('Something went wrong creating your link.')
+      return
+    }
+
+    const url = `https://senseus.app/compare/${data.token}`
+    const shareData = { title: 'senseUS', text: 'Compare voting histories with me on senseUS', url }
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData)
+      } catch {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(url)
+        alert('Link copied to clipboard!')
+      } catch {
+        prompt('Copy this link:', url)
+      }
+    }
+  }
+
   useEffect(() => {
     async function loadProfile() {
       try {
@@ -231,6 +260,14 @@ async function openIntegrityInfo() {
           <div style={{ fontSize: '24px', fontWeight: 700, color: '#1A1A1A' }}>{profile.integrity_weight?.toFixed(4)}</div>
         </div>
       </div>
+
+    {/* Comparison button */}
+    <button
+      onClick={startComparison}
+      style={{ width: '100%', padding: '10px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+    >
+      Compare with a friend
+    </button>
 
       {/* Vote history */}
       <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>

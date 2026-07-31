@@ -1,0 +1,307 @@
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
+import Header from '../components/layout/Header'
+import BottomNav from '../components/layout/BottomNav'
+
+const VOTE_COLORS = {
+  yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f'
+}
+
+const VOTE_LABELS = {
+  yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no'
+}
+
+function getDisplayName(profile) {
+  if (!profile) return 'Anonymous'
+  if (profile.display_preference === 'anon') return profile.anon_name || 'Anonymous'
+  if (profile.display_preference === 'first_only') return profile.first_name
+  return `${profile.first_name} ${profile.last_initial}.`
+}
+
+export default function Compare() {
+  const { token } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
+
+  const [loading, setLoading] = useState(true)
+  const [tokenRow, setTokenRow] = useState(null)
+  const [notFound, setNotFound] = useState(false)
+  const [senderProfile, setSenderProfile] = useState(null)
+  const [comparison, setComparison] = useState(null)
+  const [processing, setProcessing] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      const { data: tr } = await supabase
+        .from('comparison_tokens')
+        .select('*')
+        .eq('token', token)
+        .maybeSingle()
+
+      if (!tr) {
+        setNotFound(true)
+        setLoading(false)
+        return
+      }
+
+      setTokenRow(tr)
+
+      const { data: sp } = await supabase
+        .from('public_profiles')
+        .select('first_name, last_initial, display_preference, anon_name')
+        .eq('id', tr.sender_id)
+        .single()
+      setSenderProfile(sp)
+
+      if (tr.status === 'accepted') {
+        await loadComparison(tr)
+      }
+
+      setLoading(false)
+    }
+
+    if (user) load()
+  }, [token, user])
+
+  async function loadComparison(tr) {
+    const otherId = tr.sender_id === user.id ? tr.recipient_id : tr.sender_id
+
+    const [{ data: myVotes }, { data: theirVotes }, { data: otherProfile }] = await Promise.all([
+      supabase.from('public_votes').select('question_id, choice').eq('user_id', user.id),
+      supabase.from('public_votes').select('question_id, choice').eq('user_id', otherId),
+      supabase.from('public_profiles').select('first_name, last_initial, display_preference, anon_name').eq('id', otherId).single(),
+    ])
+
+    const theirByQuestion = new Map((theirVotes || []).map(v => [v.question_id, v.choice]))
+    const shared = (myVotes || [])
+      .filter(v => theirByQuestion.has(v.question_id) && v.choice !== 'dec' && theirByQuestion.get(v.question_id) !== 'dec')
+      .map(v => ({ questionId: v.question_id, mine: v.choice, theirs: theirByQuestion.get(v.question_id) }))
+
+    if (shared.length === 0) {
+      setComparison({ otherProfile, shared: [], byCategory: {}, agreementPct: null })
+      return
+    }
+
+    const { data: questions } = await supabase
+      .from('questions')
+      .select('id, text, category')
+      .in('id', shared.map(s => s.questionId))
+
+    const questionById = new Map((questions || []).map(q => [q.id, q]))
+
+    const enriched = shared
+      .map(s => ({ ...s, question: questionById.get(s.questionId) }))
+      .filter(s => s.question)
+
+    const agreeCount = enriched.filter(s => s.mine === s.theirs).length
+    const agreementPct = Math.round((agreeCount / enriched.length) * 100)
+
+    const byCategory = {}
+    enriched.forEach(s => {
+      const cat = s.question.category || 'other'
+      if (!byCategory[cat]) byCategory[cat] = { agree: 0, total: 0 }
+      byCategory[cat].total += 1
+      if (s.mine === s.theirs) byCategory[cat].agree += 1
+    })
+
+    setComparison({ otherProfile, shared: enriched, byCategory, agreementPct })
+  }
+
+  async function handleAccept() {
+    setProcessing(true)
+    const { error } = await supabase
+      .from('comparison_tokens')
+      .update({ status: 'accepted', recipient_id: user.id })
+      .eq('id', tokenRow.id)
+
+    if (error) {
+      alert('This link is no longer available — it may have already been used or expired.')
+      setProcessing(false)
+      return
+    }
+
+    const updated = { ...tokenRow, status: 'accepted', recipient_id: user.id }
+    setTokenRow(updated)
+    await loadComparison(updated)
+    setProcessing(false)
+  }
+
+  async function handleDecline() {
+    setProcessing(true)
+    await supabase
+      .from('comparison_tokens')
+      .update({ status: 'declined' })
+      .eq('id', tokenRow.id)
+    setTokenRow({ ...tokenRow, status: 'declined' })
+    setProcessing(false)
+  }
+
+  async function startNewComparison() {
+    const { data, error } = await supabase
+      .from('comparison_tokens')
+      .insert({ sender_id: user.id })
+      .select('token')
+      .single()
+
+    if (error || !data) {
+      alert('Something went wrong creating your link.')
+      return
+    }
+
+    const url = `https://senseus.app/compare/${data.token}`
+    const shareData = { title: 'senseUS', text: 'Compare voting histories with me on senseUS', url }
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData)
+      } catch {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(url)
+        alert('Link copied to clipboard!')
+      } catch {
+        prompt('Copy this link:', url)
+      }
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+        Loading...
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC' }}>
+      <Header />
+      <div style={{ padding: '14px', boxSizing: 'border-box' }}>
+        <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '100px', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+
+          <button
+            onClick={() => navigate('/profile')}
+            style={{ fontSize: '13px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', padding: 0, marginBottom: '1.25rem' }}
+          >
+            ← back
+          </button>
+
+          {notFound && (
+            <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+              <p style={{ fontSize: '14px', color: '#6B7280' }}>
+                This comparison link doesn't exist or has expired.
+              </p>
+            </div>
+          )}
+
+          {!notFound && tokenRow?.status === 'declined' && (
+            <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+              <p style={{ fontSize: '14px', color: '#6B7280' }}>This comparison was declined.</p>
+            </div>
+          )}
+
+          {!notFound && tokenRow?.status === 'pending' && tokenRow.sender_id === user?.id && (
+            <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+              <p style={{ fontSize: '14px', color: '#1A1A1A', marginBottom: '0.5rem' }}>
+                Waiting for your friend to accept.
+              </p>
+              <p style={{ fontSize: '12px', color: '#9CA3AF' }}>
+                This link expires 48 hours after you created it.
+              </p>
+            </div>
+          )}
+
+          {!notFound && tokenRow?.status === 'pending' && tokenRow.sender_id !== user?.id && (
+            <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+              <h1 style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
+                {getDisplayName(senderProfile)} wants to compare voting histories with you
+              </h1>
+              <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+                You'll see how your answers line up on every question you've both voted on. Nothing is shared unless you accept.
+              </p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={handleAccept}
+                  disabled={processing}
+                  style={{ flex: 1, padding: '10px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif', opacity: processing ? 0.5 : 1 }}
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={handleDecline}
+                  disabled={processing}
+                  style={{ flex: 1, padding: '10px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif', opacity: processing ? 0.5 : 1 }}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!notFound && tokenRow?.status === 'accepted' && comparison && (
+            <div>
+              <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '1.25rem', textAlign: 'center' }}>
+                You vs {getDisplayName(comparison.otherProfile)}
+              </h1>
+
+              {comparison.shared.length === 0 ? (
+                <p style={{ fontSize: '13px', color: '#6B7280', textAlign: 'center' }}>
+                  You haven't both answered any of the same questions yet.
+                </p>
+              ) : (
+                <>
+                  <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                    <div style={{ fontSize: '40px', fontWeight: 700, color: '#2D3DCA', fontFamily: 'Georgia, serif', lineHeight: 1 }}>
+                      {comparison.agreementPct}%
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px' }}>
+                      agreement on {comparison.shared.length} shared question{comparison.shared.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '1.5rem' }}>
+                    {Object.entries(comparison.byCategory).map(([cat, stats]) => (
+                      <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px 0', borderBottom: '0.5px solid #F3F4F6' }}>
+                        <span style={{ color: '#1A1A1A', textTransform: 'capitalize' }}>{cat}</span>
+                        <span style={{ color: '#6B7280' }}>{stats.agree}/{stats.total} agree</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {comparison.shared.map(s => (
+                      <div key={s.questionId} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                        <div style={{ fontSize: '13px', color: '#1A1A1A', marginBottom: '8px', lineHeight: 1.4 }}>
+                          {s.question.text}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: VOTE_COLORS[s.mine] + '20', color: VOTE_COLORS[s.mine], fontWeight: 500 }}>
+                            You: {VOTE_LABELS[s.mine]}
+                          </span>
+                          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: VOTE_COLORS[s.theirs] + '20', color: VOTE_COLORS[s.theirs], fontWeight: 500 }}>
+                            Them: {VOTE_LABELS[s.theirs]}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <button
+                onClick={startNewComparison}
+                style={{ width: '100%', marginTop: '1.5rem', padding: '10px', background: '#F3F4F6', color: '#2D3DCA', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+              >
+                Compare with someone else
+              </button>
+            </div>
+          )}
+
+        </div>
+      </div>
+      <BottomNav />
+    </div>
+  )
+}
