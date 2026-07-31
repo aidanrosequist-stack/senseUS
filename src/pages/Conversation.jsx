@@ -155,12 +155,15 @@ export default function Conversation() {
           supabase
             .rpc('get_vote_tally', { p_question_id: questionId })
             .single(),
-          // Comments with profiles
+          // Comments — no embedded profile join here anymore. The real
+          // profiles table only allows reading your own row, so an embedded
+          // join silently returned null for everyone but yourself, making
+          // every other commenter show as "Anonymous." Public display
+          // fields are fetched separately below via the public_profiles view.
           supabase
             .from('comments')
             .select(`
-              id, body, resonance_count, created_at, parent_id, user_id, edited_at, is_removed,
-              profiles (first_name, last_initial, display_preference, anon_name)
+              id, body, resonance_count, created_at, parent_id, user_id, edited_at, is_removed
             `)
             .eq('question_id', questionId)
             .eq('is_deleted', false)
@@ -193,8 +196,18 @@ export default function Conversation() {
 
         const voteByUser = new Map((votesForQuestion || []).map(v => [v.user_id, v.choice]))
 
+        const commenterIds = [...new Set((commentsData || []).map(c => c.user_id))]
+        const { data: commenterProfiles } = commenterIds.length
+          ? await supabase
+              .from('public_profiles')
+              .select('id, first_name, last_initial, display_preference, anon_name')
+              .in('id', commenterIds)
+          : { data: [] }
+        const profileById = new Map((commenterProfiles || []).map(p => [p.id, p]))
+
         const commentsWithVotes = (commentsData || []).map(c => ({
           ...c,
+          profiles: profileById.get(c.user_id) || null,
           votes: [{ choice: voteByUser.get(c.user_id) }],
         }))
 
