@@ -176,7 +176,7 @@ export default function Conversation() {
           // page load, so a vote change elsewhere won't recolor a comment
           // until the next visit to this page.
           supabase
-            .from('votes')
+            .from('public_votes')
             .select('user_id, choice')
             .eq('question_id', questionId),
           user
