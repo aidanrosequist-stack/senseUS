@@ -86,6 +86,40 @@ function QuestionThumbnail({ question, userVote, onClick }) {
   )
 }
 
+function SearchResultCard({ question, userVote, onClick }) {
+  const voted = !!userVote
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: voted ? VOTE_COLORS[userVote] : '#FFFFFF',
+        border: voted ? 'none' : '0.5px solid #E5E7EB',
+        borderRadius: '10px',
+        padding: '12px 14px',
+        marginBottom: '10px',
+        cursor: 'pointer',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+      }}
+    >
+      <div style={{
+        fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '8px',
+        background: voted ? 'rgba(255,255,255,0.25)' : '#E6F1FB',
+        color: voted ? 'white' : '#0C447C',
+      }}>
+        {question.category}
+      </div>
+      <div style={{ fontSize: '13px', color: voted ? 'white' : '#1A1A1A', lineHeight: 1.5, marginBottom: voted ? '8px' : 0, fontFamily: 'Merriweather, serif' }}>
+        {question.text}
+      </div>
+      {voted && (
+        <div style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,255,255,0.25)', color: 'white', display: 'inline-block', fontWeight: 500 }}>
+          {VOTE_LABELS[userVote]}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Explore() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -95,6 +129,7 @@ export default function Explore() {
   const [unansweredOnly, setUnansweredOnly] = useState(false)
   const scrollRefs = useRef({})
   const [userCountry, setUserCountry] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   function scrollRow(domain, direction) {
     const el = scrollRefs.current[domain]
@@ -183,6 +218,7 @@ export default function Explore() {
     return questions.filter(q => {
       if (q.domain !== domain) return false
       if (isCountrySpecific(q)) return false
+      if (q.is_current_event) return false
       if (unansweredOnly && userVotes[q.id]) return false
       return true
     })
@@ -203,6 +239,22 @@ export default function Explore() {
       return true
     })
   }
+
+  const getCurrentEventQuestions = () => {
+  return questions.filter(q => {
+    if (!q.is_current_event) return false
+    if (q.archived_at) return false
+    if (unansweredOnly && userVotes[q.id]) return false
+    return true
+  })
+}
+
+  const searchResults = questions.filter(q => {
+    if (!searchQuery.trim()) return false
+    if (q.archived_at) return false
+    if (unansweredOnly && userVotes[q.id]) return false
+    return q.text.toLowerCase().includes(searchQuery.trim().toLowerCase())
+  })
 
   if (loading) {
     return (
@@ -261,6 +313,85 @@ export default function Explore() {
         </div>
       </div>
 
+      {/* Search */}
+      <div style={{ padding: '0 1.25rem', marginBottom: '1.25rem' }}>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search questions..."
+          style={{ width: '100%', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', fontFamily: 'Merriweather, serif', boxSizing: 'border-box' }}
+        />
+      </div>
+
+      {(() => {
+  const currentEventQuestions = getCurrentEventQuestions()
+  if (currentEventQuestions.length === 0) return null
+  return (
+    <div style={{ marginBottom: '1.75rem' }}>
+      <div style={{ padding: '0 1.25rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+          🔴 Current Events
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+            {currentEventQuestions.length} question{currentEventQuestions.length !== 1 ? 's' : ''}
+          </div>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              onClick={() => scrollRow('__currentevents__', -1)}
+              aria-label="Scroll left"
+              style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+            >
+              ‹
+            </button>
+            <button
+              onClick={() => scrollRow('__currentevents__', 1)}
+              aria-label="Scroll right"
+              style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+            >
+              ›
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        ref={(el) => (scrollRefs.current['__currentevents__'] = el)}
+        style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '8px', scrollbarWidth: 'none' }}
+      >
+        {currentEventQuestions.map(question => (
+          <QuestionThumbnail
+            key={question.id}
+            question={question}
+            userVote={userVotes[question.id]}
+            onClick={() => handleThumbnailClick(question)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+})()}
+
+      {/* Domain rows */}
+      {searchQuery.trim() ? (
+        <div style={{ padding: '0 1.25rem' }}>
+          {searchResults.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '14px' }}>
+              No questions match "{searchQuery}"
+            </div>
+          ) : (
+            searchResults.map(question => (
+              <SearchResultCard
+                key={question.id}
+                question={question}
+                userVote={userVotes[question.id]}
+                onClick={() => handleThumbnailClick(question)}
+              />
+            ))
+          )}
+        </div>
+      ) : (
+      <>
       {/* Domain rows */}
       {DOMAINS.map(domain => {
         const domainQuestions = getQuestionsForDomain(domain)
@@ -415,6 +546,8 @@ export default function Explore() {
           </div>
         )
       })()}
+  </>
+      )}
 
       {questions.length === 0 && (
         <div style={{ textAlign: 'center', padding: '4rem 1.5rem', color: '#6B7280', fontSize: '14px' }}>

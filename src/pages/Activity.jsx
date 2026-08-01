@@ -265,7 +265,8 @@ export default function Activity() {
         {myComments.map(c => (
           <div
             key={c.id}
-            style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}
+            onClick={() => navigate(`/conversation/${c.questions?.id}`)}
+            style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}
           >
             <div style={{ fontSize: '11px', color: '#0C447C', background: '#E6F1FB', display: 'inline-block', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
               {c.questions?.category}

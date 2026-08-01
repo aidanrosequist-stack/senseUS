@@ -49,7 +49,7 @@ export function useQuestions(userId) {
         const votedIds = new Set((userVotes || []).map(v => v.question_id))
         const skippedIds = new Set((userSkips || []).map(s => s.question_id))
 
-        const isCandidate = q => !votedIds.has(q.id) && !skippedIds.has(q.id)
+        const isCandidate = q => !votedIds.has(q.id) && !skippedIds.has(q.id) && !q.archived_at
         const matchesUser = q => {
           if (q.geo_scope === 'global' || q.geo_scope === 'country_own') return true
           if (q.geo_scope === 'country' || q.geo_scope === 'regional') {
