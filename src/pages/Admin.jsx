@@ -74,6 +74,8 @@ export default function Admin() {
     is_tracking_anchor: false,
     human_moderation_required: false,
     ai_question: false,
+    is_current_event: false,
+    archive_at: '',
   })
 
   // New article form
@@ -206,7 +208,7 @@ async function toggleRegistration(open) {
       showMessage('Error adding question: ' + error.message, true)
     } else {
       showMessage('Question added!')
-      setNewQuestion({ text: '', category: 'deep', domain: 'ethics & philosophy', geo_scope: 'global', country_code: '', is_tracking_anchor: false, human_moderation_required: false, ai_question: false })
+      setNewQuestion({ text: '', category: 'deep', domain: 'ethics & philosophy', geo_scope: 'global', country_code: '', is_tracking_anchor: false, human_moderation_required: false, ai_question: false, is_current_event: false, archive_at: '' })
       loadQuestions()
     }
   }
@@ -570,7 +572,23 @@ async function toggleRegistration(open) {
               <input type="checkbox" checked={newQuestion.ai_question} onChange={(e) => setNewQuestion(p => ({ ...p, ai_question: e.target.checked }))} />
               AI topic
             </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={newQuestion.is_current_event} onChange={(e) => setNewQuestion(p => ({ ...p, is_current_event: e.target.checked }))} />
+              Current event
+            </label>
           </div>
+
+          {newQuestion.is_current_event && (
+            <label style={{ fontSize: '13px', fontWeight: 700 }}>
+              Archive on
+              <input
+                type="date"
+                value={newQuestion.archive_at}
+                onChange={(e) => setNewQuestion(p => ({ ...p, archive_at: e.target.value }))}
+                style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '9px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+              />
+            </label>
+          )}
 
           <button
             onClick={addQuestion}
