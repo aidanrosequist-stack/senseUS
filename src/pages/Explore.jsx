@@ -324,54 +324,6 @@ export default function Explore() {
         />
       </div>
 
-      {(() => {
-  const currentEventQuestions = getCurrentEventQuestions()
-  if (currentEventQuestions.length === 0) return null
-  return (
-    <div style={{ marginBottom: '1.75rem' }}>
-      <div style={{ padding: '0 1.25rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
-          🔴 Current Events
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-            {currentEventQuestions.length} question{currentEventQuestions.length !== 1 ? 's' : ''}
-          </div>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <button
-              onClick={() => scrollRow('__currentevents__', -1)}
-              aria-label="Scroll left"
-              style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-            >
-              ‹
-            </button>
-            <button
-              onClick={() => scrollRow('__currentevents__', 1)}
-              aria-label="Scroll right"
-              style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-            >
-              ›
-            </button>
-          </div>
-        </div>
-      </div>
-      <div
-        ref={(el) => (scrollRefs.current['__currentevents__'] = el)}
-        style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '8px', scrollbarWidth: 'none' }}
-      >
-        {currentEventQuestions.map(question => (
-          <QuestionThumbnail
-            key={question.id}
-            question={question}
-            userVote={userVotes[question.id]}
-            onClick={() => handleThumbnailClick(question)}
-          />
-        ))}
-      </div>
-    </div>
-  )
-})()}
-
       {/* Domain rows */}
       {searchQuery.trim() ? (
         <div style={{ padding: '0 1.25rem' }}>
@@ -392,6 +344,53 @@ export default function Explore() {
         </div>
       ) : (
       <>
+      {(() => {
+        const currentEventQuestions = getCurrentEventQuestions()
+        if (currentEventQuestions.length === 0) return null
+        return (
+          <div style={{ marginBottom: '1.75rem' }}>
+            <div style={{ padding: '0 1.25rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+                🔴 Current Events
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                  {currentEventQuestions.length} question{currentEventQuestions.length !== 1 ? 's' : ''}
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    onClick={() => scrollRow('__currentevents__', -1)}
+                    aria-label="Scroll left"
+                    style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => scrollRow('__currentevents__', 1)}
+                    aria-label="Scroll right"
+                    style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+              ref={(el) => (scrollRefs.current['__currentevents__'] = el)}
+              style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '8px', scrollbarWidth: 'none' }}
+            >
+              {currentEventQuestions.map(question => (
+                <QuestionThumbnail
+                  key={question.id}
+                  question={question}
+                  userVote={userVotes[question.id]}
+                  onClick={() => handleThumbnailClick(question)}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })()}
       {/* Domain rows */}
       {DOMAINS.map(domain => {
         const domainQuestions = getQuestionsForDomain(domain)
