@@ -147,7 +147,7 @@ export default function Explore() {
         const [{ data: questionsData }, { data: profileData }] = await Promise.all([
           supabase
             .from('questions')
-            .select('id, text, category, domain, geo_scope, country_code')
+            .select('id, text, category, domain, geo_scope, country_code, is_current_event, archived_at')
             .not('published_at', 'is', null)
             .lte('published_at', new Date().toISOString())
             .order('created_at', { ascending: false }),
