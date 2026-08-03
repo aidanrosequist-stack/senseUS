@@ -147,7 +147,7 @@ export default function Explore() {
         const [{ data: questionsData }, { data: profileData }] = await Promise.all([
           supabase
             .from('questions')
-            .select('id, text, category, domain, geo_scope, country_code, is_current_event, archived_at')
+            .select('id, text, category, domain, geo_scope, country_code, is_current_event, is_sponsored, archived_at')
             .not('published_at', 'is', null)
             .lte('published_at', new Date().toISOString())
             .order('created_at', { ascending: false }),
@@ -219,6 +219,7 @@ export default function Explore() {
       if (q.domain !== domain) return false
       if (isCountrySpecific(q)) return false
       if (q.is_current_event) return false
+      if (q.is_sponsored) return false
       if (unansweredOnly && userVotes[q.id]) return false
       return true
     })
@@ -248,6 +249,15 @@ export default function Explore() {
     return true
   })
 }
+
+const getSponsoredQuestions = () => {
+    return questions.filter(q => {
+      if (!q.is_sponsored) return false
+      if (q.archived_at) return false
+      if (unansweredOnly && userVotes[q.id]) return false
+      return true
+    })
+  }
 
   const searchResults = questions.filter(q => {
     if (!searchQuery.trim()) return false
@@ -344,6 +354,53 @@ export default function Explore() {
         </div>
       ) : (
       <>
+      {(() => {
+        const sponsoredQuestions = getSponsoredQuestions()
+        if (sponsoredQuestions.length === 0) return null
+        return (
+          <div style={{ marginBottom: '1.75rem' }}>
+            <div style={{ padding: '0 1.25rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+                🏷️ Sponsored
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                  {sponsoredQuestions.length} question{sponsoredQuestions.length !== 1 ? 's' : ''}
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    onClick={() => scrollRow('__sponsored__', -1)}
+                    aria-label="Scroll left"
+                    style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => scrollRow('__sponsored__', 1)}
+                    aria-label="Scroll right"
+                    style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+              ref={(el) => (scrollRefs.current['__sponsored__'] = el)}
+              style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '8px', scrollbarWidth: 'none' }}
+            >
+              {sponsoredQuestions.map(question => (
+                <QuestionThumbnail
+                  key={question.id}
+                  question={question}
+                  userVote={userVotes[question.id]}
+                  onClick={() => handleThumbnailClick(question)}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })()}
       {(() => {
         const currentEventQuestions = getCurrentEventQuestions()
         if (currentEventQuestions.length === 0) return null

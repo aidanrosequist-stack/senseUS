@@ -444,7 +444,7 @@ useEffect(() => {
           >
             {question.category}
           </span>
-          {question.category === 'sponsored' && (
+          {question.is_sponsored && (
             <span
               style={{
                 fontSize: '11px',
@@ -458,7 +458,13 @@ useEffect(() => {
               Sponsored
             </span>
           )}
-        </div>        <div
+        </div>
+        {question.is_sponsored && question.sponsor_name && (
+          <div style={{ fontSize: '11px', color: zone ? 'rgba(255,255,255,0.75)' : '#9CA3AF', marginBottom: '0.5rem' }}>
+            sponsored by {question.sponsor_name}
+          </div>
+        )}
+        <div
           style={{
             fontSize: '19px',
             fontWeight: 500,
