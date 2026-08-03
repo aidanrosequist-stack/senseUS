@@ -40,15 +40,6 @@ export default function Vote() {
           ? { yes: tallyRow.yes, ly: tallyRow.ly, ln: tallyRow.ln, no: tallyRow.no }
           : { yes: 0, ly: 0, ln: 0, no: 0 }
 
-        if (data) {
-        const { data: tallyRow } = await supabase
-          .rpc('get_vote_tally', { p_question_id: targetQuestionId })
-          .single()
-
-        const counts = tallyRow
-          ? { yes: tallyRow.yes, ly: tallyRow.ly, ln: tallyRow.ln, no: tallyRow.no }
-          : { yes: 0, ly: 0, ln: 0, no: 0 }
-
         let sponsorName = null
         if (data.is_sponsored) {
           const { data: sponsor } = await supabase
