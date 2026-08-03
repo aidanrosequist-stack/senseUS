@@ -16,7 +16,7 @@ export function useQuestions(userId) {
         // other — fetch them together instead of one round trip at a time.
         const [
           { data: profile },
-          { data: allQuestions, error: qError },
+          { data: allQuestionsRaw, error: qError },
           { data: userVotes, error: vError },
           { data: userSkips, error: sError },
         ] = await Promise.all([
@@ -27,7 +27,7 @@ export function useQuestions(userId) {
             .single(),
           supabase
             .from('questions')
-            .select('id, text, category, domain, is_tracking_anchor, geo_scope, country_code, question_number')
+            .select('id, text, category, domain, is_tracking_anchor, geo_scope, country_code, question_number, is_sponsored')
             .not('published_at', 'is', null)
             .lte('published_at', new Date().toISOString())
             .order('created_at', { ascending: false }),
@@ -45,6 +45,20 @@ export function useQuestions(userId) {
         if (vError) throw vError
         if (sError) throw sError
 
+        const sponsoredIds = (allQuestionsRaw || []).filter(q => q.is_sponsored).map(q => q.id)
+        const { data: sponsors } = sponsoredIds.length
+          ? await supabase
+              .from('public_sponsors')
+              .select('question_id, sponsor_name')
+              .in('question_id', sponsoredIds)
+          : { data: [] }
+        const sponsorByQuestion = new Map((sponsors || []).map(s => [s.question_id, s.sponsor_name]))
+
+        const allQuestionsWithSponsors = (allQuestionsRaw || []).map(q => ({
+          ...q,
+          sponsor_name: sponsorByQuestion.get(q.id) || null,
+        }))
+
         const userCountry = profile?.country_code || null
         const votedIds = new Set((userVotes || []).map(v => v.question_id))
         const skippedIds = new Set((userSkips || []).map(s => s.question_id))
@@ -61,14 +75,14 @@ export function useQuestions(userId) {
         // Does the user have any strictly-matching questions left? .some()
         // exits on the first hit instead of building a full pool array just
         // to check its length.
-        const hasMatch = allQuestions.some(q => isCandidate(q) && matchesUser(q))
+        const hasMatch = allQuestionsWithSponsors.some(q => isCandidate(q) && matchesUser(q))
 
         let unanswered
         let usingFallbackPool = false
 
         if (hasMatch) {
           // Normal case — sprinkle in non-matching country questions at a low rate
-          unanswered = allQuestions.filter(q => {
+          unanswered = allQuestionsWithSponsors.filter(q => {
             if (!isCandidate(q)) return false
             if (matchesUser(q)) return true
             return Math.random() < 0.01
@@ -77,7 +91,7 @@ export function useQuestions(userId) {
           // Matching pool is exhausted — show everything remaining rather
           // than leaving the user with an empty feed
           usingFallbackPool = true
-          unanswered = allQuestions.filter(isCandidate)
+          unanswered = allQuestionsWithSponsors.filter(isCandidate)
         }
 
         // Get vote tallies for each question — one batch call instead of

@@ -27,7 +27,7 @@ export default function Vote() {
     async function fetchTargetQuestion() {
       const { data } = await supabase
         .from('questions')
-        .select('id, text, category, domain, is_tracking_anchor, geo_scope, question_number')
+        .select('id, text, category, domain, is_tracking_anchor, geo_scope, question_number, is_sponsored')
         .eq('id', targetQuestionId)
         .single()
 
@@ -40,7 +40,26 @@ export default function Vote() {
           ? { yes: tallyRow.yes, ly: tallyRow.ly, ln: tallyRow.ln, no: tallyRow.no }
           : { yes: 0, ly: 0, ln: 0, no: 0 }
 
-        setTargetQuestion({ ...data, votes: counts, replyCount: 0 })
+        if (data) {
+        const { data: tallyRow } = await supabase
+          .rpc('get_vote_tally', { p_question_id: targetQuestionId })
+          .single()
+
+        const counts = tallyRow
+          ? { yes: tallyRow.yes, ly: tallyRow.ly, ln: tallyRow.ln, no: tallyRow.no }
+          : { yes: 0, ly: 0, ln: 0, no: 0 }
+
+        let sponsorName = null
+        if (data.is_sponsored) {
+          const { data: sponsor } = await supabase
+            .from('public_sponsors')
+            .select('sponsor_name')
+            .eq('question_id', targetQuestionId)
+            .maybeSingle()
+          sponsorName = sponsor?.sponsor_name || null
+        }
+
+        setTargetQuestion({ ...data, votes: counts, replyCount: 0, sponsor_name: sponsorName })
       }
     }
 
