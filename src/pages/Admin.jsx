@@ -111,6 +111,21 @@ export default function Admin() {
     age_max: '',
   })
   const [broadcasting, setBroadcasting] = useState(false)
+  const [sponsoredQueue, setSponsoredQueue] = useState([])
+  const [newSponsor, setNewSponsor] = useState({
+    question_number: '',
+    sponsor_name: '',
+    sponsor_contact: '',
+    sponsor_category: 'brand',
+    duration_days: 30,
+  })
+
+  async function loadSponsoredQueue() {
+    const { data } = await supabase
+      .from('sponsored_queue')
+      .select('*')
+    setSponsoredQueue(data || [])
+  }
 
   useEffect(() => {
     if (loading) return
@@ -124,6 +139,7 @@ export default function Admin() {
       loadQuestions()
       loadFlaggedQuestions()
       loadFlaggedComments()
+      loadSponsoredQueue()
     }
   }, [isAdmin])
 
@@ -140,6 +156,49 @@ export default function Admin() {
     const interval = setInterval(loadUnresolvedCount, 60000)
     return () => clearInterval(interval)
   }, [isAdmin])
+
+async function createSponsorship() {
+    if (!newSponsor.question_number || !newSponsor.sponsor_name) {
+      return showMessage('Question number and sponsor name are required.', true)
+    }
+
+    const { data: question, error: qError } = await supabase
+      .from('questions')
+      .select('id')
+      .eq('question_number', parseInt(newSponsor.question_number, 10))
+      .single()
+
+    if (qError || !question) {
+      return showMessage('No question found with that number.', true)
+    }
+
+    const { error } = await supabase.from('sponsored_questions').insert({
+      question_id: question.id,
+      sponsor_name: newSponsor.sponsor_name,
+      sponsor_contact: newSponsor.sponsor_contact || null,
+      sponsor_category: newSponsor.sponsor_category,
+      duration_days: parseInt(newSponsor.duration_days, 10) || 30,
+    })
+
+    if (error) {
+      showMessage('Error creating sponsorship: ' + error.message, true)
+      return
+    }
+
+    showMessage('Sponsorship request added to the queue.')
+    setNewSponsor({ question_number: '', sponsor_name: '', sponsor_contact: '', sponsor_category: 'brand', duration_days: 30 })
+    loadSponsoredQueue()
+  }
+
+  async function activateSponsorship(id) {
+    const { error } = await supabase.rpc('activate_sponsored_question', { p_sponsored_id: id })
+    if (error) {
+      showMessage(error.message, true)
+      return
+    }
+    showMessage('Sponsorship activated — question is now live.')
+    loadSponsoredQueue()
+  }
 
 async function toggleRegistration(open) {
     const { error } = await supabase
@@ -359,6 +418,7 @@ async function toggleRegistration(open) {
         <Tab label="Flagged Comments" active={tab === 'comments'} onClick={() => setTab('comments')} />
         <Tab label="Broadcast" active={tab === 'broadcast'} onClick={() => setTab('broadcast')} />
         <Tab label="Reports" active={tab === 'reports'} onClick={() => setTab('reports')} badge={unresolvedCount} />
+        <Tab label="Sponsored" active={tab === 'sponsored'} onClick={() => setTab('sponsored')} />
       </div>
 
       {/* Questions list */}
@@ -874,6 +934,115 @@ async function toggleRegistration(open) {
 
       {/* Reports */}
       {tab === 'reports' && <AdminReports supabase={supabase} />}
+
+      {tab === 'sponsored' && (
+        <div>
+          <div style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '14px', marginBottom: '1.5rem' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', marginBottom: '10px' }}>
+              New sponsorship request
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+              <input
+                type="number"
+                placeholder="Question #"
+                value={newSponsor.question_number}
+                onChange={(e) => setNewSponsor(p => ({ ...p, question_number: e.target.value }))}
+                style={{ border: '1px solid #D1D5DB', borderRadius: '6px', padding: '8px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+              />
+              <input
+                type="text"
+                placeholder="Sponsor name"
+                value={newSponsor.sponsor_name}
+                onChange={(e) => setNewSponsor(p => ({ ...p, sponsor_name: e.target.value }))}
+                style={{ border: '1px solid #D1D5DB', borderRadius: '6px', padding: '8px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+              />
+              <input
+                type="text"
+                placeholder="Contact email (internal only)"
+                value={newSponsor.sponsor_contact}
+                onChange={(e) => setNewSponsor(p => ({ ...p, sponsor_contact: e.target.value }))}
+                style={{ border: '1px solid #D1D5DB', borderRadius: '6px', padding: '8px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+              />
+              <select
+                value={newSponsor.sponsor_category}
+                onChange={(e) => setNewSponsor(p => ({ ...p, sponsor_category: e.target.value }))}
+                style={{ border: '1px solid #D1D5DB', borderRadius: '6px', padding: '8px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+              >
+                <option value="brand">Brand</option>
+                <option value="research">Research</option>
+                <option value="ngo">NGO</option>
+                <option value="media">Media</option>
+                <option value="government">Government</option>
+                <option value="political">Political</option>
+                <option value="healthcare">Healthcare</option>
+                <option value="technology">Technology</option>
+                <option value="other">Other</option>
+              </select>
+              <input
+                type="number"
+                placeholder="Duration (days)"
+                value={newSponsor.duration_days}
+                onChange={(e) => setNewSponsor(p => ({ ...p, duration_days: e.target.value }))}
+                style={{ border: '1px solid #D1D5DB', borderRadius: '6px', padding: '8px', fontSize: '13px', fontFamily: 'Merriweather, serif' }}
+              />
+            </div>
+            <button
+              onClick={createSponsorship}
+              style={{ padding: '8px 16px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+            >
+              Add to queue
+            </button>
+          </div>
+
+          <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
+            Queue ({sponsoredQueue.length})
+          </p>
+          {sponsoredQueue.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '1rem', color: '#6B7280', fontSize: '13px' }}>
+              No sponsorship requests yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {sponsoredQueue.map(row => {
+                const statusLabels = {
+                  eligible: { text: 'Ready to activate', color: '#4d621d', bg: '#eef3e0' },
+                  in_cooldown: { text: 'Sponsor in cooldown', color: '#856404', bg: '#FFF3CD' },
+                  slots_full: { text: 'Political slots full', color: '#7a1313', bg: '#f9d8d8' },
+                  already_has_live_slot: { text: 'Sponsor already live', color: '#7a1313', bg: '#f9d8d8' },
+                  live: { text: 'Live', color: '#4d621d', bg: '#eef3e0' },
+                  archived: { text: 'Archived', color: '#6B7280', bg: '#F3F4F6' },
+                  waitlisted: { text: 'Waitlisted', color: '#0C447C', bg: '#E6F1FB' },
+                }
+                const label = statusLabels[row.computed_eligibility] || statusLabels.waitlisted
+                const canActivate = row.status === 'waitlisted' && (row.computed_eligibility === 'eligible' || row.domain !== 'politics & policy')
+
+                return (
+                  <div key={row.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>{row.sponsor_name}</div>
+                      <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: label.bg, color: label.color, fontWeight: 500 }}>
+                        {label.text}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>{row.question_text}</div>
+                    <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '10px' }}>
+                      {row.domain} · {row.sponsor_category} · requested {new Date(row.created_at).toLocaleDateString()}
+                    </div>
+                    {canActivate && (
+                      <button
+                        onClick={() => activateSponsorship(row.id)}
+                        style={{ padding: '6px 14px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                      >
+                        Activate
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Broadcast */}
       {tab === 'broadcast' && (
