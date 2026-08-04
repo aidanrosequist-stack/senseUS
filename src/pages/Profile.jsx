@@ -1,4 +1,3 @@
-import Header from '../components/layout/Header'
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -77,7 +76,9 @@ async function startComparison() {
     if (navigator.share) {
       try {
         await navigator.share(shareData)
-      } catch {}
+      } catch {
+        // User cancelled the share sheet — not an error, do nothing
+      }
     } else {
       try {
         await navigator.clipboard.writeText(url)
@@ -281,7 +282,6 @@ async function startComparison() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {votes.map((vote) => {
-            const totalAtVote = vote.pct_yes_at_vote != null ? 100 : null
             return (
               <div
                 key={vote.id}

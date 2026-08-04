@@ -1,4 +1,3 @@
-import Header from '../components/layout/Header'
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'

@@ -1,6 +1,4 @@
-import Header from '../components/layout/Header'
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
-import { useNotifications } from '../hooks/useNotifications'
 import { useNotificationsContext } from '../context/NotificationsContext'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -8,14 +6,10 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { Skeleton, SkeletonCard } from '../components/ui/Skeleton'
 import BottomNav from '../components/layout/BottomNav'
-import { IconWaveSine, IconChartBar, IconThumbUp, IconThumbDown } from '@tabler/icons-react'
+import { IconThumbUp, IconThumbDown } from '@tabler/icons-react'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
-}
-
-const VOTE_LABELS = {
-  yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no', dec: 'undecided'
 }
 
 const VOTE_WASH = {
@@ -123,18 +117,6 @@ export default function Activity() {
           setMyComments([])
         }
 
-        // Fetch your own vote choice on each question, to color-code
-        // the comment text the same way Conversation.jsx does
-        const questionIds = [...new Set((myComments || []).map(c => c.questions?.id).filter(Boolean))]
-        const { data: ownVotes } = questionIds.length
-          ? await supabase
-              .from('votes')
-              .select('question_id, choice')
-              .eq('user_id', user.id)
-              .in('question_id', questionIds)
-          : { data: [] }
-        const voteByQuestion = new Map((ownVotes || []).map(v => [v.question_id, v.choice]))
-
         // Fetch all questions user has voted on with current tallies
         const { data: userVotes } = await supabase
           .from('votes')
@@ -192,13 +174,6 @@ export default function Activity() {
 
     fetchActivity()
   }, [user])
-
-   function getDisplayName(profile) {
-    if (!profile) return 'Anonymous'
-    if (profile.display_preference === 'anon') return profile.anon_name || 'Anonymous'
-    if (profile.display_preference === 'first_only') return profile.first_name
-    return `${profile.first_name} ${profile.last_initial}.`
-  }
 
   const BADGE_INFO = {
     'ultra-definitive': { label: 'Ultra-Definitive', description: '100+ votes, less than 10% leaning', emoji: '🎯' },

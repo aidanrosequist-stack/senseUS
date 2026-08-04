@@ -57,7 +57,7 @@ export default function Vote() {
     fetchTargetQuestion()
   }, [targetQuestionId, user])
 
-  async function handleVote(questionId, choice, tally) {
+  async function handleVote(questionId, choice) {
     if (!user) return null
 
     // integrity_weight_at_vote and pct_yes_at_vote/pct_no_at_vote are no

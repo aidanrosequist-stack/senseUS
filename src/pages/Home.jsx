@@ -1,4 +1,3 @@
-import Header from '../components/layout/Header'
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { Link } from 'react-router-dom'
 import { useState, useRef } from 'react'
@@ -36,7 +35,7 @@ export default function Home() {
       } else {
         setSubmitted(true)
       }
-    } catch (err) {
+    } catch {
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
@@ -136,6 +135,7 @@ export default function Home() {
             <input
               type="text"
               placeholder="First name"
+              aria-label="First name"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               disabled={submitted}
@@ -152,6 +152,7 @@ export default function Home() {
             <input
               type="tel"
               placeholder="+1 (555) 000-0000"
+              aria-label="Phone number"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               disabled={submitted}

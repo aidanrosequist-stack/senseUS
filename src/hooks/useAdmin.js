@@ -7,6 +7,7 @@ export function useAdmin() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  /* eslint-disable react-hooks/set-state-in-effect -- async admin-status check against the database; result genuinely can't be known until the query resolves */
   useEffect(() => {
     if (authLoading) return
     
@@ -30,6 +31,7 @@ export function useAdmin() {
         setLoading(false)
       })
   }, [user, authLoading])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return { isAdmin, loading }
 }

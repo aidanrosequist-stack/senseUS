@@ -1,9 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { useState, useEffect } from 'react'
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-
 const ANONYMOUS_NAMES = [
   'Alex R.', 'Jordan M.', 'Casey T.', 'Morgan B.', 'Riley S.',
   'Sam P.', 'Taylor W.', 'Quinn A.', 'Drew H.', 'Blake N.',

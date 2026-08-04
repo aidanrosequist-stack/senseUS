@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useNotifications } from '../hooks/useNotifications'
 import BottomNav from '../components/layout/BottomNav'
 

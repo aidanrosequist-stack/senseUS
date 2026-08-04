@@ -5,12 +5,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
-const ANONYMOUS_NAMES = [
-  'Aspen', 'Birch', 'Cedar', 'Echo', 'Fern', 'Harbor', 'Indigo', 'Juniper',
-  'Lake', 'Maple', 'Nova', 'Onyx', 'Pine', 'Quill', 'River', 'Sage',
-  'Tide', 'Vale', 'Willow', 'Zephyr'
-]
-
 const AVATAR_OPTIONS = ['🌿', '🌊', '🔥', '⚡', '🌙', '☀️', '🌱', '🍃', '🦋', '🌸', '🎯', '🧭', '🔮', '🌍', '💡', '🎨', '🏔️', '🌺', '🦅', '✨']
 
 const COUNTRIES = [
@@ -55,7 +49,6 @@ export default function Settings() {
   const [latestExport, setLatestExport] = useState(null)
   const [exportRequesting, setExportRequesting] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showPhoneChange, setShowPhoneChange] = useState(false)
@@ -98,7 +91,6 @@ export default function Settings() {
   }
 
   async function saveProfile(updates) {
-    setSaving(true)
     setSaveMessage(null)
     const { error } = await supabase
       .from('profiles')
@@ -111,7 +103,6 @@ export default function Settings() {
     } else {
       setSaveMessage('Error saving. Please try again.')
     }
-    setSaving(false)
   }
 
 function maskPhone(phone) {
@@ -204,6 +195,9 @@ function maskPhone(phone) {
         <Row label="Swipe sound effects">
           <button
             onClick={toggleSound}
+            role="switch"
+            aria-checked={soundEnabled}
+            aria-label="Swipe sound effects"
             style={{
               width: '44px', height: '24px', borderRadius: '12px',
               background: soundEnabled ? '#2D3DCA' : '#D1D5DB',
@@ -211,7 +205,7 @@ function maskPhone(phone) {
               transition: 'background 0.2s ease', flexShrink: 0,
             }}
           >
-            <div style={{
+            <div aria-hidden="true" style={{
               width: '18px', height: '18px', borderRadius: '50%', background: 'white',
               position: 'absolute', top: '3px',
               left: soundEnabled ? '23px' : '3px',
@@ -227,6 +221,7 @@ function maskPhone(phone) {
           <select
             value={profile?.display_preference || 'full'}
             onChange={(e) => saveProfile({ display_preference: e.target.value })}
+            aria-label="Display name"
             style={{ fontSize: '13px', color: '#1A1A1A', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '4px 8px', fontFamily: 'Merriweather, serif', background: 'white' }}
           >
             <option value="full">First + Last Initial</option>
@@ -240,6 +235,8 @@ function maskPhone(phone) {
               <button
                 key={emoji}
                 onClick={() => saveProfile({ avatar: emoji })}
+                aria-label={`Select ${emoji} as your avatar`}
+                aria-pressed={profile?.avatar === emoji}
                 style={{
                   width: '32px', height: '32px', borderRadius: '50%', border: profile?.avatar === emoji ? '2px solid #2D3DCA' : '2px solid transparent',
                   background: profile?.avatar === emoji ? '#E6F1FB' : 'transparent',
@@ -255,6 +252,7 @@ function maskPhone(phone) {
           <input
             type="text"
             placeholder="One line about you"
+            aria-label="Bio"
             defaultValue={profile?.bio || ''}
             onBlur={(e) => saveProfile({ bio: e.target.value })}
             maxLength={100}
@@ -272,6 +270,7 @@ function maskPhone(phone) {
                 <span style={{ fontSize: '13px', color: '#6B7280' }}>{maskPhone(user?.phone)}</span>
                 <button
                   onClick={() => setShowPhoneChange(true)}
+                  aria-label="Change phone number"
                   style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
                 >
                   Change
@@ -282,6 +281,7 @@ function maskPhone(phone) {
               <input
                 type="email"
                 placeholder="optional"
+                aria-label="Recovery email"
                 defaultValue={profile?.recovery_email || ''}
                 onBlur={(e) => {
                   const val = e.target.value.trim()
@@ -312,6 +312,7 @@ function maskPhone(phone) {
                     value={newPhone}
                     onChange={(value) => setNewPhone(value || '')}
                     placeholder="Enter new phone number"
+                    aria-label="New phone number"
                   />
                 </div>
                 {phoneChangeError && (
@@ -342,6 +343,7 @@ function maskPhone(phone) {
                   type="text"
                   inputMode="numeric"
                   placeholder="6-digit code"
+                  aria-label="Verification code"
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value)}
                   style={{ width: '100%', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', marginBottom: '10px' }}

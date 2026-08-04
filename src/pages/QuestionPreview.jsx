@@ -24,13 +24,16 @@ export default function QuestionPreview() {
 
   const [sharedComment, setSharedComment] = useState(false)
 
+  /* eslint-disable-next-line react-hooks/set-state-in-effect -- reads window.location.hash on mount; a reasonable candidate for a lazy useState initializer if this file gets revisited, but suppressing for now to match today's approach */
   useEffect(() => {
     const hash = window.location.hash
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads window.location.hash on mount
     if (hash && hash.startsWith('#comment-')) {
       setSharedComment(true)
     }
   }, [])
 
+   /* eslint-disable react-hooks/set-state-in-effect -- async question/tally fetch */
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
@@ -74,6 +77,7 @@ export default function QuestionPreview() {
     }
     fetchData()
   }, [currentNum])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const canGoPrev = currentNum > 1 && currentNum > minAllowed
   const canGoNext = (!maxNumber || currentNum < maxNumber) && currentNum < maxAllowed
