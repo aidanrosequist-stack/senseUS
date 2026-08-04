@@ -23,11 +23,9 @@ import Notifications from './pages/Notifications'
 import NotificationPopup from './components/notifications/NotificationPopup'
 import { NotificationsContext } from './context/NotificationsContext'
 import { useNotifications } from './hooks/useNotifications'
-import { useAuth } from './hooks/useAuth'
 import Ethos from './pages/Ethos'
 
 function AppContent() {
-  const { user } = useAuth()
   const {
     notifications,
     unreadCount,

@@ -1,15 +1,3 @@
-
-[functions.verify-phone]
-enabled = true
-verify_jwt = false
-import_map = "./functions/verify-phone/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/verify-phone/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/verify-phone/*.html" ]
-
 [functions.calculate-integrity]
 enabled = true
 verify_jwt = false
@@ -42,3 +30,39 @@ entrypoint = "./functions/send-welcome-sms/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/send-welcome-sms/*.html" ]
+
+[functions.send-alert-email]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-alert-email/deno.json"
+entrypoint = "./functions/send-alert-email/index.ts"
+
+[functions.send-daily-report]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-daily-report/deno.json"
+entrypoint = "./functions/send-daily-report/index.ts"
+
+[functions.send-weekly-report]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-weekly-report/deno.json"
+entrypoint = "./functions/send-weekly-report/index.ts"
+
+[functions.process-pending-exports]
+enabled = true
+verify_jwt = false
+import_map = "./functions/process-pending-exports/deno.json"
+entrypoint = "./functions/process-pending-exports/index.ts"
+
+[functions.check-line-type]
+enabled = true
+verify_jwt = false
+import_map = "./functions/check-line-type/deno.json"
+entrypoint = "./functions/check-line-type/index.ts"
+
+[functions.join-waitlist]
+enabled = true
+verify_jwt = false
+import_map = "./functions/join-waitlist/deno.json"
+entrypoint = "./functions/join-waitlist/index.ts"

@@ -40,6 +40,7 @@ export default function OnboardingAnimation({ onComplete }) {
   const [animating, setAnimating] = useState(true)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- driving a timed animation transition on step change; inherently timer-based
     setAnimating(true)
     const timer = setTimeout(() => setAnimating(false), 600)
     return () => clearTimeout(timer)

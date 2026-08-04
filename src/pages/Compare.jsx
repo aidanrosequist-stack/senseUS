@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -63,9 +63,9 @@ export default function Compare() {
     }
 
     if (user) load()
-  }, [token, user])
+  }, [token, user, loadComparison])
 
-  async function loadComparison(tr) {
+  const loadComparison = useCallback(async (tr) => {
     const otherId = tr.sender_id === user.id ? tr.recipient_id : tr.sender_id
 
     const [{ data: myVotes }, { data: theirVotes }, { data: otherProfile }] = await Promise.all([
@@ -107,7 +107,7 @@ export default function Compare() {
     })
 
     setComparison({ otherProfile, shared: enriched, byCategory, agreementPct })
-  }
+  }, [user])
 
   async function handleAccept() {
     setProcessing(true)
@@ -156,7 +156,9 @@ export default function Compare() {
     if (navigator.share) {
       try {
         await navigator.share(shareData)
-      } catch {}
+      } catch {
+        // User cancelled the share sheet — not an error, do nothing
+      }
     } else {
       try {
         await navigator.clipboard.writeText(url)

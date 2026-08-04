@@ -1,4 +1,3 @@
-import Header from '../components/layout/Header'
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -36,7 +35,6 @@ function QuestionThumbnail({ question, userVote, onClick }) {
   const voted = !!userVote
   const bgColor = voted ? VOTE_COLORS[userVote] : '#FFFFFF'
   const textColor = voted ? 'white' : '#1A1A1A'
-  const subtextColor = voted ? 'rgba(255,255,255,0.8)' : '#6B7280'
 
   return (
     <div
@@ -136,6 +134,7 @@ export default function Explore() {
     if (el) el.scrollBy({ left: direction * 320, behavior: 'smooth' })
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect -- async data fetch (questions, profile, votes); inherently depends on network results */
   useEffect(() => {
     if (!user) {
       setLoading(false)
@@ -188,6 +187,7 @@ export default function Explore() {
     }
     fetchData()
   }, [user])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleThumbnailClick(question) {
     const userVote = userVotes[question.id]
@@ -330,6 +330,7 @@ const getSponsoredQuestions = () => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search questions..."
+          aria-label="Search questions"
           style={{ width: '100%', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', fontFamily: 'Merriweather, serif', boxSizing: 'border-box' }}
         />
       </div>

@@ -62,7 +62,7 @@ function playSound(type) {
   oscillator.stop(ctx.currentTime + config.duration)
 }
 
-function ProgressRing({ progress, color }) {
+function ProgressRing({ progress }) {
   const radius = 18
   const circumference = 2 * Math.PI * radius
   const strokeDashoffset = circumference - (progress / 100) * circumference
@@ -108,6 +108,7 @@ useEffect(() => {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing local drag-zone state from a prop that only changes on question navigation; not worth restructuring around key-based remount here
     if (initialZone) setZone(initialZone)
   }, [initialZone])
   const [dragging, setDragging] = useState(false)
@@ -119,7 +120,6 @@ useEffect(() => {
   const lastZone = useRef(null)
   const [holdProgress, setHoldProgress] = useState(0) // 0-100
   const [holdZone, setHoldZone] = useState(null)
-  const holdTimer = useRef(null)
   const holdInterval = useRef(null)
   function startHold(currentZone) {
     if (!currentZone || submitting) return
@@ -171,7 +171,9 @@ useEffect(() => {
           gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
           osc.start()
           osc.stop(ctx.currentTime + 0.3)
-        } catch (e) {}
+        } catch {
+          // Audio playback can fail silently on some browsers/permissions — not critical to the vote itself
+        }
 
         onVote(currentZone)
         setHoldProgress(0)
@@ -509,6 +511,8 @@ useEffect(() => {
 
       <div style={{ height: '40%', padding: '0 1rem 1rem', borderTop: '0.5px solid rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px' }}>
 <div
+          role="group"
+          aria-label="Cast your vote"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
@@ -528,6 +532,7 @@ useEffect(() => {
               onPointerDown={() => startHold(zone)}
               onPointerUp={cancelHold}
               onPointerLeave={cancelHold}
+              aria-label={`Vote ${label}`}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: bg, border: `1.5px solid ${border}`, borderRadius: '9px', padding: '10px 4px', cursor: 'pointer', position: 'relative', userSelect: 'none' }}
             >
               <span style={{ width: '32px', height: '32px', borderRadius: '50%', background: circle, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: rotate ? 'rotate(45deg)' : 'none', position: 'relative' }}>
@@ -595,13 +600,13 @@ useEffect(() => {
       </div>
 
       {submitting && (
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, fontFamily: 'Merriweather, serif', fontSize: '13px', color: '#1A1A1A' }}>
+        <div role="status" aria-live="polite" style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, fontFamily: 'Merriweather, serif', fontSize: '13px', color: '#1A1A1A' }}>
           Saving your vote...
         </div>
       )}
 
       {voteError && (
-        <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', right: '1rem', background: '#7a1313', color: 'white', borderRadius: '10px', padding: '12px 14px', fontFamily: 'Merriweather, serif', fontSize: '13px', zIndex: 21, boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}>
+        <div role="alert" aria-live="assertive" style={{ position: 'absolute', bottom: '1rem', left: '1rem', right: '1rem', background: '#7a1313', color: 'white', borderRadius: '10px', padding: '12px 14px', fontFamily: 'Merriweather, serif', fontSize: '13px', zIndex: 21, boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}>
           <div style={{ marginBottom: '8px' }}>{voteError}</div>
           <button
             onClick={() => onDismissError && onDismissError()}

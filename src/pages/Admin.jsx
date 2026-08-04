@@ -1,11 +1,9 @@
-import Header from '../components/layout/Header'
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAdmin } from '../hooks/useAdmin'
 import AdminReports from './AdminReports'
-import { useAuth } from '../hooks/useAuth'
 
 const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'tracking', 'sponsored']
 const DOMAINS = ['society & culture', 'ethics & philosophy', 'health & wellbeing', 'relationships', 'technology', 'money & work', 'media & information', 'politics & policy', 'science & nature', 'sports & leisure']
@@ -44,7 +42,6 @@ function Tab({ label, active, onClick, badge }) {
 
 export default function Admin() {
   const { isAdmin, loading } = useAdmin()
-  const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('questions')
   const [questions, setQuestions] = useState([])
@@ -55,6 +52,7 @@ export default function Admin() {
   const [unresolvedCount, setUnresolvedCount] = useState(0)
   const [registrationOpen, setRegistrationOpen] = useState(true)
 
+  /* eslint-disable-next-line react-hooks/set-state-in-effect -- async settings fetch; result genuinely unknown until the query resolves */
   useEffect(() => {
     supabase
       .from('app_settings')
@@ -143,6 +141,7 @@ export default function Admin() {
     }
   }, [isAdmin])
 
+  /* eslint-disable react-hooks/set-state-in-effect -- async count polled on an interval; inherently can't be derived during render */
   useEffect(() => {
     if (!isAdmin) return
     async function loadUnresolvedCount() {
@@ -156,6 +155,7 @@ export default function Admin() {
     const interval = setInterval(loadUnresolvedCount, 60000)
     return () => clearInterval(interval)
   }, [isAdmin])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
 async function createSponsorship() {
     if (!newSponsor.question_number || !newSponsor.sponsor_name) {

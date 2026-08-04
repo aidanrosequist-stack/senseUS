@@ -24,6 +24,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
       setCurrentIndex(idx)
     } else if (targetQuestion) {
       // Question not in feed (already voted) — inject it at the front
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- injecting a question not present in the main feed; genuinely depends on the async fetch result, not derivable during render
       setExtraQuestion(targetQuestion)
       setCurrentIndex(0)
     }

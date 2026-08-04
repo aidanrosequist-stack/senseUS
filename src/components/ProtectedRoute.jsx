@@ -11,9 +11,11 @@ export default function ProtectedRoute({ children }) {
 
   useEffect(() => {
     if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- early-out before the async check ever runs
       setCheckingProfile(false)
       return
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- legitimate: starting a loading flag before an async profile check, not synchronous derived state
     setCheckingProfile(true)
     supabase
       .from('profiles')

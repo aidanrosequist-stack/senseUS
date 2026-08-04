@@ -13,7 +13,7 @@
 // Usage: import into Admin.jsx and render as a new tab, e.g.
 //   <AdminReports supabase={supabase} />
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -62,9 +62,9 @@ export default function AdminReports({ supabase }) {
     // hammering the DB on every render.
     const interval = setInterval(loadDashboard, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadDashboard]);
 
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     try {
       setError(null);
       const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -128,7 +128,7 @@ export default function AdminReports({ supabase }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [])
 
 async function resolveAnomaly(id) {
   await supabase

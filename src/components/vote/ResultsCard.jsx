@@ -56,11 +56,13 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
   const startY = useRef(0)
 
   // Checkmark scales in on mount / whenever a new question's results show
+  /* eslint-disable react-hooks/set-state-in-effect -- resetting the checkmark animation on question change; the reveal sequence is inherently timing-based (setTimeout), not something to derive during render */
   useEffect(() => {
     setCheckmarkIn(false)
     const t = setTimeout(() => setCheckmarkIn(true), 60)
     return () => clearTimeout(t)
   }, [question.id])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Both sides count up in lockstep — same step size, same interval — so
   // they stay glued at 50/50 for as long as both are still climbing. The
@@ -68,6 +70,7 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
   // leading side keeps climbing alone, which is what makes the percentages
   // (derived live from these two numbers, below) start to drift apart in
   // real time rather than jumping straight to their final values.
+  /* eslint-disable react-hooks/set-state-in-effect -- resetting and driving the count-up reveal animation on question change; inherently timer-based (setInterval), not derivable during render */
   useEffect(() => {
     setYesDisplayed(0)
     setNoDisplayed(0)
@@ -103,6 +106,7 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
 
     return () => clearInterval(interval)
   }, [question.id, yesTrue, noTrue, total])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     const el = cardRef.current
@@ -195,7 +199,7 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
           transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease',
         }}
       >
-        <span style={{ color: VOTE_COLORS[userVote] || '#0C447C', fontSize: '18px' }}>&#10003;</span>
+        <span aria-hidden="true" style={{ color: VOTE_COLORS[userVote] || '#0C447C', fontSize: '18px' }}>&#10003;</span>
       </div>
 
       <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '4px' }}>
@@ -285,6 +289,13 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
         </div>
       </div>
 
+      <div
+        aria-live="polite"
+        style={{ width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
+      >
+        {revealed && total > 0 && `Final results: ${pctYesLive}% yes, ${pctNoLive}% no, out of ${total.toLocaleString()} verified humans.`}
+      </div>
+
       <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '0.5rem', fontVariantNumeric: 'tabular-nums' }}>
         {totalDisplayed.toLocaleString()} verified humans answered
       </div>
@@ -322,16 +333,20 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-        <div
+        <button
           onClick={onNext}
           style={{
             fontSize: '12px',
             color: '#6B7280',
             cursor: 'pointer',
+            background: 'none',
+            border: 'none',
+            fontFamily: 'Merriweather, serif',
+            padding: 0,
           }}
         >
-          tap or swipe up for next question
-        </div>
+          tap, swipe up, or press Enter for next question
+        </button>
         <button
           onClick={onChangeVote}
           style={{

@@ -12,6 +12,7 @@ export function useNotifications() {
 
   const channelRef = useRef(null)
 
+  /* eslint-disable react-hooks/set-state-in-effect -- async notification fetch plus a live realtime subscription; both inherently depend on data that doesn't exist until after render */
   useEffect(() => {
     if (!user) {
       setLoading(false)
@@ -71,6 +72,7 @@ export function useNotifications() {
       }
     }
   }, [user])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function markAsRead(notificationId) {
     await supabase
