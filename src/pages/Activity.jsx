@@ -135,8 +135,9 @@ export default function Activity() {
           })
           const totalsById = {}
           for (const row of tallyRows || []) {
+            const weightedTotal = Number(row.yes) + Number(row.ly) + Number(row.ln) + Number(row.no)
             totalsById[row.question_id] = {
-              pctYes: Number(row.total) > 0 ? Math.round(((Number(row.yes) + Number(row.ly)) / Number(row.total)) * 100) : 0,
+              pctYes: weightedTotal > 0 ? Math.round(((Number(row.yes) + Number(row.ly)) / weightedTotal) * 100) : 0,
               total: Number(row.total),
             }
           }

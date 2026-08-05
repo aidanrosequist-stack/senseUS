@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       no: Number(tally?.no || 0),
     }
 
-    const total = Number(tally?.total || 0)
+    const total = counts.yes + counts.ly + counts.ln + counts.no
     const pctYes = total > 0 ? Math.round(((counts.yes + counts.ly) / total) * 100) : 0
     const pctNo = 100 - pctYes
 

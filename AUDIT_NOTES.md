@@ -13,11 +13,18 @@ The canonical percentage formula for user-facing displays is
 
 This is what ResultsCard and Vote.jsx display to users.
 
-Internal screens (Activity Shifts, AdminReports) use raw counts for their
-own calculations but do not display percentages to users, so no
-user-facing inconsistency exists. This was confirmed during the 2026-07-27
-audit.
+Activity Shifts also displays percentages to users (the "you voted, now
+X% agree" comparison) — an earlier version of this note incorrectly
+stated it didn't. A real bug existed here: pctYes was computed by
+dividing the weighted yes/ly sum by the raw, unweighted vote count,
+rather than by the weighted total (yes+ly+ln+no), producing incorrect
+percentages once any voter's integrity_weight rose above 1.0. Fixed
+2026-08-05 to derive the denominator from the weighted buckets
+themselves, matching ResultsCard's approach.
 
+AdminReports uses raw counts for its own internal calculations and does
+not display percentages to users, so no user-facing inconsistency exists
+there. This was confirmed during the 2026-07-27 audit and remains true.
 
 ### Vote Tallying (`get_vote_tally`, `get_vote_tallies_batch`)
 
