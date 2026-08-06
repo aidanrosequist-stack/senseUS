@@ -1,4 +1,3 @@
-import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -159,7 +158,7 @@ export default function QuestionPreview() {
           />
           <div>
             <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
-              sense<AnimatedWordmark />
+              sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
             </div>
             <div style={{ fontSize: '9px', color: '#9CA3AF', letterSpacing: '0.04em', marginTop: '1px' }}>
               real humans. real opinions. real truth.

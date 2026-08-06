@@ -26,7 +26,7 @@ export default function Header() {
         />
         <div style={{ fontFamily: 'Merriweather, serif' }}>
           <div style={{ fontSize: '24px', fontWeight: 400, color: '#1A1A1A', lineHeight: 1 }}>
-            sense<AnimatedWordmark />
+            sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
           </div>
           <div style={{ fontSize: '12px', color: '#6B7280', letterSpacing: '0.03em', marginTop: '2px' }}>
             THE societal media platform
