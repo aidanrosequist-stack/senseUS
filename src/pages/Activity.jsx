@@ -1,4 +1,3 @@
-import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useNotificationsContext } from '../context/NotificationsContext'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -200,7 +199,7 @@ export default function Activity() {
       {/* Header */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
-          sense<AnimatedWordmark />
+          sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
         </div>
         <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center' }}>Activity</div>
         <div />

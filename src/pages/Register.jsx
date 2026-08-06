@@ -1,4 +1,3 @@
-import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRegistration } from '../hooks/useRegistration'
@@ -123,7 +122,7 @@ if (checkingStatus) {
         style={{ height: '56px', width: 'auto', marginBottom: '8px' }}
       />
       <div style={{ fontSize: '28px', fontWeight: 400, color: '#1A1A1A', marginBottom: '4px' }}>
-        sense<AnimatedWordmark />
+        sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
       </div>
       <h1 style={{ fontSize: '22px', fontWeight: 600, marginBottom: '1.5rem', color: '#2D3DCA' }}>
         Join senseUS
