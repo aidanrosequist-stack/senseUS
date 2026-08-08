@@ -1,0 +1,10 @@
+{
+  "appId": "app.senseus.mobile",
+  "appName": "senseus",
+  "webDir": "dist",
+  "server": {
+    "url": "https://www.senseus.app",
+    "cleartext": false,
+    "allowNavigation": ["senseus.app"]
+  }
+}
