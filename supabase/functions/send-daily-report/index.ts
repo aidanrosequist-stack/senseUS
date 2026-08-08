@@ -43,8 +43,14 @@ async function getSmsSuccessRate(since: string): Promise<{ sent: number; deliver
     return { sent: 0, delivered: 0, rate: "N/A (Twilio not configured)" };
   }
 
+  // Twilio's DateSentAfter filter requires a plain YYYY-MM-DD date, not a
+  // full ISO timestamp — passing the full timestamp caused the filter to
+  // silently fail, returning the account's unfiltered recent messages
+  // instead of just the last 24 hours.
+  const dateOnly = since.split('T')[0];
+
   const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json?DateSentAfter=${encodeURIComponent(since)}&PageSize=1000`;
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json?DateSentAfter=${dateOnly}&PageSize=1000`;
 
   try {
     const res = await fetch(url, { headers: { Authorization: `Basic ${auth}` } });
