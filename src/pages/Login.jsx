@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import TurnstileWidget from '../components/ui/TurnstileWidget'
+import { useState, useref } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Link } from 'react-router-dom'
@@ -18,6 +19,8 @@ function getDefaultCountryFromLocale() {
   }
 }
 
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
+
 export default function Login() {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
@@ -26,23 +29,36 @@ export default function Login() {
   const [error, setError] = useState(null)
   const [defaultPhoneCountry] = useState(getDefaultCountryFromLocale)
   const [phoneCountry, setPhoneCountry] = useState(getDefaultCountryFromLocale())
+  const [turnstileToken, setTurnstileToken] = useState(null)
+  const turnstileRef = useRef(null)
 
   const navigate = useNavigate()
   const location = useLocation()
   const from = location.state?.from || '/vote'
 
   async function sendCode() {
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setError('Please complete the verification check above.')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
-      const { error: otpError } = await supabase.auth.signInWithOtp({ phone })
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        phone,
+        options: { captchaToken: turnstileToken },
+      })
       if (otpError) {
         setError(otpError.message)
+        turnstileRef.current?.reset()
+        setTurnstileToken(null)
       } else {
         setStep('code')
       }
     } catch (err) {
       setError(err.message)
+      turnstileRef.current?.reset()
+      setTurnstileToken(null)
     } finally {
       setLoading(false)
     }
@@ -113,9 +129,18 @@ export default function Login() {
               />
             </div>
           </label>
+          {TURNSTILE_SITE_KEY && (
+            <TurnstileWidget
+              ref={turnstileRef}
+              siteKey={TURNSTILE_SITE_KEY}
+              onVerify={setTurnstileToken}
+              onExpire={() => setTurnstileToken(null)}
+              onError={() => setTurnstileToken(null)}
+            />
+          )}
           <button
             onClick={sendCode}
-            disabled={loading || !phone}
+            disabled={loading || !phone || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
             style={{ width: '100%', padding: '11px', borderRadius: '8px', background: '#2D3DCA', color: 'white', border: 'none', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: loading || !phone ? 0.5 : 1, fontFamily: 'Merriweather, serif' }}
           >
             {loading ? 'Sending...' : 'Send verification code'}
