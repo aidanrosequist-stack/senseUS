@@ -1,4 +1,3 @@
-import { useNotificationsContext } from '../context/NotificationsContext'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -16,6 +15,20 @@ const VOTE_WASH = {
   ly: '#EEE5AA',
   ln: '#EBCDAD',
   no: '#EBADAD',
+}
+
+const VOTE_PILL_STYLES = {
+  yes: { background: '#eef3e0', color: '#4d621d' },
+  ly: { background: '#faf6d0', color: '#7a6b0e' },
+  ln: { background: '#f9ead8', color: '#7a4513' },
+  no: { background: '#f9d8d8', color: '#7a1313' },
+}
+
+const VOTE_LABELS = {
+  yes: 'yes',
+  ly: 'leaning yes',
+  ln: 'leaning no',
+  no: 'no',
 }
 
 function VoteIcon({ choice, size = 14 }) {
@@ -56,10 +69,41 @@ export default function Activity() {
   const [tab, setTab] = useState('comments')
   const [myComments, setMyComments] = useState([])
   const [shifts, setShifts] = useState([])
-  const [badges, setBadges] = useState([])
   const [loading, setLoading] = useState(true)
-  const { notifications, markAsRead, markAllAsRead } = useNotificationsContext()
   const [skipped, setSkipped] = useState([])
+  const [votes, setVotes] = useState([])
+  const [snapshotMap, setSnapshotMap] = useState({})
+
+  async function startComparison() {
+    const { data, error } = await supabase
+      .from('comparison_tokens')
+      .insert({ sender_id: user.id })
+      .select('token')
+      .single()
+
+    if (error || !data) {
+      alert('Something went wrong creating your link.')
+      return
+    }
+
+    const url = `https://senseus.app/compare/${data.token}`
+    const shareData = { title: 'senseUS', text: 'Compare voting histories with me on senseUS', url }
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData)
+      } catch {
+        // User cancelled the share sheet — not an error, do nothing
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url)
+        alert('Link copied to clipboard!')
+      } catch {
+        prompt('Copy this link:', url)
+      }
+    }
+  }
 
   useEffect(() => {
     if (!user) return
@@ -146,16 +190,17 @@ export default function Activity() {
             const delta = hasBaseline ? t.pctYes - vote.pct_yes_at_vote : null
             return { ...vote, pctYes: t.pctYes, pctNo: 100 - t.pctYes, total: t.total, delta }
           })
-          setShifts(shiftsWithCurrent)
-        }
 
-        // Fetch badges from profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('badges')
-          .eq('id', user.id)
-          .single()
-        setBadges(profile?.badges || [])
+          function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1))
+              ;[array[i], array[j]] = [array[j], array[i]]
+            }
+            return array
+          }
+
+          setShifts(shuffle(shiftsWithCurrent))
+        }
 
         // Fetch skipped ("Revisit") questions
         const { data: skipsData } = await supabase
@@ -165,6 +210,40 @@ export default function Activity() {
           .order('created_at', { ascending: false })
         setSkipped(skipsData || [])
 
+        // Fetch vote history with snapshot trend data
+        const { data: votesData } = await supabase
+          .from('votes')
+          .select(`
+            id, choice, created_at, updated_at, pct_yes_at_vote, pct_no_at_vote,
+            questions (id, text, category)
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
+        const questionIds = (votesData || []).map(v => v.questions?.id).filter(Boolean)
+        let newSnapshotMap = {}
+        if (questionIds.length > 0) {
+          const today = new Date()
+          const sevenDaysAgo = new Date(today)
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+          const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+          const todayStr = today.toISOString().split('T')[0]
+
+          const { data: snapshots } = await supabase
+            .from('question_snapshots')
+            .select('question_id, pct_yes, pct_no, total_votes, snapshot_date')
+            .in('question_id', questionIds)
+            .in('snapshot_date', [todayStr, sevenDaysAgoStr])
+
+          ;(snapshots || []).forEach(s => {
+            if (!newSnapshotMap[s.question_id]) newSnapshotMap[s.question_id] = {}
+            if (s.snapshot_date === todayStr) newSnapshotMap[s.question_id].today = s
+            if (s.snapshot_date === sevenDaysAgoStr) newSnapshotMap[s.question_id].sevenDaysAgo = s
+          })
+        }
+
+        setVotes(votesData || [])
+        setSnapshotMap(newSnapshotMap)
       } catch (err) {
         console.error(err)
       } finally {
@@ -174,12 +253,6 @@ export default function Activity() {
 
     fetchActivity()
   }, [user])
-
-  const BADGE_INFO = {
-    'ultra-definitive': { label: 'Ultra-Definitive', description: '100+ votes, less than 10% leaning', emoji: '🎯' },
-    'decisive-streak': { label: 'Decisive Streak', description: '20 consecutive definitive votes', emoji: '🔥' },
-    'super-decisive-streak': { label: 'Super Decisive Streak', description: '50 consecutive definitive votes', emoji: '⚡' },
-  }
 
   if (loading) {
     return (
@@ -208,11 +281,10 @@ export default function Activity() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '1.5rem', background: '#F3F4F6', padding: '4px', borderRadius: '10px' }}>
         {[
+          { key: 'history', label: 'History' },
           { key: 'comments', label: 'Comments' },
           { key: 'shifts', label: 'Shifts' },
-          { key: 'badges', label: 'Badges' },
           { key: 'revisit', label: 'Revisit' },
-          { key: 'notifications', label: 'Notifications' },
         ].map(t => (
           <button
             key={t.key}
@@ -384,78 +456,86 @@ export default function Activity() {
         </div>
       )}
 
-      {/* Badges tab */}
-      {tab === 'badges' && (
+{tab === 'history' && (
         <div>
-          {badges.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 0' }}>
-              <div style={{ fontSize: '32px', marginBottom: '1rem' }}>🏆</div>
-              <div style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.5rem' }}>No badges yet</div>
-              <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.7, maxWidth: '260px', margin: '0 auto' }}>
-                Keep voting to earn badges. Cast 20 consecutive definitive yes/no votes to earn your first Decisive Streak badge.
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {badges.map(badge => {
-                const info = BADGE_INFO[badge] || { label: badge, description: '', emoji: '🏅' }
-                return (
-                  <div key={badge} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ fontSize: '28px' }}>{info.emoji}</div>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A' }}>{info.label}</div>
-                      <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>{info.description}</div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
+          <button
+            onClick={startComparison}
+            style={{ width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1.5rem' }}
+          >
+            Compare your vote history with a friend
+          </button>
 
-      {/* Notifications */}
-      {tab === 'notifications' && (
-        <div>
-          {notifications.length > 0 && (
-            <button
-              onClick={markAllAsRead}
-              style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1rem', padding: 0 }}
-            >
-              Mark all as read
-            </button>
-          )}
-          {notifications.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
-              No notifications yet.
-            </div>
+          {votes.length === 0 ? (
+            <p style={{ fontSize: '13px', color: '#6B7280', textAlign: 'center', padding: '2rem 0' }}>
+              No votes yet — head to the vote feed to get started.
+            </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {notifications.map(notification => (
+              {votes.map((vote) => (
                 <div
-                  key={notification.id}
-                  onClick={() => markAsRead(notification.id)}
-                  style={{
-                    background: notification.read ? '#FFFFFF' : '#F0F3FF',
-                    border: notification.priority === 'urgent' ? '1px solid #c21f1f' : notification.priority === 'high' ? '1px solid #2D3DCA' : '0.5px solid #E5E7EB',
-                    borderRadius: '10px',
-                    padding: '12px 14px',
-                    cursor: 'pointer',
-                  }}
+                  key={vote.id}
+                  style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '12px 14px' }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
-                      {notification.title}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                    <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, flex: 1 }}>
+                      {vote.questions?.text}
                     </div>
-                    {!notification.read && (
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2D3DCA', flexShrink: 0, marginTop: '4px' }} />
-                    )}
+                    <div style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 400, whiteSpace: 'nowrap', flexShrink: 0, ...VOTE_PILL_STYLES[vote.choice] }}>
+                      {VOTE_LABELS[vote.choice]}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5, marginBottom: '4px' }}>
-                    {notification.body}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                    <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: 300 }}>
+                      {vote.questions?.category} · {timeAgo(vote.created_at)}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-                    {new Date(notification.created_at).toLocaleDateString()}
+
+                  {snapshotMap[vote.questions?.id]?.today && (() => {
+                    const todaySnap = snapshotMap[vote.questions?.id]?.today
+                    const weekSnap = snapshotMap[vote.questions?.id]?.sevenDaysAgo
+                    const currentPctYes = todaySnap?.pct_yes || 0
+                    const currentPctNo = todaySnap?.pct_no || 0
+                    const trend = weekSnap ? currentPctYes - weekSnap.pct_yes : null
+
+                    return (
+                      <div style={{ marginTop: '8px' }}>
+                        <div style={{ width: '100%', height: '6px', borderRadius: '3px', overflow: 'hidden', display: 'flex', background: '#F1F1F1', marginBottom: '4px' }}>
+                          <div style={{ width: `${currentPctYes}%`, background: '#6d8a1c' }} />
+                          <div style={{ width: `${currentPctNo}%`, background: '#c21f1f' }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ fontSize: '10px', color: '#6B7280' }}>
+                            <span style={{ color: '#4d621d', fontWeight: 700 }}>{currentPctYes}% yes</span>
+                            {' · '}
+                            <span style={{ color: '#7a1313', fontWeight: 700 }}>{currentPctNo}% no</span>
+                            {' · '}
+                            {todaySnap.total_votes} {todaySnap.total_votes === 1 ? 'human' : 'humans'}
+                          </div>
+                          {trend !== null && (
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: trend > 0 ? '#4d621d' : trend < 0 ? '#7a1313' : '#6B7280' }}>
+                              {trend > 0 ? '▲' : trend < 0 ? '▼' : '—'}
+                              {trend !== 0 ? ` ${Math.abs(trend)}% this week` : ' no change'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                    <button
+                      onClick={() => navigate(`/vote?question=${vote.questions?.id}&currentVote=${vote.choice}`)}
+                      style={{ flex: 1, padding: '6px', background: '#F3F4F6', color: '#1A1A1A', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                    >
+                      Change vote
+                    </button>
+                    <button
+                      onClick={() => navigate(`/conversation/${vote.questions?.id}`)}
+                      style={{ flex: 1, padding: '6px', background: '#E6F1FB', color: '#0C447C', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                    >
+                      View conversation
+                    </button>
                   </div>
                 </div>
               ))}

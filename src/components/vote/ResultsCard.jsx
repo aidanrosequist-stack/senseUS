@@ -108,6 +108,28 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
   }, [question.id, yesTrue, noTrue, total])
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  async function shareQuestion() {
+    if (!question?.question_number) return
+    const url = `https://senseus.app/q/${question.question_number}`
+    const shareData = { title: 'senseUS', text: 'I just voted on this — what do you think?', url }
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData)
+      } catch {
+        // User cancelled the share sheet — not an error, do nothing
+      }
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(url)
+      alert('Link copied to clipboard!')
+    } catch {
+      prompt('Copy this link:', url)
+    }
+  }
+
   useEffect(() => {
     const el = cardRef.current
     if (!el) return
@@ -347,20 +369,36 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
         >
           tap, swipe up, or press Enter for next question
         </button>
-        <button
-          onClick={onChangeVote}
-          style={{
-            background: 'none',
-            border: 'none',
-            fontSize: '12px',
-            color: '#9CA3AF',
-            cursor: 'pointer',
-            textDecoration: 'underline',
-            fontFamily: 'Merriweather, serif',
-          }}
-        >
-          Change my vote
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
+          <button
+            onClick={shareQuestion}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '12px',
+              color: '#9CA3AF',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              fontFamily: 'Merriweather, serif',
+            }}
+          >
+            Share this question
+          </button>
+          <button
+            onClick={onChangeVote}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '12px',
+              color: '#9CA3AF',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              fontFamily: 'Merriweather, serif',
+            }}
+          >
+            Change my vote
+          </button>
+        </div>
       </div>
     </div>
   )

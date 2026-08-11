@@ -2,21 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Skeleton, SkeletonCard, SkeletonStatGrid } from '../components/ui/Skeleton'
+import { useNotificationsContext } from '../context/NotificationsContext'
 import BottomNav from '../components/layout/BottomNav'
-
-const VOTE_PILL_STYLES = {
-  yes: { background: '#eef3e0', color: '#4d621d' },
-  ly: { background: '#faf6d0', color: '#7a6b0e' },
-  ln: { background: '#f9ead8', color: '#7a4513' },
-  no: { background: '#f9d8d8', color: '#7a1313' },
-}
-
-const VOTE_LABELS = {
-  yes: 'yes',
-  ly: 'leaning yes',
-  ln: 'leaning no',
-  no: 'no',
-}
 
 function timeAgo(dateString) {
   const now = new Date()
@@ -29,15 +16,14 @@ function timeAgo(dateString) {
 }
 
 export default function Profile() {
-  const [snapshotMap, setSnapshotMap] = useState({})
   const [profile, setProfile] = useState(null)
-  const [votes, setVotes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
   const [showResonanceInfo, setShowResonanceInfo] = useState(false)
   const [showIntegrityInfo, setShowIntegrityInfo] = useState(false)
   const [integrityStatus, setIntegrityStatus] = useState(null)
+  const { notifications, markAsRead, markAllAsRead, deleteNotification } = useNotificationsContext()
 
 async function openIntegrityInfo() {
     setShowIntegrityInfo(true)
@@ -57,37 +43,6 @@ async function openIntegrityInfo() {
     })
   }
 
-async function startComparison() {
-    const { data, error } = await supabase
-      .from('comparison_tokens')
-      .insert({ sender_id: profile.id })
-      .select('token')
-      .single()
-
-    if (error || !data) {
-      alert('Something went wrong creating your link.')
-      return
-    }
-
-    const url = `https://senseus.app/compare/${data.token}`
-    const shareData = { title: 'senseUS', text: 'Compare voting histories with me on senseUS', url }
-
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData)
-      } catch {
-        // User cancelled the share sheet — not an error, do nothing
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(url)
-        alert('Link copied to clipboard!')
-      } catch {
-        prompt('Copy this link:', url)
-      }
-    }
-  }
-
   useEffect(() => {
     async function loadProfile() {
       try {
@@ -98,66 +53,14 @@ async function startComparison() {
           return
         }
 
-        // Profile and votes are independent queries — run them together
-        // instead of waiting on one before starting the other.
-        const [
-          { data: profileData, error: profileError },
-          { data: votesData, error: votesError },
-        ] = await Promise.all([
-          supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single(),
-          supabase
-            .from('votes')
-            .select(`
-              id,
-              choice,
-              created_at,
-              updated_at,
-              pct_yes_at_vote,
-              pct_no_at_vote,
-              questions (
-                id,
-                text,
-                category
-              )
-            `)
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false }),
-        ])
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
 
         if (profileError) throw profileError
         setProfile(profileData)
-
-        if (votesError) throw votesError
-
-        // Fetch 7-day snapshots
-        const questionIds = (votesData || []).map(v => v.questions?.id).filter(Boolean)
-        let newSnapshotMap = {}
-        if (questionIds.length > 0) {
-          const today = new Date()
-          const sevenDaysAgo = new Date(today)
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-          const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
-          const todayStr = today.toISOString().split('T')[0]
-
-          const { data: snapshots } = await supabase
-            .from('question_snapshots')
-            .select('question_id, pct_yes, pct_no, total_votes, snapshot_date')
-            .in('question_id', questionIds)
-            .in('snapshot_date', [todayStr, sevenDaysAgoStr])
-
-          ;(snapshots || []).forEach(s => {
-            if (!newSnapshotMap[s.question_id]) newSnapshotMap[s.question_id] = {}
-            if (s.snapshot_date === todayStr) newSnapshotMap[s.question_id].today = s
-            if (s.snapshot_date === sevenDaysAgoStr) newSnapshotMap[s.question_id].sevenDaysAgo = s
-          })
-        }
-
-        setVotes(votesData || [])
-        setSnapshotMap(newSnapshotMap)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -167,6 +70,12 @@ async function startComparison() {
 
     loadProfile()
   }, [])
+
+const BADGE_INFO = {
+  'ultra-definitive': { label: 'Ultra-Definitive', description: '100+ votes, less than 10% leaning', emoji: '🎯' },
+  'decisive-streak': { label: 'Decisive Streak', description: '20 consecutive definitive votes', emoji: '🔥' },
+  'super-decisive-streak': { label: 'Super Decisive Streak', description: '50 consecutive definitive votes', emoji: '⚡' },
+}
 
   function getDisplayName(p) {
     if (!p) return ''
@@ -261,101 +170,98 @@ async function startComparison() {
         </div>
       </div>
 
-    {/* Comparison button */}
-    <button
-      onClick={startComparison}
-      style={{ width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1.5rem' }}
-    >
-      Compare your vote history with a friend
-    </button>
+{/* Badges widget */}
+<div style={{ marginBottom: '1.5rem' }}>
+  <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
+    Badges
+  </div>
+  {(profile?.badges || []).length === 0 ? (
+    <div style={{ fontSize: '12px', color: '#9CA3AF' }}>
+      Keep voting to earn your first badge.
+    </div>
+  ) : (
+    <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
+      {(profile?.badges || []).map(badge => {
+        const info = BADGE_INFO[badge] || { label: badge, emoji: '🏅' }
+        return (
+          <div
+            key={badge}
+            title={info.label}
+            style={{ flexShrink: 0, width: '64px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}
+          >
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
+              {info.emoji}
+            </div>
+            <div style={{ fontSize: '10px', color: '#6B7280', textAlign: 'center', lineHeight: 1.2 }}>
+              {info.label}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )}
+</div>
 
-      {/* Vote history */}
-      <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
-        Vote history
-      </div>
-
-      {votes.length === 0 ? (
-        <p style={{ fontSize: '13px', color: '#6B7280', textAlign: 'center', padding: '2rem 0' }}>
-          No votes yet — head to the vote feed to get started.
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {votes.map((vote) => {
-            return (
-              <div
-                key={vote.id}
-                style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '12px 14px' }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                  <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, flex: 1 }}>
-                    {vote.questions?.text}
-                  </div>
-                  <div style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 400, whiteSpace: 'nowrap', flexShrink: 0, ...VOTE_PILL_STYLES[vote.choice] }}>
-                    {VOTE_LABELS[vote.choice]}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
-                  <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: 300 }}>
-                    {vote.questions?.category} · {timeAgo(vote.created_at)}
-                  </div>
-                    {snapshotMap[vote.questions?.id]?.today && (
-                  <div style={{ marginTop: '8px' }}>
-                    {(() => {
-                      const todaySnap = snapshotMap[vote.questions?.id]?.today
-                      const weekSnap = snapshotMap[vote.questions?.id]?.sevenDaysAgo
-                      const currentPctYes = todaySnap?.pct_yes || 0
-                      const currentPctNo = todaySnap?.pct_no || 0
-                      const trend = weekSnap ? currentPctYes - weekSnap.pct_yes : null
-
-                      return (
-                        <div>
-                          {/* Current tally bar */}
-                          <div style={{ width: '100%', height: '6px', borderRadius: '3px', overflow: 'hidden', display: 'flex', background: '#F1F1F1', marginBottom: '4px' }}>
-                            <div style={{ width: `${currentPctYes}%`, background: '#6d8a1c' }} />
-                            <div style={{ width: `${currentPctNo}%`, background: '#c21f1f' }} />
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ fontSize: '10px', color: '#6B7280' }}>
-                              <span style={{ color: '#4d621d', fontWeight: 700 }}>{currentPctYes}% yes</span>
-                              {' · '}
-                              <span style={{ color: '#7a1313', fontWeight: 700 }}>{currentPctNo}% no</span>
-                              {' · '}
-                              {todaySnap.total_votes} {todaySnap.total_votes === 1 ? 'human' : 'humans'}
-                            </div>
-                            {trend !== null && (
-                              <div style={{ fontSize: '10px', fontWeight: 700, color: trend > 0 ? '#4d621d' : trend < 0 ? '#7a1313' : '#6B7280' }}>
-                                {trend > 0 ? '▲' : trend < 0 ? '▼' : '—'}
-                                {trend !== 0 ? ` ${Math.abs(trend)}% this week` : ' no change'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })()}
-                  </div>
-                )} 
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                  <button
-                    onClick={() => navigate(`/vote?question=${vote.questions?.id}&currentVote=${vote.choice}`)}
-                    style={{ flex: 1, padding: '6px', background: '#F3F4F6', color: '#1A1A1A', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-                  >
-                    Change vote
-                  </button>
-                  <button
-                    onClick={() => navigate(`/conversation/${vote.questions?.id}`)}
-                    style={{ flex: 1, padding: '6px', background: '#E6F1FB', color: '#0C447C', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-                  >
-                    View conversation
-                  </button>
-                </div>
+{/* Notifications */}
+<div style={{ marginTop: '1.5rem' }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+    <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A' }}>Notifications</div>
+    {notifications.length > 0 && (
+      <button
+        onClick={markAllAsRead}
+        style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', padding: 0 }}
+      >
+        Mark all as read
+      </button>
+    )}
+  </div>
+  {notifications.length === 0 ? (
+    <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '14px' }}>
+      No notifications yet.
+    </div>
+  ) : (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {notifications.map(notification => (
+        <div
+          key={notification.id}
+          style={{
+            background: notification.read ? '#FFFFFF' : '#F0F3FF',
+            border: notification.priority === 'urgent' ? '1px solid #c21f1f' : notification.priority === 'high' ? '1px solid #2D3DCA' : '0.5px solid #E5E7EB',
+            borderRadius: '10px',
+            padding: '12px 14px',
+          }}
+        >
+          <div
+            onClick={() => markAsRead(notification.id)}
+            style={{ cursor: 'pointer' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+                {notification.title}
               </div>
-            )
-          })}
+              {!notification.read && (
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2D3DCA', flexShrink: 0, marginTop: '4px' }} />
+              )}
+            </div>
+            <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5, marginBottom: '4px' }}>
+              {notification.body}
+            </div>
+            <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+              {new Date(notification.created_at).toLocaleDateString()}
+            </div>
+          </div>
+          <button
+            onClick={() => deleteNotification(notification.id)}
+            style={{ marginTop: '8px', fontSize: '11px', color: '#9CA3AF', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', padding: 0, textDecoration: 'underline' }}
+          >
+            Delete
+          </button>
         </div>
-      )}
+      ))}
+    </div>
+  )}
+</div>
+
 {showResonanceInfo && (
         <div
           onClick={() => setShowResonanceInfo(false)}
