@@ -35,6 +35,7 @@ function AppContent() {
     markAllAsRead,
     dismissUrgent,
     dismissHigh,
+    deleteNotification
   } = useNotifications()
 
   return (
@@ -47,6 +48,7 @@ function AppContent() {
       markAllAsRead,
       dismissUrgent,
       dismissHigh,
+      deleteNotification
     }}>
       <NotificationPopup
         urgentNotification={urgentNotification}

@@ -109,6 +109,11 @@ export function useNotifications() {
     setHighNotifications(prev => prev.filter(n => n.id !== notificationId))
   }
 
+async function deleteNotification(id) {
+    await supabase.from('notifications').delete().eq('id', id)
+    setNotifications(prev => prev.filter(n => n.id !== id))
+  }
+
   return {
     notifications,
     unreadCount,
