@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { Skeleton, SkeletonCard } from '../components/ui/Skeleton'
+import { useLongPress } from '../hooks/useLongPress'
+import CardActionSheet from '../components/ui/CardActionSheet'
 import BottomNav from '../components/layout/BottomNav'
 import { IconThumbUp, IconThumbDown } from '@tabler/icons-react'
 
@@ -63,16 +65,204 @@ function formatVoteTimestamp(dateString) {
   return `${y}.${m}.${d} @ ${hours}:${minutes}${ampm} UTC`
 }
 
+function MyCommentCard({ c, navigate, onLongPress }) {
+  const longPress = useLongPress(() => onLongPress(c))
+  return (
+    <div
+      onClick={() => { if (!longPress.wasLongPress()) navigate(`/conversation/${c.questions?.id}`) }}
+      {...longPress}
+      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}
+    >
+      <div style={{ fontSize: '11px', color: '#0C447C', background: '#E6F1FB', display: 'inline-block', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
+        {c.questions?.category}
+      </div>
+      <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '6px', lineHeight: 1.4 }}>
+        {c.questions?.text}
+      </div>
+      <div style={{ fontSize: '14px', color: '#1A1A1A', lineHeight: 1.8, marginBottom: '10px' }}>
+        <span
+          style={{
+            background: VOTE_WASH[c.voteChoice] || '#F9FAFB',
+            boxDecorationBreak: 'clone',
+            WebkitBoxDecorationBreak: 'clone',
+            padding: '2px 5px',
+            borderRadius: '4px',
+          }}
+        >
+          {c.body}
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: '14px', fontSize: '11px', color: '#9CA3AF' }}>
+        <span>{c.resonance_count} resonate{c.resonance_count !== 1 ? 's' : ''}</span>
+        <span>{c.directReplies} direct repl{c.directReplies !== 1 ? 'ies' : 'y'}</span>
+        <span>{c.totalReplies} overall</span>
+        <span style={{ marginLeft: 'auto' }}>{timeAgo(c.created_at)}</span>
+      </div>
+    </div>
+  )
+}
+
+function ShiftCard({ shift, onLongPress }) {
+  const longPress = useLongPress(() => onLongPress(shift))
+  return (
+    <div {...longPress} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+      <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '8px' }}>
+        {shift.questions?.text}
+      </div>
+      <div style={{ width: '100%', height: '6px', borderRadius: '3px', overflow: 'hidden', display: 'flex', background: '#F1F1F1', marginBottom: '6px' }}>
+        <div style={{ width: `${shift.pctYes}%`, background: '#6d8a1c', transition: 'width 0.3s ease' }} />
+        <div style={{ width: `${shift.pctNo}%`, background: '#c21f1f', transition: 'width 0.3s ease' }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <div style={{ fontSize: '11px', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            You voted <VoteIcon choice={shift.choice} size={13} />
+          </div>
+          <div style={{ fontSize: '10px', color: '#9CA3AF' }}>
+            on {formatVoteTimestamp(shift.created_at)}
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '11px', color: '#4d621d', fontWeight: 700 }}>▲ {shift.pctYes}% yes</span>
+            <span style={{ fontSize: '11px', color: '#7a1313', fontWeight: 700 }}>▼ {shift.pctNo}% no</span>
+          </div>
+          {shift.delta !== null && (
+            <div style={{ fontSize: '10px', fontWeight: 700, color: shift.delta > 0 ? '#4d621d' : shift.delta < 0 ? '#7a1313' : '#9CA3AF' }}>
+              {shift.delta > 0 ? `↑ +${shift.delta} pts since you voted` : shift.delta < 0 ? `↓ ${shift.delta} pts since you voted` : 'No shift since you voted'}
+            </div>
+          )}
+          <div style={{ fontSize: '10px', color: '#9CA3AF' }}>
+            {shift.total} {shift.total === 1 ? 'human' : 'humans'} answered to date
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RevisitCard({ skip, navigate, onLongPress, onRevisit }) {
+  const longPress = useLongPress(() => onLongPress(skip))
+  return (
+    <div {...longPress} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+      <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, marginBottom: '8px' }}>
+        {skip.questions?.text}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+          {skip.questions?.category} · {timeAgo(skip.created_at)}
+        </div>
+        <button
+          onClick={() => onRevisit(skip)}
+          style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', fontWeight: 500 }}
+        >
+          Revisit →
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function HistoryCard({ vote, snapshotMap, navigate, onLongPress }) {
+  const longPress = useLongPress(() => onLongPress(vote))
+  const todaySnap = snapshotMap[vote.questions?.id]?.today
+  const weekSnap = snapshotMap[vote.questions?.id]?.sevenDaysAgo
+  const currentPctYes = todaySnap?.pct_yes || 0
+  const currentPctNo = todaySnap?.pct_no || 0
+  const trend = weekSnap ? currentPctYes - weekSnap.pct_yes : null
+
+  return (
+    <div {...longPress} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '12px 14px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+        <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, flex: 1 }}>
+          {vote.questions?.text}
+        </div>
+        <div style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 400, whiteSpace: 'nowrap', flexShrink: 0, ...VOTE_PILL_STYLES[vote.choice] }}>
+          {VOTE_LABELS[vote.choice]}
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+        <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: 300 }}>
+          {vote.questions?.category} · {timeAgo(vote.created_at)}
+        </div>
+      </div>
+      {todaySnap && (
+        <div style={{ marginTop: '8px' }}>
+          <div style={{ width: '100%', height: '6px', borderRadius: '3px', overflow: 'hidden', display: 'flex', background: '#F1F1F1', marginBottom: '4px' }}>
+            <div style={{ width: `${currentPctYes}%`, background: '#6d8a1c' }} />
+            <div style={{ width: `${currentPctNo}%`, background: '#c21f1f' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: '10px', color: '#6B7280' }}>
+              <span style={{ color: '#4d621d', fontWeight: 700 }}>{currentPctYes}% yes</span>
+              {' · '}
+              <span style={{ color: '#7a1313', fontWeight: 700 }}>{currentPctNo}% no</span>
+              {' · '}
+              {todaySnap.total_votes} {todaySnap.total_votes === 1 ? 'human' : 'humans'}
+            </div>
+            {trend !== null && (
+              <div style={{ fontSize: '10px', fontWeight: 700, color: trend > 0 ? '#4d621d' : trend < 0 ? '#7a1313' : '#6B7280' }}>
+                {trend > 0 ? '▲' : trend < 0 ? '▼' : '—'}
+                {trend !== 0 ? ` ${Math.abs(trend)}% this week` : ' no change'}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+        <button
+          onClick={() => navigate(`/vote?question=${vote.questions?.id}&currentVote=${vote.choice}`)}
+          style={{ flex: 1, padding: '6px', background: '#F3F4F6', color: '#1A1A1A', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+        >
+          Change vote
+        </button>
+        <button
+          onClick={() => navigate(`/conversation/${vote.questions?.id}`)}
+          style={{ flex: 1, padding: '6px', background: '#E6F1FB', color: '#0C447C', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+        >
+          View conversation
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Activity() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [tab, setTab] = useState('comments')
+  const [tab, setTab] = useState('history')
   const [myComments, setMyComments] = useState([])
   const [shifts, setShifts] = useState([])
   const [loading, setLoading] = useState(true)
   const [skipped, setSkipped] = useState([])
   const [votes, setVotes] = useState([])
   const [snapshotMap, setSnapshotMap] = useState({})
+  const [actionSheet, setActionSheet] = useState(null)
+  const [showLongPressHint, setShowLongPressHint] = useState(
+    localStorage.getItem('senseus_seen_longpress_hint_activity') !== 'true'
+  )
+
+  function shareQuestion(question) {
+    if (!question?.question_number) return
+    const url = `https://senseus.app/q/${question.question_number}`
+    const shareData = { title: 'senseUS', text: 'What do you think?', url }
+    if (navigator.share) {
+      navigator.share(shareData).catch(() => {})
+    } else {
+      navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!')).catch(() => prompt('Copy this link:', url))
+    }
+  }
+
+  function shareComment(comment) {
+    if (!comment.questions?.question_number) return
+    const url = `https://senseus.app/q/${comment.questions.question_number}#comment-${comment.id}`
+    const shareData = { title: 'senseUS', text: 'Join the conversation on senseUS', url }
+    if (navigator.share) {
+      navigator.share(shareData).catch(() => {})
+    } else {
+      navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!')).catch(() => prompt('Copy this link:', url))
+    }
+  }
 
   async function startComparison() {
     const { data, error } = await supabase
@@ -116,7 +306,7 @@ export default function Activity() {
           .from('comments')
           .select(`
             id, body, created_at, resonance_count,
-            questions (id, text, category)
+            questions (id, text, category, question_number)
           `)
           .eq('user_id', user.id)
           .eq('is_deleted', false)
@@ -165,7 +355,7 @@ export default function Activity() {
           .from('votes')
           .select(`
             choice, created_at, pct_yes_at_vote,
-            questions (id, text, category)
+            questions (id, text, category, question_number)
           `)
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
@@ -205,7 +395,7 @@ export default function Activity() {
         // Fetch skipped ("Revisit") questions
         const { data: skipsData } = await supabase
           .from('question_skips')
-          .select('id, question_id, created_at, questions (id, text, category)')
+          .select('id, question_id, created_at, questions (id, text, category, question_number)')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
         setSkipped(skipsData || [])
@@ -215,7 +405,7 @@ export default function Activity() {
           .from('votes')
           .select(`
             id, choice, created_at, updated_at, pct_yes_at_vote, pct_no_at_vote,
-            questions (id, text, category)
+            questions (id, text, category, question_number)
           `)
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
@@ -300,52 +490,49 @@ export default function Activity() {
         ))}
       </div>
 
+{showLongPressHint && (
+        <div style={{ marginBottom: '1.25rem', background: '#E6F1FB', border: '1px solid #0C447C', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#0C447C', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+          <span>Tip: hold a card for more options, like sharing.</span>
+          <button
+            onClick={() => {
+              localStorage.setItem('senseus_seen_longpress_hint_activity', 'true')
+              setShowLongPressHint(false)
+            }}
+            style={{ background: 'none', border: 'none', color: '#0C447C', fontSize: '16px', cursor: 'pointer', flexShrink: 0, lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Comments tab */}
       {tab === 'comments' && (
-  <div>
-    {myComments.length === 0 ? (
-      <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
-        No comments yet. Vote on a question to join the conversation.
-      </div>
-    ) : (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {myComments.map(c => (
-          <div
-            key={c.id}
-            onClick={() => navigate(`/conversation/${c.questions?.id}`)}
-            style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}
-          >
-            <div style={{ fontSize: '11px', color: '#0C447C', background: '#E6F1FB', display: 'inline-block', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
-              {c.questions?.category}
+        <div>
+          {myComments.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+              No comments yet. Vote on a question to join the conversation.
             </div>
-            <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '6px', lineHeight: 1.4 }}>
-              {c.questions?.text}
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {myComments.map(c => (
+                <MyCommentCard
+                  key={c.id}
+                  c={c}
+                  navigate={navigate}
+                  onLongPress={(comment) => setActionSheet({
+                    title: comment.questions?.text,
+                    actions: [
+                      { label: 'Share this question', onClick: () => shareQuestion(comment.questions) },
+                      { label: 'Share your comment', onClick: () => shareComment(comment) },
+                      { label: 'View', onClick: () => navigate(`/conversation/${comment.questions?.id}`) },
+                    ],
+                  })}
+                />
+              ))}
             </div>
-            <div style={{ fontSize: '14px', color: '#1A1A1A', lineHeight: 1.8, marginBottom: '10px' }}>
-              <span
-                style={{
-                  background: VOTE_WASH[c.voteChoice] || '#F9FAFB',
-                  boxDecorationBreak: 'clone',
-                  WebkitBoxDecorationBreak: 'clone',
-                  padding: '2px 5px',
-                  borderRadius: '4px',
-                }}
-              >
-                {c.body}
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: '14px', fontSize: '11px', color: '#9CA3AF' }}>
-              <span>{c.resonance_count} resonate{c.resonance_count !== 1 ? 's' : ''}</span>
-              <span>{c.directReplies} direct repl{c.directReplies !== 1 ? 'ies' : 'y'}</span>
-              <span>{c.totalReplies} overall</span>
-              <span style={{ marginLeft: 'auto' }}>{timeAgo(c.created_at)}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-)}
+          )}
+        </div>
+      )}
 
       {/* Shifts tab */}
       {tab === 'shifts' && (
@@ -359,62 +546,25 @@ export default function Activity() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {shifts.map((shift, i) => (
-                <div
-                  key={i}
-                  onClick={() => navigate(`/conversation/${shift.questions?.id}`)}
-                  style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}
-                >
-                  <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '8px' }}>
-                    {shift.questions?.text}
-                  </div>
-
-                  {/* Tally bar */}
-                  <div style={{ width: '100%', height: '6px', borderRadius: '3px', overflow: 'hidden', display: 'flex', background: '#F1F1F1', marginBottom: '6px' }}>
-                    <div style={{ width: `${shift.pctYes}%`, background: '#6d8a1c', transition: 'width 0.3s ease' }} />
-                    <div style={{ width: `${shift.pctNo}%`, background: '#c21f1f', transition: 'width 0.3s ease' }} />
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <div style={{ fontSize: '11px', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        You voted <VoteIcon choice={shift.choice} size={13} />
-                      </div>
-                      <div style={{ fontSize: '10px', color: '#9CA3AF' }}>
-                        on {formatVoteTimestamp(shift.created_at)}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '11px', color: '#4d621d', fontWeight: 700 }}>
-                          ▲ {shift.pctYes}% yes
-                        </span>
-                        <span style={{ fontSize: '11px', color: '#7a1313', fontWeight: 700 }}>
-                          ▼ {shift.pctNo}% no
-                        </span>
-                      </div>
-                      {shift.delta !== null && (
-                        <div style={{
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          color: shift.delta > 0 ? '#4d621d' : shift.delta < 0 ? '#7a1313' : '#9CA3AF',
-                        }}>
-                          {shift.delta > 0 ? `↑ +${shift.delta} pts since you voted` : shift.delta < 0 ? `↓ ${shift.delta} pts since you voted` : 'No shift since you voted'}
-                        </div>
-                      )}
-                      <div style={{ fontSize: '10px', color: '#9CA3AF' }}>
-                        {shift.total} {shift.total === 1 ? 'human' : 'humans'} answered to date
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {shifts.map(shift => (
+                <ShiftCard
+                  key={shift.questions?.id || shift.created_at}
+                  shift={shift}
+                  onLongPress={(s) => setActionSheet({
+                    title: s.questions?.text,
+                    actions: [
+                      { label: 'Share this question', onClick: () => shareQuestion(s.questions) },
+                      { label: 'View', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
+                    ],
+                  })}
+                />
               ))}
             </div>
           )}
         </div>
       )}
 
-{tab === 'revisit' && (
+      {tab === 'revisit' && (
         <div>
           {skipped.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
@@ -423,40 +573,34 @@ export default function Activity() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {skipped.map(skip => (
-                <div
+                <RevisitCard
                   key={skip.id}
-                  style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}
-                >
-                  <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, marginBottom: '8px' }}>
-                    {skip.questions?.text}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-                      {skip.questions?.category} · {timeAgo(skip.created_at)}
-                    </div>
-                    <button
-                      onClick={async () => {
-                        const { error } = await supabase.from('question_skips').delete().eq('id', skip.id)
-                        if (error) {
-                          alert('Something went wrong: ' + error.message)
-                          return
-                        }
-                        setSkipped(prev => prev.filter(s => s.id !== skip.id))
-                        navigate(`/vote?question=${skip.question_id}`)
-                      }}
-                      style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', fontWeight: 500 }}
-                    >
-                      Revisit →
-                    </button>
-                  </div>
-                </div>
+                  skip={skip}
+                  navigate={navigate}
+                  onLongPress={(s) => setActionSheet({
+                    title: s.questions?.text,
+                    actions: [
+                      { label: 'Share this question', onClick: () => shareQuestion(s.questions) },
+                      { label: 'View', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
+                    ],
+                  })}
+                  onRevisit={async (s) => {
+                    const { error } = await supabase.from('question_skips').delete().eq('id', s.id)
+                    if (error) {
+                      alert('Something went wrong: ' + error.message)
+                      return
+                    }
+                    setSkipped(prev => prev.filter(x => x.id !== s.id))
+                    navigate(`/vote?question=${s.question_id}`)
+                  }}
+                />
               ))}
             </div>
           )}
         </div>
       )}
 
-{tab === 'history' && (
+      {tab === 'history' && (
         <div>
           <button
             onClick={startComparison}
@@ -472,78 +616,33 @@ export default function Activity() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {votes.map((vote) => (
-                <div
+                <HistoryCard
                   key={vote.id}
-                  style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '12px 14px' }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                    <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, flex: 1 }}>
-                      {vote.questions?.text}
-                    </div>
-                    <div style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 400, whiteSpace: 'nowrap', flexShrink: 0, ...VOTE_PILL_STYLES[vote.choice] }}>
-                      {VOTE_LABELS[vote.choice]}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
-                    <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: 300 }}>
-                      {vote.questions?.category} · {timeAgo(vote.created_at)}
-                    </div>
-                  </div>
-
-                  {snapshotMap[vote.questions?.id]?.today && (() => {
-                    const todaySnap = snapshotMap[vote.questions?.id]?.today
-                    const weekSnap = snapshotMap[vote.questions?.id]?.sevenDaysAgo
-                    const currentPctYes = todaySnap?.pct_yes || 0
-                    const currentPctNo = todaySnap?.pct_no || 0
-                    const trend = weekSnap ? currentPctYes - weekSnap.pct_yes : null
-
-                    return (
-                      <div style={{ marginTop: '8px' }}>
-                        <div style={{ width: '100%', height: '6px', borderRadius: '3px', overflow: 'hidden', display: 'flex', background: '#F1F1F1', marginBottom: '4px' }}>
-                          <div style={{ width: `${currentPctYes}%`, background: '#6d8a1c' }} />
-                          <div style={{ width: `${currentPctNo}%`, background: '#c21f1f' }} />
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ fontSize: '10px', color: '#6B7280' }}>
-                            <span style={{ color: '#4d621d', fontWeight: 700 }}>{currentPctYes}% yes</span>
-                            {' · '}
-                            <span style={{ color: '#7a1313', fontWeight: 700 }}>{currentPctNo}% no</span>
-                            {' · '}
-                            {todaySnap.total_votes} {todaySnap.total_votes === 1 ? 'human' : 'humans'}
-                          </div>
-                          {trend !== null && (
-                            <div style={{ fontSize: '10px', fontWeight: 700, color: trend > 0 ? '#4d621d' : trend < 0 ? '#7a1313' : '#6B7280' }}>
-                              {trend > 0 ? '▲' : trend < 0 ? '▼' : '—'}
-                              {trend !== 0 ? ` ${Math.abs(trend)}% this week` : ' no change'}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })()}
-
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                    <button
-                      onClick={() => navigate(`/vote?question=${vote.questions?.id}&currentVote=${vote.choice}`)}
-                      style={{ flex: 1, padding: '6px', background: '#F3F4F6', color: '#1A1A1A', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-                    >
-                      Change vote
-                    </button>
-                    <button
-                      onClick={() => navigate(`/conversation/${vote.questions?.id}`)}
-                      style={{ flex: 1, padding: '6px', background: '#E6F1FB', color: '#0C447C', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-                    >
-                      View conversation
-                    </button>
-                  </div>
-                </div>
+                  vote={vote}
+                  snapshotMap={snapshotMap}
+                  navigate={navigate}
+                  onLongPress={(v) => setActionSheet({
+                    title: v.questions?.text,
+                    actions: [
+                      { label: 'Share this question', onClick: () => shareQuestion(v.questions) },
+                      { label: 'View', onClick: () => navigate(`/conversation/${v.questions?.id}`) },
+                      { label: 'Change my vote', onClick: () => navigate(`/vote?question=${v.questions?.id}&currentVote=${v.choice}`) },
+                    ],
+                  })}
+                />
               ))}
             </div>
           )}
         </div>
       )}
 
+      {actionSheet && (
+        <CardActionSheet
+          title={actionSheet.title}
+          actions={actionSheet.actions}
+          onClose={() => setActionSheet(null)}
+        />
+      )}
       <BottomNav />
     </div>
   )
