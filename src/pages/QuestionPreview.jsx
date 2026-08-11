@@ -231,7 +231,7 @@ export default function QuestionPreview() {
                 ? `/conversation/${question?.id}`
                 : sharedComment
                 ? `/register?from=q&q=${currentNum}`
-                : `/register`
+                : `/register?from=q&q=${currentNum}`
               }
               style={{ display: 'block', width: '100%', padding: '12px', background: '#2D3DCA', color: 'white', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', marginBottom: '8px' }}
             >
@@ -241,6 +241,18 @@ export default function QuestionPreview() {
                 ? 'Join to see the comment'
                 : 'Vote on this question'}
             </Link>
+            {!user && (
+              <div style={{ textAlign: 'center', fontSize: '12px', color: '#6B7280', marginBottom: '8px' }}>
+                Already have an account?{' '}
+                <Link
+                  to="/login"
+                  state={{ from: `/q/${currentNum}` }}
+                  style={{ color: '#2D3DCA', fontWeight: 500, textDecoration: 'none' }}
+                >
+                  Log in
+                </Link>
+              </div>
+            )}
             <div style={{ textAlign: 'center', fontSize: '12px', color: '#6B7280' }}>
               Join senseUS — free, verified, no ads
             </div>
