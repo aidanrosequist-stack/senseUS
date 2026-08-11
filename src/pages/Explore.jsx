@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { Skeleton } from '../components/ui/Skeleton'
+import { useLongPress } from '../hooks/useLongPress'
+import CardActionSheet from '../components/ui/CardActionSheet'
 import BottomNav from '../components/layout/BottomNav'
 
 const DOMAINS = [
@@ -30,14 +32,16 @@ function domainLabel(domain) {
   return domain.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
-function QuestionThumbnail({ question, userVote, onClick }) {
+function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
   const voted = !!userVote
+  const longPress = useLongPress(() => onLongPress(question))
   const bgColor = voted ? VOTE_COLORS[userVote] : '#FFFFFF'
   const textColor = voted ? 'white' : '#1A1A1A'
 
   return (
     <div
-      onClick={onClick}
+      onClick={() => { if (!longPress.wasLongPress()) onClick() }}
+      {...longPress}
       style={{
         width: '160px',
         minHeight: '200px',
@@ -83,11 +87,13 @@ function QuestionThumbnail({ question, userVote, onClick }) {
   )
 }
 
-function SearchResultCard({ question, userVote, onClick }) {
+function SearchResultCard({ question, userVote, onClick, onLongPress }) {
   const voted = !!userVote
+  const longPress = useLongPress(() => onLongPress(question))
   return (
     <div
-      onClick={onClick}
+      onClick={() => { if (!longPress.wasLongPress()) onClick() }}
+      {...longPress}
       style={{
         background: voted ? VOTE_COLORS[userVote] : '#FFFFFF',
         border: voted ? 'none' : '0.5px solid #E5E7EB',
@@ -127,6 +133,21 @@ export default function Explore() {
   const scrollRefs = useRef({})
   const [userCountry, setUserCountry] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [actionSheetQuestion, setActionSheetQuestion] = useState(null)
+  const [showLongPressHint, setShowLongPressHint] = useState(
+    localStorage.getItem('senseus_seen_longpress_hint_explore') !== 'true'
+  )
+
+  function shareQuestionCard(question) {
+    if (!question?.question_number) return
+    const url = `https://senseus.app/q/${question.question_number}`
+    const shareData = { title: 'senseUS', text: 'What do you think?', url }
+    if (navigator.share) {
+      navigator.share(shareData).catch(() => {})
+    } else {
+      navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!')).catch(() => prompt('Copy this link:', url))
+    }
+  }
 
   function scrollRow(domain, direction) {
     const el = scrollRefs.current[domain]
@@ -334,6 +355,21 @@ const getSponsoredQuestions = () => {
         />
       </div>
 
+{showLongPressHint && (
+        <div style={{ margin: '0 1.25rem 1.25rem', background: '#E6F1FB', border: '1px solid #0C447C', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#0C447C', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+          <span>Tip: hold a card for more options, like sharing.</span>
+          <button
+            onClick={() => {
+              localStorage.setItem('senseus_seen_longpress_hint_explore', 'true')
+              setShowLongPressHint(false)
+            }}
+            style={{ background: 'none', border: 'none', color: '#0C447C', fontSize: '16px', cursor: 'pointer', flexShrink: 0, lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Domain rows */}
       {searchQuery.trim() ? (
         <div style={{ padding: '0 1.25rem' }}>
@@ -344,6 +380,7 @@ const getSponsoredQuestions = () => {
           ) : (
             searchResults.map(question => (
               <SearchResultCard
+              onLongPress={setActionSheetQuestion}
                 key={question.id}
                 question={question}
                 userVote={userVotes[question.id]}
@@ -391,6 +428,7 @@ const getSponsoredQuestions = () => {
             >
               {sponsoredQuestions.map(question => (
                 <QuestionThumbnail
+                onLongPress={setActionSheetQuestion}
                   key={question.id}
                   question={question}
                   userVote={userVotes[question.id]}
@@ -438,6 +476,7 @@ const getSponsoredQuestions = () => {
             >
               {currentEventQuestions.map(question => (
                 <QuestionThumbnail
+                onLongPress={setActionSheetQuestion}
                   key={question.id}
                   question={question}
                   userVote={userVotes[question.id]}
@@ -486,6 +525,7 @@ const getSponsoredQuestions = () => {
             >
               {domainQuestions.map(question => (
                 <QuestionThumbnail
+                onLongPress={setActionSheetQuestion}
                   key={question.id}
                   question={question}
                   userVote={userVotes[question.id]}
@@ -539,6 +579,7 @@ const getSponsoredQuestions = () => {
             >
               {myCountryQuestions.map(question => (
                 <QuestionThumbnail
+                onLongPress={setActionSheetQuestion}
                   key={question.id}
                   question={question}
                   userVote={userVotes[question.id]}
@@ -592,6 +633,7 @@ const getSponsoredQuestions = () => {
             >
               {otherCountryQuestions.map(question => (
                 <QuestionThumbnail
+                onLongPress={setActionSheetQuestion}
                   key={question.id}
                   question={question}
                   userVote={userVotes[question.id]}
@@ -609,6 +651,17 @@ const getSponsoredQuestions = () => {
         <div style={{ textAlign: 'center', padding: '4rem 1.5rem', color: '#6B7280', fontSize: '14px' }}>
           No questions available yet.
         </div>
+      )}
+
+{actionSheetQuestion && (
+        <CardActionSheet
+          title={actionSheetQuestion.text}
+          onClose={() => setActionSheetQuestion(null)}
+          actions={[
+            { label: 'Share this question', onClick: () => shareQuestionCard(actionSheetQuestion) },
+            { label: 'View', onClick: () => handleThumbnailClick(actionSheetQuestion) },
+          ]}
+        />
       )}
 
       <BottomNav />
