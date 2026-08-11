@@ -18,6 +18,8 @@ function escapeHtml(value: unknown): string {
 Deno.serve(async (req) => {
   const url = new URL(req.url)
   const number = url.searchParams.get("number")
+  const userAgent = req.headers.get("user-agent") || ""
+  const isCrawler = /facebookexternalhit|Twitterbot|Slackbot|LinkedInBot|WhatsApp|Discordbot|TelegramBot|Applebot|Googlebot/i.test(userAgent)
 
   if (!number) {
     return new Response("Missing question number", { status: 400 })
@@ -78,8 +80,7 @@ Deno.serve(async (req) => {
   <meta name="twitter:description" content="${safeDescription}" />
   <meta name="twitter:site" content="@senseus" />
 
-  <!-- Redirect real users to the React app -->
-  <meta http-equiv="refresh" content="0;url=https://senseus.app/q/${question.question_number}" />
+  ${!isCrawler ? `<meta http-equiv="refresh" content="0;url=https://senseus.app/q/${question.question_number}" />` : ''}
 </head>
 <body>
   <p>Redirecting to <a href="https://senseus.app/q/${question.question_number}">senseUS</a>...</p>
