@@ -1,3 +1,4 @@
+import { sendOtpCode, verifyOtpCode } from '../lib/otpAuth'
 import { supabase } from '../lib/supabase'
 import { useState, useEffect } from 'react'
 
@@ -35,10 +36,7 @@ useEffect(() => {
     setLoading(true)
     setError(null)
     try {
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        phone,
-        options: captchaToken ? { captchaToken } : undefined,
-      })
+      const { error: otpError } = await sendOtpCode(phone, turnstileToken)
       if (otpError) {
         setError(otpError.message)
         return false
@@ -58,11 +56,7 @@ useEffect(() => {
     setLoading(true)
     setError(null)
     try {
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        phone,
-        token: code,
-        type: 'sms',
-      })
+      const { data, error: verifyError } = await verifyOtpCode(phone, code)
       if (verifyError || !data.session) {
         setError(verifyError?.message || 'Incorrect code. Please try again.')
       } else {
@@ -98,7 +92,9 @@ useEffect(() => {
       if (displayPreference === 'full') {
         lastInitial = lastName ? lastName.charAt(0).toUpperCase() : null
       } else if (displayPreference === 'anon') {
-        anonName = ANONYMOUS_NAMES[Math.floor(Math.random() * ANONYMOUS_NAMES.length)]
+        const base = ANONYMOUS_NAMES[Math.floor(Math.random() * ANONYMOUS_NAMES.length)]
+        const suffix = Math.floor(Math.random() * 90) + 10
+        anonName = `${base} ${suffix}`
       }
 
       const { error: insertError } = await supabase.from('profiles').upsert({
@@ -116,8 +112,12 @@ useEffect(() => {
         return
       }
 
-       // Remove from waitlist if they pre-signed up
-      await supabase.from('waitlist').delete().eq('phone', phone)
+      // Remove from waitlist if they pre-signed up — fire-and-forget,
+      // same as the welcome SMS below. This is cleanup, not a
+      // requirement for registration to succeed.
+      supabase.from('waitlist').delete().eq('phone', phone).catch(() => {
+        // Silent fail
+      })
 
       // Send welcome SMS — fire and forget, don't block registration completion
       supabase.functions.invoke('send-welcome-sms', {

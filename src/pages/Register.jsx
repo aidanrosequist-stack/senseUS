@@ -80,8 +80,11 @@ export default function Register() {
       .from('app_settings')
       .select('value')
       .eq('key', 'registration_open')
-      .single()
-      .then(({ data }) => {
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Failed to check registration status:', error)
+        }
         setRegistrationOpen(data?.value !== false)
         setCheckingStatus(false)
       })
