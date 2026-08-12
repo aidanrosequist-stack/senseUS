@@ -233,14 +233,17 @@ export default function Activity() {
   const [tab, setTab] = useState('history')
   const [myComments, setMyComments] = useState([])
   const [shifts, setShifts] = useState([])
-  const [loading, setLoading] = useState(true)
   const [skipped, setSkipped] = useState([])
   const [votes, setVotes] = useState([])
   const [snapshotMap, setSnapshotMap] = useState({})
   const [actionSheet, setActionSheet] = useState(null)
-  const [showLongPressHint, setShowLongPressHint] = useState(
-    localStorage.getItem('senseus_seen_longpress_hint_activity') !== 'true'
-  )
+
+  // Each tab's data is fetched only once, the first time that tab is
+  // actually opened — not all four upfront on page load. loadedTabs
+  // tracks which ones have already been fetched; tabLoading tracks
+  // whether the currently-open tab's own fetch is still in flight.
+  const [loadedTabs, setLoadedTabs] = useState(new Set())
+  const [tabLoading, setTabLoading] = useState(true)
 
   function shareQuestion(question) {
     if (!question?.question_number) return
@@ -295,166 +298,173 @@ export default function Activity() {
     }
   }
 
-  useEffect(() => {
-    if (!user) return
-    async function fetchActivity() {
-      try {
-        
-        // Fetch all of the user's own comments (top-level or replies),
-        // with direct-reply count and total-downstream-reply count on each
-        const { data: myComments } = await supabase
-          .from('comments')
-          .select(`
-            id, body, created_at, resonance_count,
-            questions (id, text, category, question_number)
-          `)
-          .eq('user_id', user.id)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false })
+  async function fetchComments() {
+    const { data: myComments } = await supabase
+      .from('comments')
+      .select(`
+        id, body, created_at, resonance_count,
+        questions (id, text, category, question_number)
+      `)
+      .eq('user_id', user.id)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false })
 
-        if (myComments?.length > 0) {
-          const { data: allCommentsOnMyQuestions } = await supabase
-            .from('comments')
-            .select('id, parent_id')
-            .eq('is_deleted', false)
+    if (myComments?.length > 0) {
+      const { data: allCommentsOnMyQuestions } = await supabase
+        .from('comments')
+        .select('id, parent_id')
+        .eq('is_deleted', false)
 
-          const childrenByParent = new Map()
-          ;(allCommentsOnMyQuestions || []).forEach(c => {
-            if (!c.parent_id) return
-            if (!childrenByParent.has(c.parent_id)) childrenByParent.set(c.parent_id, [])
-            childrenByParent.get(c.parent_id).push(c.id)
-          })
+      const childrenByParent = new Map()
+      ;(allCommentsOnMyQuestions || []).forEach(c => {
+        if (!c.parent_id) return
+        if (!childrenByParent.has(c.parent_id)) childrenByParent.set(c.parent_id, [])
+        childrenByParent.get(c.parent_id).push(c.id)
+      })
 
-          function countDescendants(commentId) {
-            const children = childrenByParent.get(commentId) || []
-            return children.length + children.reduce((sum, childId) => sum + countDescendants(childId), 0)
-          }
-
-          const questionIds = [...new Set(myComments.map(c => c.questions?.id).filter(Boolean))]
-          const { data: ownVotes } = questionIds.length
-            ? await supabase
-                .from('votes')
-                .select('question_id, choice')
-                .eq('user_id', user.id)
-                .in('question_id', questionIds)
-            : { data: [] }
-          const voteByQuestion = new Map((ownVotes || []).map(v => [v.question_id, v.choice]))
-
-          setMyComments(myComments.map(c => ({
-            ...c,
-            directReplies: (childrenByParent.get(c.id) || []).length,
-            totalReplies: countDescendants(c.id),
-            voteChoice: voteByQuestion.get(c.questions?.id),
-          })))
-        } else {
-          setMyComments([])
-        }
-
-        // Fetch all questions user has voted on with current tallies
-        const { data: userVotes } = await supabase
-          .from('votes')
-          .select(`
-            choice, created_at, pct_yes_at_vote,
-            questions (id, text, category, question_number)
-          `)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(20)
-
-        if (userVotes?.length > 0) {
-          const questionIds = userVotes.map(v => v.questions.id)
-          const { data: tallyRows } = await supabase.rpc('get_vote_tallies_batch', {
-            p_question_ids: questionIds,
-          })
-          const totalsById = {}
-          for (const row of tallyRows || []) {
-            const weightedTotal = Number(row.yes) + Number(row.ly) + Number(row.ln) + Number(row.no)
-            totalsById[row.question_id] = {
-              pctYes: weightedTotal > 0 ? Math.round(((Number(row.yes) + Number(row.ly)) / weightedTotal) * 100) : 0,
-              total: Number(row.total),
-            }
-          }
-          const shiftsWithCurrent = userVotes.map(vote => {
-            const t = totalsById[vote.questions.id] || { pctYes: 0, total: 0 }
-            const hasBaseline = vote.pct_yes_at_vote !== null && vote.pct_yes_at_vote !== undefined
-            const delta = hasBaseline ? t.pctYes - vote.pct_yes_at_vote : null
-            return { ...vote, pctYes: t.pctYes, pctNo: 100 - t.pctYes, total: t.total, delta }
-          })
-
-          function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1))
-              ;[array[i], array[j]] = [array[j], array[i]]
-            }
-            return array
-          }
-
-          setShifts(shuffle(shiftsWithCurrent))
-        }
-
-        // Fetch skipped ("Revisit") questions
-        const { data: skipsData } = await supabase
-          .from('question_skips')
-          .select('id, question_id, created_at, questions (id, text, category, question_number)')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-        setSkipped(skipsData || [])
-
-        // Fetch vote history with snapshot trend data
-        const { data: votesData } = await supabase
-          .from('votes')
-          .select(`
-            id, choice, created_at, updated_at, pct_yes_at_vote, pct_no_at_vote,
-            questions (id, text, category, question_number)
-          `)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-
-        const questionIds = (votesData || []).map(v => v.questions?.id).filter(Boolean)
-        let newSnapshotMap = {}
-        if (questionIds.length > 0) {
-          const today = new Date()
-          const sevenDaysAgo = new Date(today)
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-          const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
-          const todayStr = today.toISOString().split('T')[0]
-
-          const { data: snapshots } = await supabase
-            .from('question_snapshots')
-            .select('question_id, pct_yes, pct_no, total_votes, snapshot_date')
-            .in('question_id', questionIds)
-            .in('snapshot_date', [todayStr, sevenDaysAgoStr])
-
-          ;(snapshots || []).forEach(s => {
-            if (!newSnapshotMap[s.question_id]) newSnapshotMap[s.question_id] = {}
-            if (s.snapshot_date === todayStr) newSnapshotMap[s.question_id].today = s
-            if (s.snapshot_date === sevenDaysAgoStr) newSnapshotMap[s.question_id].sevenDaysAgo = s
-          })
-        }
-
-        setVotes(votesData || [])
-        setSnapshotMap(newSnapshotMap)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
+      function countDescendants(commentId) {
+        const children = childrenByParent.get(commentId) || []
+        return children.length + children.reduce((sum, childId) => sum + countDescendants(childId), 0)
       }
+
+      const questionIds = [...new Set(myComments.map(c => c.questions?.id).filter(Boolean))]
+      const { data: ownVotes } = questionIds.length
+        ? await supabase
+            .from('votes')
+            .select('question_id, choice')
+            .eq('user_id', user.id)
+            .in('question_id', questionIds)
+        : { data: [] }
+      const voteByQuestion = new Map((ownVotes || []).map(v => [v.question_id, v.choice]))
+
+      setMyComments(myComments.map(c => ({
+        ...c,
+        directReplies: (childrenByParent.get(c.id) || []).length,
+        totalReplies: countDescendants(c.id),
+        voteChoice: voteByQuestion.get(c.questions?.id),
+      })))
+    } else {
+      setMyComments([])
+    }
+  }
+
+  async function fetchShifts() {
+    const { data: userVotes } = await supabase
+      .from('votes')
+      .select(`
+        choice, created_at, pct_yes_at_vote,
+        questions (id, text, category, question_number)
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    if (userVotes?.length > 0) {
+      const questionIds = userVotes.map(v => v.questions.id)
+      const { data: tallyRows } = await supabase.rpc('get_vote_tallies_batch', {
+        p_question_ids: questionIds,
+      })
+      const totalsById = {}
+      for (const row of tallyRows || []) {
+        const weightedTotal = Number(row.yes) + Number(row.ly) + Number(row.ln) + Number(row.no)
+        totalsById[row.question_id] = {
+          pctYes: weightedTotal > 0 ? Math.round(((Number(row.yes) + Number(row.ly)) / weightedTotal) * 100) : 0,
+          total: Number(row.total),
+        }
+      }
+      const shiftsWithCurrent = userVotes.map(vote => {
+        const t = totalsById[vote.questions.id] || { pctYes: 0, total: 0 }
+        const hasBaseline = vote.pct_yes_at_vote !== null && vote.pct_yes_at_vote !== undefined
+        const delta = hasBaseline ? t.pctYes - vote.pct_yes_at_vote : null
+        return { ...vote, pctYes: t.pctYes, pctNo: 100 - t.pctYes, total: t.total, delta }
+      })
+
+      function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          ;[array[i], array[j]] = [array[j], array[i]]
+        }
+        return array
+      }
+
+      setShifts(shuffle(shiftsWithCurrent))
+    } else {
+      setShifts([])
+    }
+  }
+
+  async function fetchRevisit() {
+    const { data: skipsData } = await supabase
+      .from('question_skips')
+      .select('id, question_id, created_at, questions (id, text, category, question_number)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    setSkipped(skipsData || [])
+  }
+
+  async function fetchHistory() {
+    const { data: votesData } = await supabase
+      .from('votes')
+      .select(`
+        id, choice, created_at, updated_at, pct_yes_at_vote, pct_no_at_vote,
+        questions (id, text, category, question_number)
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    const questionIds = (votesData || []).map(v => v.questions?.id).filter(Boolean)
+    let newSnapshotMap = {}
+    if (questionIds.length > 0) {
+      const today = new Date()
+      const sevenDaysAgo = new Date(today)
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+      const todayStr = today.toISOString().split('T')[0]
+
+      const { data: snapshots } = await supabase
+        .from('question_snapshots')
+        .select('question_id, pct_yes, pct_no, total_votes, snapshot_date')
+        .in('question_id', questionIds)
+        .in('snapshot_date', [todayStr, sevenDaysAgoStr])
+
+      ;(snapshots || []).forEach(s => {
+        if (!newSnapshotMap[s.question_id]) newSnapshotMap[s.question_id] = {}
+        if (s.snapshot_date === todayStr) newSnapshotMap[s.question_id].today = s
+        if (s.snapshot_date === sevenDaysAgoStr) newSnapshotMap[s.question_id].sevenDaysAgo = s
+      })
     }
 
-    fetchActivity()
-  }, [user])
-
-  if (loading) {
-    return (
-      <div style={{ maxWidth: '420px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '80px' }}>
-        <Skeleton height="16px" width="40%" style={{ marginBottom: '1.5rem' }} />
-        <SkeletonCard style={{ marginBottom: '8px' }} />
-        <SkeletonCard style={{ marginBottom: '8px' }} />
-        <SkeletonCard style={{ marginBottom: '8px' }} />
-        <SkeletonCard />
-      </div>
-    )
+    setVotes(votesData || [])
+    setSnapshotMap(newSnapshotMap)
   }
+
+  const FETCHERS = {
+    comments: fetchComments,
+    shifts: fetchShifts,
+    revisit: fetchRevisit,
+    history: fetchHistory,
+  }
+
+  // Runs whenever the active tab changes (including the very first render,
+  // for whichever tab is the default) — fetches that tab's data only if
+  // it hasn't been loaded yet this visit.
+  useEffect(() => {
+    if (!user) return
+    if (loadedTabs.has(tab)) return
+
+    let cancelled = false
+    setTabLoading(true)
+
+    FETCHERS[tab]()
+      .catch(err => console.error(err))
+      .finally(() => {
+        if (cancelled) return
+        setLoadedTabs(prev => new Set(prev).add(tab))
+        setTabLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [tab, user])
 
   return (
     <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', minHeight: '100dvh', paddingBottom: '80px' }}>
@@ -490,150 +500,145 @@ export default function Activity() {
         ))}
       </div>
 
-{showLongPressHint && (
-        <div style={{ marginBottom: '1.25rem', background: '#E6F1FB', border: '1px solid #0C447C', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#0C447C', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-          <span>Tip: hold a card for more options, like sharing.</span>
-          <button
-            onClick={() => {
-              localStorage.setItem('senseus_seen_longpress_hint_activity', 'true')
-              setShowLongPressHint(false)
-            }}
-            style={{ background: 'none', border: 'none', color: '#0C447C', fontSize: '16px', cursor: 'pointer', flexShrink: 0, lineHeight: 1 }}
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      {/* Comments tab */}
-      {tab === 'comments' && (
+      {tabLoading ? (
         <div>
-          {myComments.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
-              No comments yet. Vote on a question to join the conversation.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {myComments.map(c => (
-                <MyCommentCard
-                  key={c.id}
-                  c={c}
-                  navigate={navigate}
-                  onLongPress={(comment) => setActionSheet({
-                    title: comment.questions?.text,
-                    actions: [
-                      { label: 'Share this question', onClick: () => shareQuestion(comment.questions) },
-                      { label: 'Share your comment', onClick: () => shareComment(comment) },
-                      { label: 'View', onClick: () => navigate(`/conversation/${comment.questions?.id}`) },
-                    ],
-                  })}
-                />
-              ))}
+          <SkeletonCard style={{ marginBottom: '8px' }} />
+          <SkeletonCard style={{ marginBottom: '8px' }} />
+          <SkeletonCard />
+        </div>
+      ) : (
+        <>
+          {/* Comments tab */}
+          {tab === 'comments' && (
+            <div>
+              {myComments.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+                  No comments yet. Vote on a question to join the conversation.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {myComments.map(c => (
+                    <MyCommentCard
+                      key={c.id}
+                      c={c}
+                      navigate={navigate}
+                      onLongPress={(comment) => setActionSheet({
+                        title: comment.questions?.text,
+                        actions: [
+                          { label: 'Share this question', onClick: () => shareQuestion(comment.questions) },
+                          { label: 'Share your comment', onClick: () => shareComment(comment) },
+                          { label: 'View', onClick: () => navigate(`/conversation/${comment.questions?.id}`) },
+                        ],
+                      })}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Shifts tab */}
-      {tab === 'shifts' && (
-        <div>
-          <p style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.6, marginBottom: '1rem' }}>
-            See how public opinion is trending on questions you've answered. On the left is a timestamp of when you voted and how. On the right is the current total vote count, current yes/no percentage, and how the percentage has shifted since you voted.
-          </p>
-          {shifts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
-              No shifts yet. Vote on some questions to see how they're trending.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {shifts.map(shift => (
-                <ShiftCard
-                  key={shift.questions?.id || shift.created_at}
-                  shift={shift}
-                  onLongPress={(s) => setActionSheet({
-                    title: s.questions?.text,
-                    actions: [
-                      { label: 'Share this question', onClick: () => shareQuestion(s.questions) },
-                      { label: 'View', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
-                    ],
-                  })}
-                />
-              ))}
+          {/* Shifts tab */}
+          {tab === 'shifts' && (
+            <div>
+              <p style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.6, marginBottom: '1rem' }}>
+                See how public opinion is trending on questions you've answered. On the left is a timestamp of when you voted and how. On the right is the current total vote count, current yes/no percentage, and how the percentage has shifted since you voted.
+              </p>
+              {shifts.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+                  No shifts yet. Vote on some questions to see how they're trending.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {shifts.map(shift => (
+                    <ShiftCard
+                      key={shift.questions?.id || shift.created_at}
+                      shift={shift}
+                      onLongPress={(s) => setActionSheet({
+                        title: s.questions?.text,
+                        actions: [
+                          { label: 'Share this question', onClick: () => shareQuestion(s.questions) },
+                          { label: 'View', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
+                        ],
+                      })}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {tab === 'revisit' && (
-        <div>
-          {skipped.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
-              Nothing here. Questions you choose not to see disappear from your feed and show up here instead.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {skipped.map(skip => (
-                <RevisitCard
-                  key={skip.id}
-                  skip={skip}
-                  navigate={navigate}
-                  onLongPress={(s) => setActionSheet({
-                    title: s.questions?.text,
-                    actions: [
-                      { label: 'Share this question', onClick: () => shareQuestion(s.questions) },
-                      { label: 'View', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
-                    ],
-                  })}
-                  onRevisit={async (s) => {
-                    const { error } = await supabase.from('question_skips').delete().eq('id', s.id)
-                    if (error) {
-                      alert('Something went wrong: ' + error.message)
-                      return
-                    }
-                    setSkipped(prev => prev.filter(x => x.id !== s.id))
-                    navigate(`/vote?question=${s.question_id}`)
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === 'history' && (
-        <div>
-          <button
-            onClick={startComparison}
-            style={{ width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1.5rem' }}
-          >
-            Compare your vote history with a friend
-          </button>
-
-          {votes.length === 0 ? (
-            <p style={{ fontSize: '13px', color: '#6B7280', textAlign: 'center', padding: '2rem 0' }}>
-              No votes yet — head to the vote feed to get started.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {votes.map((vote) => (
-                <HistoryCard
-                  key={vote.id}
-                  vote={vote}
-                  snapshotMap={snapshotMap}
-                  navigate={navigate}
-                  onLongPress={(v) => setActionSheet({
-                    title: v.questions?.text,
-                    actions: [
-                      { label: 'Share this question', onClick: () => shareQuestion(v.questions) },
-                      { label: 'View', onClick: () => navigate(`/conversation/${v.questions?.id}`) },
-                      { label: 'Change my vote', onClick: () => navigate(`/vote?question=${v.questions?.id}&currentVote=${v.choice}`) },
-                    ],
-                  })}
-                />
-              ))}
+          {tab === 'revisit' && (
+            <div>
+              {skipped.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+                  Nothing here. Questions you choose not to see disappear from your feed and show up here instead.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {skipped.map(skip => (
+                    <RevisitCard
+                      key={skip.id}
+                      skip={skip}
+                      navigate={navigate}
+                      onLongPress={(s) => setActionSheet({
+                        title: s.questions?.text,
+                        actions: [
+                          { label: 'Share this question', onClick: () => shareQuestion(s.questions) },
+                          { label: 'View', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
+                        ],
+                      })}
+                      onRevisit={async (s) => {
+                        const { error } = await supabase.from('question_skips').delete().eq('id', s.id)
+                        if (error) {
+                          alert('Something went wrong: ' + error.message)
+                          return
+                        }
+                        setSkipped(prev => prev.filter(x => x.id !== s.id))
+                        navigate(`/vote?question=${s.question_id}`)
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
-        </div>
+
+          {tab === 'history' && (
+            <div>
+              <button
+                onClick={startComparison}
+                style={{ width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1.5rem' }}
+              >
+                Compare your vote history with a friend
+              </button>
+
+              {votes.length === 0 ? (
+                <p style={{ fontSize: '13px', color: '#6B7280', textAlign: 'center', padding: '2rem 0' }}>
+                  No votes yet — head to the vote feed to get started.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {votes.map((vote) => (
+                    <HistoryCard
+                      key={vote.id}
+                      vote={vote}
+                      snapshotMap={snapshotMap}
+                      navigate={navigate}
+                      onLongPress={(v) => setActionSheet({
+                        title: v.questions?.text,
+                        actions: [
+                          { label: 'Share this question', onClick: () => shareQuestion(v.questions) },
+                          { label: 'View', onClick: () => navigate(`/conversation/${v.questions?.id}`) },
+                          { label: 'Change my vote', onClick: () => navigate(`/vote?question=${v.questions?.id}&currentVote=${v.choice}`) },
+                        ],
+                      })}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {actionSheet && (
