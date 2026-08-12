@@ -113,7 +113,7 @@ async function deleteNotification(id) {
     await supabase.from('notifications').delete().eq('id', id)
     setNotifications(prev => prev.filter(n => n.id !== id))
   }
-
+  
   return {
     notifications,
     unreadCount,
@@ -124,5 +124,6 @@ async function deleteNotification(id) {
     markAllAsRead,
     dismissUrgent,
     dismissHigh,
+    deleteNotification,
   }
 }

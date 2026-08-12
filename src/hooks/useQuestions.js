@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
+const CANDIDATE_BATCH_SIZE = 75
+
 export function useQuestions(userId) {
   const [questions, setQuestions] = useState([])
   const [usingFallbackPool, setUsingFallbackPool] = useState(false)
@@ -12,40 +14,35 @@ export function useQuestions(userId) {
 
     async function fetchQuestions() {
       try {
-        // Profile, questions, votes, and skips are independent of each
-        // other — fetch them together instead of one round trip at a time.
-        const [
-          { data: profile },
-          { data: allQuestionsRaw, error: qError },
-          { data: userVotes, error: vError },
-          { data: userSkips, error: sError },
-        ] = await Promise.all([
-          supabase
-            .from('profiles')
-            .select('country_code')
-            .eq('id', userId)
-            .single(),
-          supabase
-            .from('questions')
-            .select('id, text, category, domain, is_tracking_anchor, geo_scope, country_code, question_number, is_sponsored')
-            .not('published_at', 'is', null)
-            .lte('published_at', new Date().toISOString())
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('votes')
-            .select('question_id')
-            .eq('user_id', userId),
-          supabase
-            .from('question_skips')
-            .select('question_id')
-            .eq('user_id', userId),
-        ])
+        // Country is needed before calling get_candidate_questions (it
+        // uses it to prioritize matching questions), so this one fetch
+        // has to happen first rather than in parallel with the rest.
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('country_code')
+          .eq('id', userId)
+          .single()
 
-        if (qError) throw qError
-        if (vError) throw vError
-        if (sError) throw sError
+        const userCountry = profile?.country_code || null
 
-        const sponsoredIds = (allQuestionsRaw || []).filter(q => q.is_sponsored).map(q => q.id)
+        // The database now does the heavy lifting that used to happen
+        // here in JS: excluding every question this user has already
+        // voted on or skipped (via NOT EXISTS, not by shipping the
+        // user's full vote/skip history to the browser to compare), and
+        // excluding archived questions. Returns a bounded batch instead
+        // of the entire question table — this is what actually stops
+        // both the question bank and each user's vote history from
+        // making every single feed load slower as both grow over time.
+        const { data: candidatesRaw, error: candidatesError } = await supabase
+          .rpc('get_candidate_questions', {
+            p_user_id: userId,
+            p_country_code: userCountry,
+            p_limit: CANDIDATE_BATCH_SIZE,
+          })
+
+        if (candidatesError) throw candidatesError
+
+        const sponsoredIds = (candidatesRaw || []).filter(q => q.is_sponsored).map(q => q.id)
         const { data: sponsors } = sponsoredIds.length
           ? await supabase
               .from('public_sponsors')
@@ -54,16 +51,15 @@ export function useQuestions(userId) {
           : { data: [] }
         const sponsorByQuestion = new Map((sponsors || []).map(s => [s.question_id, s.sponsor_name]))
 
-        const allQuestionsWithSponsors = (allQuestionsRaw || []).map(q => ({
+        const candidates = (candidatesRaw || []).map(q => ({
           ...q,
           sponsor_name: sponsorByQuestion.get(q.id) || null,
         }))
 
-        const userCountry = profile?.country_code || null
-        const votedIds = new Set((userVotes || []).map(v => v.question_id))
-        const skippedIds = new Set((userSkips || []).map(s => s.question_id))
-
-        const isCandidate = q => !votedIds.has(q.id) && !skippedIds.has(q.id) && !q.archived_at
+        // Everything below here is unchanged from before — it just now
+        // runs against the smaller candidate batch instead of every
+        // published question, since exclusion (voted/skipped/archived)
+        // already happened in the database.
         const matchesUser = q => {
           if (q.geo_scope === 'global' || q.geo_scope === 'country_own') return true
           if (q.geo_scope === 'country' || q.geo_scope === 'regional') {
@@ -72,18 +68,14 @@ export function useQuestions(userId) {
           return true
         }
 
-        // Does the user have any strictly-matching questions left? .some()
-        // exits on the first hit instead of building a full pool array just
-        // to check its length.
-        const hasMatch = allQuestionsWithSponsors.some(q => isCandidate(q) && matchesUser(q))
+        const hasMatch = candidates.some(matchesUser)
 
         let unanswered
         let usingFallbackPool = false
 
         if (hasMatch) {
           // Normal case — sprinkle in non-matching country questions at a low rate
-          unanswered = allQuestionsWithSponsors.filter(q => {
-            if (!isCandidate(q)) return false
+          unanswered = candidates.filter(q => {
             if (matchesUser(q)) return true
             return Math.random() < 0.01
           })
@@ -91,12 +83,11 @@ export function useQuestions(userId) {
           // Matching pool is exhausted — show everything remaining rather
           // than leaving the user with an empty feed
           usingFallbackPool = true
-          unanswered = allQuestionsWithSponsors.filter(isCandidate)
+          unanswered = candidates
         }
 
         // Get vote tallies for each question — one batch call instead of
-        // one query per question (previously N+1: a separate full vote-row
-        // fetch for every unanswered question in the feed).
+        // one query per question.
         const questionIds = unanswered.map(q => q.id)
         const { data: tallyRows } = await supabase.rpc('get_vote_tallies_batch', {
           p_question_ids: questionIds,
@@ -114,8 +105,6 @@ export function useQuestions(userId) {
         }))
 
         // Separate priority and tracking anchors — they always go first.
-        // Single pass instead of three separate filter() calls, each doing
-        // an O(n) includes() lookup against the priority list.
         const now = new Date()
         const priorityQuestions = []
         const trackingQuestions = []
@@ -134,18 +123,17 @@ export function useQuestions(userId) {
           categorized[q.category].push(q)
         })
 
-        // Shuffle within each category (Fisher-Yates — unbiased, unlike sort-by-random)
-function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[array[i], array[j]] = [array[j], array[i]]
-  }
-  return array
-}
+        function shuffle(array) {
+          for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1))
+            ;[array[i], array[j]] = [array[j], array[i]]
+          }
+          return array
+        }
 
-Object.keys(categorized).forEach(cat => {
-  shuffle(categorized[cat])
-})
+        Object.keys(categorized).forEach(cat => {
+          shuffle(categorized[cat])
+        })
 
         // Interleave by ratio
         const total = regularQuestions.length
@@ -163,7 +151,6 @@ Object.keys(categorized).forEach(cat => {
           if (!added) break
         }
 
-        // Tracking questions first, then stratified regular questions
         setUsingFallbackPool(usingFallbackPool)
         setQuestions([...priorityQuestions, ...trackingQuestions, ...result])
       } catch (err) {
