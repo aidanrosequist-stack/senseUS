@@ -1,3 +1,4 @@
+import { sendOtpCode, verifyOtpCode } from '../lib/otpAuth'
 import TurnstileWidget from '../components/ui/TurnstileWidget'
 import { useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -44,10 +45,7 @@ export default function Login() {
     setLoading(true)
     setError(null)
     try {
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        phone,
-        options: { captchaToken: turnstileToken },
-      })
+      const { error: otpError } = await sendOtpCode(phone, turnstileToken)
       if (otpError) {
         setError(otpError.message)
         turnstileRef.current?.reset()
@@ -68,11 +66,7 @@ export default function Login() {
     setLoading(true)
     setError(null)
     try {
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        phone,
-        token: code,
-        type: 'sms',
-      })
+      const { data, error: verifyError } = await verifyOtpCode(phone, code)
       if (verifyError || !data.session) {
         setError(verifyError?.message || 'Incorrect code. Please try again.')
       } else {
