@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Skeleton, SkeletonCard, SkeletonStatGrid } from '../components/ui/Skeleton'
 import { useNotificationsContext } from '../context/NotificationsContext'
+import { BADGE_INFO } from '../lib/badgeInfo'
 import BottomNav from '../components/layout/BottomNav'
 
 function timeAgo(dateString) {
@@ -70,12 +71,6 @@ async function openIntegrityInfo() {
 
     loadProfile()
   }, [])
-
-const BADGE_INFO = {
-  'ultra-definitive': { label: 'Ultra-Definitive', description: '100+ votes, less than 10% leaning', emoji: '🎯' },
-  'decisive-streak': { label: 'Decisive Streak', description: '20 consecutive definitive votes', emoji: '🔥' },
-  'super-decisive-streak': { label: 'Super Decisive Streak', description: '50 consecutive definitive votes', emoji: '⚡' },
-}
 
   function getDisplayName(p) {
     if (!p) return ''

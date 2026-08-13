@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { BADGE_EMOJI } from '../lib/badgeInfo'
 import Header from '../components/layout/Header'
 import BottomNav from '../components/layout/BottomNav'
 
@@ -50,7 +51,7 @@ export default function Compare() {
 
       const { data: sp } = await supabase
         .from('public_profiles')
-        .select('first_name, last_initial, display_preference, anon_name')
+        .select('first_name, last_initial, display_preference, anon_name, badges')
         .eq('id', tr.sender_id)
         .single()
       setSenderProfile(sp)
@@ -71,7 +72,7 @@ export default function Compare() {
     const [{ data: myVotes }, { data: theirVotes }, { data: otherProfile }] = await Promise.all([
       supabase.from('public_votes').select('question_id, choice').eq('user_id', user.id),
       supabase.from('public_votes').select('question_id, choice').eq('user_id', otherId),
-      supabase.from('public_profiles').select('first_name, last_initial, display_preference, anon_name').eq('id', otherId).single(),
+      supabase.from('public_profiles').select('first_name, last_initial, display_preference, anon_name, badges').eq('id', otherId).single(),
     ])
 
     const theirByQuestion = new Map((theirVotes || []).map(v => [v.question_id, v.choice]))
@@ -262,6 +263,19 @@ export default function Compare() {
                       agreement on {comparison.shared.length} shared question{comparison.shared.length !== 1 ? 's' : ''}
                     </div>
                   </div>
+
+                {(comparison.otherProfile?.badges?.length > 0 || false) && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.5rem', textAlign: 'center' }}>
+                    Their badges
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    {comparison.otherProfile.badges.map(b => (
+                      <span key={b} title={b} style={{ fontSize: '22px' }}>{BADGE_EMOJI[b] || '🏅'}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '1.5rem' }}>
                     {Object.entries(comparison.byCategory).map(([cat, stats]) => (
