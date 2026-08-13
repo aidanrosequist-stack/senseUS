@@ -34,6 +34,15 @@ export default function MakeUpMyMind() {
         if (qError) throw qError
         setQuestion(questionData)
 
+        // Log this view for the Diligent Researcher badge, and so we can
+        // eventually see real usage of this feature — fire-and-forget,
+        // never blocks the page.
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            supabase.from('article_views').insert({ user_id: user.id, question_id: questionId }).then(() => {})
+          }
+        })
+
         const { data: articleData, error: aError } = await supabase
           .from('question_articles')
           .select('id, title, outlet_name, url, stance, display_order')
