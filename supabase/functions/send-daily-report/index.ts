@@ -47,14 +47,20 @@ async function getSmsSuccessRate(since: string): Promise<{ sent: number; deliver
   // full ISO timestamp — passing the full timestamp caused the filter to
   // silently fail, returning the account's unfiltered recent messages
   // instead of just the last 24 hours.
-  const dateOnly = since.split('T')[0];
+  const dateOnly = since.split('T')[0]
 
   const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
   const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json?DateSentAfter=${dateOnly}&PageSize=1000`;
 
+  console.log("DEBUG: querying with dateOnly =", dateOnly);
+  console.log("DEBUG: full URL =", url);
+
   try {
     const res = await fetch(url, { headers: { Authorization: `Basic ${auth}` } });
     const data = await res.json();
+    console.log("DEBUG: Twilio response status =", res.status);
+    console.log("DEBUG: Twilio message count in response =", (data.messages || []).length);
+    console.log("DEBUG: first message (if any) =", JSON.stringify(data.messages?.[0] || null));
     const messages = data.messages || [];
     const sent = messages.length;
     const delivered = messages.filter((m: any) => m.status === "delivered").length;
