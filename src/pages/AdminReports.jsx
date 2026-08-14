@@ -56,14 +56,6 @@ export default function AdminReports({ supabase }) {
   const [questions, setQuestions] = useState([]);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    loadDashboard();
-    // Refresh every 60s so the dashboard stays reasonably live without
-    // hammering the DB on every render.
-    const interval = setInterval(loadDashboard, 60000);
-    return () => clearInterval(interval);
-  }, [loadDashboard]);
-
   const loadDashboard = useCallback(async () => {
     try {
       setError(null);
@@ -129,6 +121,14 @@ export default function AdminReports({ supabase }) {
       setLoading(false);
     }
   }, [])
+
+  useEffect(() => {
+    loadDashboard();
+    // Refresh every 60s so the dashboard stays reasonably live without
+    // hammering the DB on every render.
+    const interval = setInterval(loadDashboard, 60000);
+    return () => clearInterval(interval);
+  }, [loadDashboard]);
 
 async function resolveAnomaly(id) {
   await supabase
