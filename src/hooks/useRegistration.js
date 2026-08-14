@@ -36,7 +36,7 @@ useEffect(() => {
     setLoading(true)
     setError(null)
     try {
-      const { error: otpError } = await sendOtpCode(phone, turnstileToken)
+      const { error: otpError } = await sendOtpCode(phone, captchaToken)
       if (otpError) {
         setError(otpError.message)
         return false
