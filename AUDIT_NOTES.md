@@ -1,7 +1,7 @@
 # senseUS Audit Notes
 
 This document records intentional design decisions in the voting and integrity systems
-for transparency and auditability purposes. Last updated: July 2026.
+for transparency and auditability purposes. Last updated: 2026-08-15.
 
 ---
 
@@ -493,18 +493,42 @@ order by routine_name, grantee;
 
 ---
 
-## Export Pipeline Not Yet Built
+## Export Pipeline (built, migration 012)
 
-`Settings.jsx` → "Export my data" inserts a row into `exports` with
-`user_id` and default `status = 'pending'`. Nothing currently watches that
-table, generates the actual export file, flips `status` to `completed`, or
-sends an email. `Privacy.jsx` promises delivery within 48 hours — that
-promise is not yet backed by working code. Needs: a process (cron or
-trigger-invoked function) that picks up pending exports, generates the
-file, uploads it somewhere the user can retrieve it, sets `download_url`
-and `status = 'completed'`, and only then notifies the user — with the
-notification function looking up the export row itself rather than trusting
-any input about what to send or where.
+Corrected 2026-08-15: this section previously said the export pipeline
+wasn't built yet. It is — this was just stale documentation; migration
+012 shipped it. Recorded here for real now:
+
+`Settings.jsx` → "Export my data" inserts a row into `exports`. Before
+the insert succeeds, `require_recovery_email_for_export_trigger`
+(migration 012) enforces server-side that the requesting profile has a
+`recovery_email` on file — a client-side-only check would've been
+bypassable the same way everything else in this audit was.
+
+The `process-pending-exports` Edge Function runs on a cron every 15
+minutes (migration 012), authenticated by requiring the real
+service-role key in its `Authorization` header (same pattern as the
+other hardened functions from the 2026-07-27 audit). For each pending
+row it: marks it `processing`, builds a JSON export of that user's own
+data (profile fields, votes, vote changes, comments, comment
+resonances given — looked up by the row's own `user_id`, never from
+request input), uploads it to the private `user-exports` storage
+bucket (no public access, no client-facing RLS policy — only the
+service role ever reads/writes it directly), generates a 7-day signed
+URL, sets `status = 'completed'` with `download_url` and `expires_at`,
+and emails the signed link to the user's `recovery_email` via Resend.
+Any failure along the way sets `status = 'failed'` with an
+`error_message` rather than leaving the row stuck at `pending` or
+`processing` forever.
+
+`Privacy.jsx`'s 48-hour delivery promise is backed by working code —
+in practice, since the cron runs every 15 minutes, most requests
+complete within minutes, not hours.
+
+**Deploy note:** this function needs `RESEND_API_KEY` set
+(`supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxx`) —
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are auto-injected by
+Supabase and don't need to be set manually.
 
 ---
 
@@ -569,3 +593,139 @@ All five should return zero rows. Confirmed clean on 2026-07-27.
 Checks all five invariants documented above. Silent when clean —
 failures are logged to `anomaly_log` as `integrity_check_failed`
 with severity `critical`, visible in the Admin Reports tab.
+
+---
+
+## Automated Security Config Checks (migration 013, 2026-08-15)
+
+Every security fix on this page so far (007–011) was found by a human
+manually running the "Manual RLS/Schema Audit" queries above, after
+the fact. Migration 013 turns those same checks into two automated,
+always-on layers instead of a manual ritual:
+
+**`run_security_checks()`** runs weekly (Sundays 6:30am UTC, 30
+minutes after the integrity check) and, unlike
+`run_integrity_checks()`, emails immediately via `call_alert_function`
+when it finds something — these are exploitable the moment they
+happen, not data-quality drift that can wait for a weekly glance.
+Checks: every public table has RLS enabled; no function has
+anon/authenticated `EXECUTE` outside the `intentionally_public_functions`
+allowlist; every `profiles` column is either client-writable
+(`profiles_client_writable_columns` allowlist) or actively locked in
+`protect_admin_columns()`; every `is_admin = true` profile is in
+`authorized_admins`.
+
+**Real-time admin-escalation alert** (`on_admin_grant_check` trigger
+on `profiles`) fires the instant any profile's `is_admin` becomes
+`true` and that profile isn't in `authorized_admins` — doesn't wait
+for the weekly sweep. Since `protect_admin_columns()` already blocks a
+regular authenticated user from setting `is_admin` at all, what this
+actually watches for is a direct service-role-key or SQL Editor
+write — i.e. a leaked key, unauthorized dashboard access, or an
+unexpected second admin. `authorized_admins` was seeded from whoever
+had `is_admin = true` at migration time. Add any future admin there
+*before* granting them `is_admin`, or you'll alert yourself.
+
+**`anomaly_log` — versioning already-live protection, not fixing a live
+gap.** First drafted as "RLS was never enabled on anomaly_log," based
+on migration history alone (it fell outside migration 008's
+five-table fix, and no later migration covered it either). Confirmed
+against the live database on 2026-08-15 that this was wrong: RLS was
+already enabled there with an admin-only SELECT/UPDATE policy already
+in place, matching this migration's intent almost exactly. Nothing
+was actually exposed — this was fixed by hand at some point and
+simply never captured in a migration, the same "schema/RLS not fully
+in git" gap already noted below. Migration 013 just gets it into git,
+plus two small real tightenings found by diffing the two: the live
+policies applied `to public` (every role, including anonymous
+requests) rather than `to authenticated` — doesn't currently matter in
+practice since an anonymous request has no `auth.uid()`, but it's
+tighter and more standard — and the UPDATE policy is now named to
+match what was already live so the migration replaces it cleanly
+instead of leaving a duplicate.
+
+**CI counterpart:** `supabase/ci/security_checks.sql` re-implements
+the RLS/grants/column-protection checks (not the admin-allowlist one —
+meaningless against a fresh unseeded database) as plain assertions
+that fail a GitHub Actions job (`.github/workflows/db-security-checks.yml`)
+against a scratch local Supabase instance whenever a migration is
+pushed. Catches a bad migration before it reaches production instead
+of up to a week later. Not auto-synced with `run_security_checks()` —
+if one changes, update the other by hand.
+
+**One-time setup after this migration is applied:** the function
+allowlist was seeded with only the two RPCs confirmed elsewhere in
+this document (`increment_answers_count`, `increment_flag_count`).
+Run the function-grants query in "Manual RLS/Schema Audit" above,
+decide which other anon/authenticated grants are intentional, and
+either add them to `intentionally_public_functions` or revoke them.
+Expect the first real run of `run_security_checks()` to email
+something because of this — that's the check surfacing real existing
+grants that were never audited, not new breakage.
+
+---
+
+## Function Grant Cleanup + Two Authorization Bugs (migration 014, 2026-08-15)
+
+The first real run of `run_security_checks()` flagged 29 functions.
+Investigated each individually (function body, frontend call sites,
+RLS policy dependencies) rather than guessing from names. Three real
+findings, one false alarm in the check itself:
+
+**Migration 008's function lockdown never fully worked.** It only ran
+`revoke ... from public`. Supabase grants EXECUTE on every new
+function directly to `anon`/`authenticated` by default, separate from
+the `PUBLIC` pseudo-role — revoking from `PUBLIC` never touched those.
+Confirmed directly: `run_security_checks()`, revoked-from-`public` in
+migration 013 minutes earlier, was flagged too. Not new drift —
+`call_alert_function`, `calculate_all_integrity_weights`,
+`calculate_badges`, `check_pending_alert_emails`,
+`reset_expired_streaks`, `run_integrity_checks`, `log_anomaly_only`,
+`archive_due_questions`, and `take_question_snapshots` have likely
+been callable by any logged-in user (some — `call_alert_function`,
+which can send an arbitrary alert email — by literally anyone with the
+anon key) since migration 008 shipped, despite that migration
+believing it had locked them down. Fixed by revoking from `public`,
+`anon`, **and** `authenticated` explicitly, everywhere.
+
+**`activate_sponsored_question` had no admin check at all.** Called
+from `Admin.jsx` via `supabase.rpc()`, using the logged-in admin's own
+session — but the function itself never verified the caller was an
+admin. Any authenticated user could call it directly and activate any
+pending sponsorship themselves. Fixed with the same `is_admin_user()`
+check used elsewhere; verified an admin can still activate normally
+and a non-admin gets `Unauthorized.` with the sponsorship correctly
+left `pending`.
+
+**`get_candidate_questions` trusted the caller's `p_user_id`.** Called
+from `useQuestions.js` with no check that the ID matched the actual
+caller. Any authenticated user could pass another user's ID and see
+which specific questions that person has or hasn't answered/skipped
+yet — not vote choices, but still behavioral data about a named
+individual. Fixed by folding `p_user_id = auth.uid()` into the query
+itself — a mismatched call now returns zero rows rather than raising
+an error, matching the silent-denial approach `protect_admin_columns()`
+already uses (migration 011) so a spoofed call can't even tell whether
+the ID it guessed was real.
+
+**The check itself had a bug: it never accounted for trigger
+functions.** `check_unauthorized_admin_grant()` (migration 013's own
+trigger function) got flagged on the very first run for the same
+harmless reason migration 008 already established for
+`moderate_comment`/`protect_admin_columns` — Postgres refuses to
+invoke a trigger function outside a real trigger context, so a grant
+on one is never actually exploitable. Rather than allowlist every
+trigger function one at a time forever, `run_security_checks()` (and
+`supabase/ci/security_checks.sql`, kept in sync by hand) now excludes
+anything with `data_type = 'trigger'` structurally — the actual reason
+it's safe, not a maintained list.
+
+**Confirmed legitimate and added to the allowlist:** `get_vote_tally`,
+`get_vote_tallies_batch` (read-only tallies, no sensitive data),
+`activate_sponsored_question` and `get_candidate_questions` (now
+ownership-checked, see above), and `is_admin_user` — not a client RPC,
+but it must stay callable by `authenticated`: it's used inside the
+`"Admins can view all profiles"` RLS policy on `profiles`, so revoking
+it would break profile lookups for every logged-in user, not just
+non-admins. This was confirmed by checking `pg_policies` before
+touching it, not assumed.
