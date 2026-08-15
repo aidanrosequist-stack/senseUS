@@ -34,35 +34,33 @@ entrypoint = "./functions/send-welcome-sms/index.ts"
 [functions.send-alert-email]
 enabled = true
 verify_jwt = false
-import_map = "./functions/send-alert-email/deno.json"
+# No import_map: this function has no deno.json (it never had one —
+# not a regression). Removed 2026-08-15 rather than pointing at a file
+# that doesn't exist; the function imports everything it needs via
+# full jsr:/npm: specifiers directly, so no import map was ever needed.
 entrypoint = "./functions/send-alert-email/index.ts"
 
 [functions.send-daily-report]
 enabled = true
 verify_jwt = false
-import_map = "./functions/send-daily-report/deno.json"
 entrypoint = "./functions/send-daily-report/index.ts"
 
 [functions.send-weekly-report]
 enabled = true
 verify_jwt = false
-import_map = "./functions/send-weekly-report/deno.json"
 entrypoint = "./functions/send-weekly-report/index.ts"
 
 [functions.process-pending-exports]
 enabled = true
 verify_jwt = false
-import_map = "./functions/process-pending-exports/deno.json"
 entrypoint = "./functions/process-pending-exports/index.ts"
 
 [functions.check-line-type]
 enabled = true
 verify_jwt = false
-import_map = "./functions/check-line-type/deno.json"
 entrypoint = "./functions/check-line-type/index.ts"
 
 [functions.join-waitlist]
 enabled = true
 verify_jwt = false
-import_map = "./functions/join-waitlist/deno.json"
 entrypoint = "./functions/join-waitlist/index.ts"
