@@ -1,0 +1,52 @@
+name: DB security checks
+
+# Runs the schema/RLS/grants checks from supabase/ci/security_checks.sql
+# against a fresh local Supabase instance (spun up in this runner via
+# Docker, not your live project) with every migration applied. Fails
+# the job — and blocks merge, if you turn on branch protection for
+# this check — before a bad migration ever reaches production.
+#
+# This is the CI counterpart to run_security_checks() (migration 013),
+# which does the same three checks on a schedule against the live
+# database and emails you if something's wrong. This workflow is the
+# earlier, cheaper catch: it stops the mistake before it ships instead
+# of finding it up to a week later.
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/ci/security_checks.sql"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/ci/security_checks.sql"
+  workflow_dispatch: {}
+
+jobs:
+  security-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Spins up local Postgres + the rest of the Supabase stack via
+      # Docker (preinstalled on GitHub-hosted runners) and applies
+      # every migration in supabase/migrations, in order, to a fresh
+      # database — same as `supabase db reset` in local dev.
+      - name: Start local Supabase and apply migrations
+        run: supabase start
+
+      - name: Run security checks
+        run: |
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+            -v ON_ERROR_STOP=1 \
+            -f supabase/ci/security_checks.sql
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop
