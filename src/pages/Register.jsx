@@ -251,10 +251,6 @@ if (checkingStatus) {
                 </span>
               </label>
 
-              <p style={{ fontSize: '12px', color: '#52B788', textAlign: 'center', lineHeight: 1.6, margin: '0' }}>
-                Just your vote. Not your full name. Not anything that can be traced back to you.
-              </p>
-
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 500, marginBottom: '8px' }}>How should your name appear?</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -340,7 +336,7 @@ if (checkingStatus) {
               </label>
 
               <p style={{ fontSize: '12px', color: '#52B788', textAlign: 'center', lineHeight: 1.6, margin: '0' }}>
-                Just your vote. Not your full name. Not anything that can be traced back to you.
+                We only keep your first name and last initial. Your phone number is the one thing tied to your account — used only for verification, never shown to other users.
               </p>
 
               <button
