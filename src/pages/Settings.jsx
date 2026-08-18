@@ -158,10 +158,33 @@ function maskPhone(phone) {
     navigate('/')
   }
 
-  async function handleDeleteAccount() {
-    // For now just sign out — full deletion requires a server-side function
-    await signOut()
-    navigate('/')
+    async function handleDeleteAccount() {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ deletion_requested_at: new Date().toISOString() })
+      .eq('id', user.id)
+
+    if (error) {
+      alert('Something went wrong: ' + error.message)
+      return
+    }
+
+    setProfile(prev => ({ ...prev, deletion_requested_at: new Date().toISOString() }))
+    setShowDeleteConfirm(false)
+  }
+
+  async function handleCancelDeletion() {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ deletion_requested_at: null })
+      .eq('id', user.id)
+
+    if (error) {
+      alert('Something went wrong: ' + error.message)
+      return
+    }
+
+    setProfile(prev => ({ ...prev, deletion_requested_at: null }))
   }
 
   if (loading) {
@@ -529,7 +552,21 @@ function maskPhone(phone) {
 
       {/* Danger zone */}
       <Section title="Danger zone">
-        {!showDeleteConfirm ? (
+        {profile?.deletion_requested_at ? (
+          <div style={{ padding: '14px 16px' }}>
+            <p style={{ fontSize: '13px', color: '#7a1313', marginBottom: '12px', lineHeight: 1.5 }}>
+              Your account is scheduled for deletion on{' '}
+              {new Date(new Date(profile.deletion_requested_at).getTime() + 48 * 60 * 60 * 1000).toLocaleString()}.
+              You can still cancel this until then.
+            </p>
+            <button
+              onClick={handleCancelDeletion}
+              style={{ width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+            >
+              Cancel deletion
+            </button>
+          </div>
+        ) : !showDeleteConfirm ? (
           <Row label="Delete account" border={false}>
             <button
               onClick={() => setShowDeleteConfirm(true)}
@@ -541,7 +578,7 @@ function maskPhone(phone) {
         ) : (
           <div style={{ padding: '14px 16px' }}>
             <p style={{ fontSize: '13px', color: '#7a1313', marginBottom: '12px', lineHeight: 1.5 }}>
-              Are you sure? This permanently removes your profile. Your votes are retained anonymously.
+              Are you sure? This permanently deletes your profile, votes, comments, and everything tied to your account — nothing is retained. You'll have 48 hours to change your mind before this becomes final.
             </p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
