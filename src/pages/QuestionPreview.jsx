@@ -17,6 +17,7 @@ export default function QuestionPreview() {
   const [loading, setLoading] = useState(true)
   const [sliding, setSliding] = useState(null)
   const [maxNumber, setMaxNumber] = useState(null)
+  const [hasVoted, setHasVoted] = useState(false)
 
   const minAllowed = Math.max(1, originNumber.current - 2)
   const maxAllowed = originNumber.current + 2
@@ -58,6 +59,18 @@ export default function QuestionPreview() {
           : { yes: 0, ly: 0, ln: 0, no: 0 }
         )
 
+         if (user) {
+          const { data: voteRow } = await supabase
+            .from('votes')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('question_id', q.id)
+            .maybeSingle()
+          setHasVoted(!!voteRow)
+        } else {
+          setHasVoted(false)
+        }
+
         if (!maxNumber) {
           const { data: maxQ } = await supabase
             .from('questions')
@@ -75,7 +88,7 @@ export default function QuestionPreview() {
       }
     }
     fetchData()
-  }, [currentNum])
+  }, [currentNum, user])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const canGoPrev = currentNum > 1 && currentNum > minAllowed
@@ -165,9 +178,11 @@ export default function QuestionPreview() {
             </div>
           </div>
         </div>
-        <Link
-              to={user
+          <Link
+              to={user && hasVoted
                 ? `/conversation/${question?.id}`
+                : user
+                ? `/vote?question=${question?.id}`
                 : sharedComment
                 ? `/register?from=q&q=${currentNum}`
                 : `/register`
@@ -227,16 +242,20 @@ export default function QuestionPreview() {
             )}
 
             <Link
-              to={user
+              to={user && hasVoted
                 ? `/conversation/${question?.id}`
+                : user
+                ? `/vote?question=${question?.id}`
                 : sharedComment
                 ? `/register?from=q&q=${currentNum}`
                 : `/register?from=q&q=${currentNum}`
               }
               style={{ display: 'block', width: '100%', padding: '12px', background: '#2D3DCA', color: 'white', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', marginBottom: '8px' }}
             >
-              {user
+              {user && hasVoted
                 ? 'Go to the conversation'
+                : user
+                ? 'Vote on this question'
                 : sharedComment
                 ? 'Join to see the comment'
                 : 'Vote on this question'}

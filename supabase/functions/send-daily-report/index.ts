@@ -50,10 +50,7 @@ async function getSmsSuccessRate(since: string): Promise<{ sent: number; deliver
   const dateOnly = since.split('T')[0]
 
   const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
-  const params = new URLSearchParams();
-  params.set('DateSent>=', dateOnly);
-  params.set('PageSize', '1000');
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json?${params.toString()}`;
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json?DateSent%3E=${encodeURIComponent(dateOnly)}&PageSize=1000`;
 
   console.log("DEBUG: querying with dateOnly =", dateOnly);
   console.log("DEBUG: full URL =", url);
