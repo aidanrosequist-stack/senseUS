@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.PhoneInputCountryIconImg {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.PhoneInputCountryIcon {
+  width: 1.5em !important;
+  height: 1em !important;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Merriweather', serif;
+}
+
+#root {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+input, button, select, textarea {
+  font-family: 'Merriweather', serif;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (min-width: 768px) {
+  html, body {
+    background: #C7C7CC;
+    min-height: 100vh;
+  }
+
+  #root {
+    max-width: 480px;
+    margin: 0 auto;
+    background: #FFFFFF;
+    min-height: 100vh;
+    box-shadow: 0 0 40px rgba(0,0,0,0.15);
+    position: relative;
+  }
+}
+
+/* Add to your global stylesheet (e.g. index.css) or a CSS module imported by Register.jsx */
+ 
+.senseus-phone-input .PhoneInput {
+  display: flex;
+  align-items: center;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  padding: 2px 10px;
+  font-family: 'Merriweather', serif;
+  font-size: 14px;
+  background: #ffffff;
+}
+ 
+.senseus-phone-input .PhoneInput--focus {
+  border-color: #2D3DCA;
+  box-shadow: 0 0 0 2px rgba(45, 61, 202, 0.15);
+}
+ 
+.senseus-phone-input .PhoneInputInput {
+  border: none;
+  outline: none;
+  padding: 9px 6px;
+  font-size: 14px;
+  font-family: 'Merriweather', serif;
+  flex: 1;
+  background: transparent;
+}
+ 
+.senseus-phone-input .PhoneInputInput::placeholder {
+  color: #9CA3AF;
+}
+ 
+.senseus-phone-input .PhoneInputCountry {
+  margin-right: 8px;
+}
+ 
+.senseus-phone-input .PhoneInputCountrySelect {
+  cursor: pointer;
+}
+ 
+.senseus-phone-input .PhoneInputCountryIcon {
+  border-radius: 2px;
+  box-shadow: none;
+}
+ 

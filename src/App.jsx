@@ -1,0 +1,92 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Home from './pages/Home'
+import Vote from './pages/Vote'
+import Profile from './pages/Profile'
+import Register from './pages/Register'
+import Privacy from './pages/Privacy'
+import Login from './pages/Login'
+import Settings from './pages/Settings'
+import MakeUpMyMind from './pages/MakeUpMyMind'
+import Admin from './pages/Admin'
+import Explore from './pages/Explore'
+import Activity from './pages/Activity'
+import Conversation from './pages/Conversation'
+import ProtectedRoute from './components/ProtectedRoute'
+import Terms from './pages/Terms'
+import Mission from './pages/Mission'
+import HowItWorks from './pages/HowItWorks'
+import QuestionPreview from './pages/QuestionPreview'
+import Transparency from './pages/Transparency'
+import NotFound from './pages/NotFound'
+import Notifications from './pages/Notifications'
+import NotificationPopup from './components/notifications/NotificationPopup'
+import { NotificationsContext } from './context/NotificationsContext'
+import { useNotifications } from './hooks/useNotifications'
+import { useAuth } from './hooks/useAuth'
+import Ethos from './pages/Ethos'
+
+function AppContent() {
+  const { user } = useAuth()
+  const {
+    notifications,
+    unreadCount,
+    urgentNotification,
+    highNotifications,
+    markAsRead,
+    markAllAsRead,
+    dismissUrgent,
+    dismissHigh,
+  } = useNotifications()
+
+  return (
+    <NotificationsContext.Provider value={{
+      notifications,
+      unreadCount,
+      urgentNotification,
+      highNotifications,
+      markAsRead,
+      markAllAsRead,
+      dismissUrgent,
+      dismissHigh,
+    }}>
+      <NotificationPopup
+        urgentNotification={urgentNotification}
+        highNotifications={highNotifications}
+        onDismissUrgent={dismissUrgent}
+        onDismissHigh={dismissHigh}
+      />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/vote" element={<ProtectedRoute><Vote /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/make-up-my-mind/:questionId" element={<ProtectedRoute><MakeUpMyMind /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+        <Route path="/activity" element={<ProtectedRoute><Activity /></ProtectedRoute>} />
+        <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
+        <Route path="/conversation/:questionId" element={<ProtectedRoute><Conversation /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/mission" element={<Mission />} />
+        <Route path="/how-it-works" element={<HowItWorks />} />
+        <Route path="/transparency" element={<Transparency />} />
+        <Route path="/ethos" element={<Ethos />} />
+        <Route path="/q/:number" element={<QuestionPreview />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </NotificationsContext.Provider>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  )
+}
+
+// force redeploy

@@ -1,0 +1,9 @@
+{
+  "app_name": "senseUS",
+  "tagline": "Real people. Real opinions.",
+  "nav": {
+    "home": "Home",
+    "vote": "Vote",
+    "profile": "Profile"
+  }
+}
