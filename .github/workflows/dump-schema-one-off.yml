@@ -1,0 +1,55 @@
+name: Dump live schema (one-off)
+
+# Manually-triggered ONLY — this is the one workflow in this repo that
+# touches production credentials (the SUPABASE_ACCESS_TOKEN and
+# SUPABASE_DB_PASSWORD repo secrets), so it deliberately never runs on
+# push, only when someone with write access clicks "Run workflow."
+#
+# Purpose: senseUS's core tables (votes, profiles, questions, etc.) were
+# created directly in the Supabase dashboard and were never captured in
+# any migration file. This blocks the other CI workflow
+# (db-security-checks.yml) from ever building a working fresh database,
+# since `supabase start` replays every migration file from empty and hits
+# a table that was never created by any of them.
+#
+# This workflow captures the current live SCHEMA (structure only — no
+# row data, since `supabase db dump` without --data-only is schema-only
+# by default) as a downloadable artifact, for a human to review before
+# anything gets committed. It does NOT write anything back to the repo.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  dump-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link to the project
+        run: |
+          supabase link --project-ref gckjlshfesyxualwxurj -p "${{ secrets.SUPABASE_DB_PASSWORD }}"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Dump the live schema (structure only, no data)
+        run: |
+          supabase db dump --linked -p "${{ secrets.SUPABASE_DB_PASSWORD }}" -f raw_schema_dump.sql
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: List tables found (quick preview, no download needed)
+        run: |
+          echo "### Tables found in the dump" >> "$GITHUB_STEP_SUMMARY"
+          grep -oP '(?<=CREATE TABLE )[^\s(]+' raw_schema_dump.sql | sort -u >> "$GITHUB_STEP_SUMMARY" || echo "(no CREATE TABLE lines matched — check the full artifact)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload dump as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-schema-dump
+          path: raw_schema_dump.sql
+          retention-days: 7
