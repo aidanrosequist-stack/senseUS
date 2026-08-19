@@ -33,40 +33,7 @@ export default function Compare() {
   const [comparison, setComparison] = useState(null)
   const [processing, setProcessing] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      const { data: tr } = await supabase
-        .from('comparison_tokens')
-        .select('*')
-        .eq('token', token)
-        .maybeSingle()
-
-      if (!tr) {
-        setNotFound(true)
-        setLoading(false)
-        return
-      }
-
-      setTokenRow(tr)
-
-      const { data: sp } = await supabase
-        .from('public_profiles')
-        .select('first_name, last_initial, display_preference, anon_name, badges')
-        .eq('id', tr.sender_id)
-        .single()
-      setSenderProfile(sp)
-
-      if (tr.status === 'accepted') {
-        await loadComparison(tr)
-      }
-
-      setLoading(false)
-    }
-
-    if (user) load()
-  }, [token, user, loadComparison])
-
-  const loadComparison = useCallback(async (tr) => {
+    const loadComparison = useCallback(async (tr) => {
     const otherId = tr.sender_id === user.id ? tr.recipient_id : tr.sender_id
 
     const [{ data: myVotes }, { data: theirVotes }, { data: otherProfile }] = await Promise.all([
@@ -109,6 +76,39 @@ export default function Compare() {
 
     setComparison({ otherProfile, shared: enriched, byCategory, agreementPct })
   }, [user])
+
+  useEffect(() => {
+    async function load() {
+      const { data: tr } = await supabase
+        .from('comparison_tokens')
+        .select('*')
+        .eq('token', token)
+        .maybeSingle()
+
+      if (!tr) {
+        setNotFound(true)
+        setLoading(false)
+        return
+      }
+
+      setTokenRow(tr)
+
+      const { data: sp } = await supabase
+        .from('public_profiles')
+        .select('first_name, last_initial, display_preference, anon_name, badges')
+        .eq('id', tr.sender_id)
+        .single()
+      setSenderProfile(sp)
+
+      if (tr.status === 'accepted') {
+        await loadComparison(tr)
+      }
+
+      setLoading(false)
+    }
+
+    if (user) load()
+  }, [token, user, loadComparison])
 
   async function handleAccept() {
     setProcessing(true)

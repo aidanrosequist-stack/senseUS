@@ -232,6 +232,7 @@ export default function Activity() {
   const navigate = useNavigate()
   const [tab, setTab] = useState('history')
   const [myComments, setMyComments] = useState([])
+  const [commentSort, setCommentSort] = useState('newest')
   const [shifts, setShifts] = useState([])
   const [skipped, setSkipped] = useState([])
   const [votes, setVotes] = useState([])
@@ -265,6 +266,17 @@ export default function Activity() {
     } else {
       navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!')).catch(() => prompt('Copy this link:', url))
     }
+  }
+
+  function sortedComments(comments) {
+    const sorted = [...comments]
+    if (commentSort === 'resonated') {
+      sorted.sort((a, b) => b.resonance_count - a.resonance_count)
+    } else if (commentSort === 'replies') {
+      sorted.sort((a, b) => b.totalReplies - a.totalReplies)
+    }
+    // 'newest' needs no re-sort — that's already the order the fetch returns
+    return sorted
   }
 
   async function startComparison() {
@@ -508,16 +520,39 @@ export default function Activity() {
         </div>
       ) : (
         <>
-          {/* Comments tab */}
+                    {/* Comments tab */}
           {tab === 'comments' && (
             <div>
+              {myComments.length > 0 && (
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '1rem' }}>
+                  {[
+                    { key: 'newest', label: 'Newest' },
+                    { key: 'resonated', label: 'Most Resonated' },
+                    { key: 'replies', label: 'Most Replies' },
+                  ].map(opt => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setCommentSort(opt.key)}
+                      style={{
+                        padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 500,
+                        border: commentSort === opt.key ? 'none' : '1px solid #D1D5DB',
+                        background: commentSort === opt.key ? '#2D3DCA' : 'transparent',
+                        color: commentSort === opt.key ? 'white' : '#6B7280',
+                        cursor: 'pointer', fontFamily: 'Merriweather, serif',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {myComments.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
                   No comments yet. Vote on a question to join the conversation.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {myComments.map(c => (
+                  {sortedComments(myComments).map(c => (
                     <MyCommentCard
                       key={c.id}
                       c={c}
