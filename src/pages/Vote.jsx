@@ -104,7 +104,10 @@ export default function Vote() {
   
   async function handleHideQuestion(questionId) {
     if (!user) return
-    await supabase.from('question_skips').insert({ user_id: user.id, question_id: questionId })
+    const { error } = await supabase.from('question_skips').insert({ user_id: user.id, question_id: questionId })
+    if (error) {
+      console.error('Failed to skip question:', error)
+    }
   }
 
   if (loading) {

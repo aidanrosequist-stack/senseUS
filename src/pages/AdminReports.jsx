@@ -131,10 +131,14 @@ export default function AdminReports({ supabase }) {
   }, [loadDashboard]);
 
 async function resolveAnomaly(id) {
-  await supabase
+  const { error } = await supabase
     .from('anomaly_log')
     .update({ resolved: true, resolved_at: new Date().toISOString() })
     .eq('id', id)
+  if (error) {
+    alert('Something went wrong: ' + error.message)
+    return
+  }
   setAnomalies((prev) => prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)))
 }
 

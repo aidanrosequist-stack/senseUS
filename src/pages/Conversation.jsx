@@ -548,17 +548,25 @@ export default function Conversation() {
     setEditText('')
   }
 
-  async function toggleResonate(commentId) {
+    async function toggleResonate(commentId) {
     if (!user) return
     const hasResonated = userResonances.has(commentId)
 
     if (hasResonated) {
-      await supabase.from('comment_resonances').delete()
+      const { error } = await supabase.from('comment_resonances').delete()
         .eq('comment_id', commentId).eq('user_id', user.id)
+      if (error) {
+        console.error('Failed to remove resonance:', error)
+        return
+      }
       setUserResonances(prev => { const s = new Set(prev); s.delete(commentId); return s })
       setComments(prev => prev.map(c => c.id === commentId ? { ...c, resonance_count: c.resonance_count - 1 } : c))
     } else {
-      await supabase.from('comment_resonances').insert({ comment_id: commentId, user_id: user.id })
+      const { error } = await supabase.from('comment_resonances').insert({ comment_id: commentId, user_id: user.id })
+      if (error) {
+        console.error('Failed to add resonance:', error)
+        return
+      }
       setUserResonances(prev => new Set([...prev, commentId]))
       setComments(prev => prev.map(c => c.id === commentId ? { ...c, resonance_count: c.resonance_count + 1 } : c))
     }
