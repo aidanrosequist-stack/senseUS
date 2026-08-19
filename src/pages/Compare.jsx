@@ -110,7 +110,12 @@ export default function Compare() {
     if (user) load()
   }, [token, user, loadComparison])
 
-  async function handleAccept() {
+    async function handleAccept() {
+    if (new Date(tokenRow.expires_at) < new Date()) {
+      await supabase.from('comparison_tokens').update({ status: 'expired' }).eq('id', tokenRow.id)
+      setTokenRow({ ...tokenRow, status: 'expired' })
+      return
+    }
     setProcessing(true)
     const { error } = await supabase
       .from('comparison_tokens')
@@ -129,12 +134,17 @@ export default function Compare() {
     setProcessing(false)
   }
 
-  async function handleDecline() {
+    async function handleDecline() {
     setProcessing(true)
-    await supabase
+    const { error } = await supabase
       .from('comparison_tokens')
       .update({ status: 'declined' })
       .eq('id', tokenRow.id)
+    if (error) {
+      alert('Something went wrong: ' + error.message)
+      setProcessing(false)
+      return
+    }
     setTokenRow({ ...tokenRow, status: 'declined' })
     setProcessing(false)
   }
@@ -213,6 +223,12 @@ export default function Compare() {
               <p style={{ fontSize: '12px', color: '#9CA3AF' }}>
                 This link expires 48 hours after you created it.
               </p>
+            </div>
+          )}
+
+          {!notFound && tokenRow?.status === 'expired' && (
+            <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+              <p style={{ fontSize: '14px', color: '#6B7280' }}>This comparison link has expired.</p>
             </div>
           )}
 

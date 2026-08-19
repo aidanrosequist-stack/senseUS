@@ -26,6 +26,7 @@ useEffect(() => {
         .eq('id', user.id)
         .maybeSingle()
       if (!profile) {
+        if (user.phone) setPhone(`+${user.phone}`)
         setStep('details')
       }
     }
