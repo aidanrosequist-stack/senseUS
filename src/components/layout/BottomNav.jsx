@@ -17,10 +17,17 @@ export default function BottomNav() {
   return (
     <div
       style={{
-        position: 'fixed',
+        // `sticky`, not `fixed` — this is the fix for the footer spanning
+        // the full browser window while the header doesn't. On desktop,
+        // index.css caps #root at 480px and centers it on a gray backdrop;
+        // Header lives inside that box and is `position: sticky`, so it's
+        // naturally confined to it. `fixed` positions relative to the
+        // actual viewport, not #root, so it was escaping that 480px column
+        // and spanning the whole window. `sticky` stays inside the normal
+        // document flow (and therefore inside #root) while still pinning
+        // to the bottom of the screen as you scroll.
+        position: 'sticky',
         bottom: 0,
-        left: 0,
-        right: 0,
         display: 'flex',
         justifyContent: 'center',
         background: '#FFFFFF',

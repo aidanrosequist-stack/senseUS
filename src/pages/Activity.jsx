@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { Skeleton, SkeletonCard } from '../components/ui/Skeleton'
 import { useLongPress } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
-import BottomNav from '../components/layout/BottomNav'
 import { IconThumbUp, IconThumbDown } from '@tabler/icons-react'
 
 const VOTE_COLORS = {
@@ -32,6 +31,12 @@ const VOTE_LABELS = {
   ln: 'leaning no',
   no: 'no',
 }
+
+const COMMENT_SORTS = [
+  { key: 'newest', label: 'Newest' },
+  { key: 'resonance', label: 'Most resonated' },
+  { key: 'replies', label: 'Most replies' },
+]
 
 function VoteIcon({ choice, size = 14 }) {
   const color = VOTE_COLORS[choice] || '#6B7280'
@@ -231,8 +236,8 @@ export default function Activity() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('history')
-  const [myComments, setMyComments] = useState([])
   const [commentSort, setCommentSort] = useState('newest')
+  const [myComments, setMyComments] = useState([])
   const [shifts, setShifts] = useState([])
   const [skipped, setSkipped] = useState([])
   const [votes, setVotes] = useState([])
@@ -266,17 +271,6 @@ export default function Activity() {
     } else {
       navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!')).catch(() => prompt('Copy this link:', url))
     }
-  }
-
-  function sortedComments(comments) {
-    const sorted = [...comments]
-    if (commentSort === 'resonated') {
-      sorted.sort((a, b) => b.resonance_count - a.resonance_count)
-    } else if (commentSort === 'replies') {
-      sorted.sort((a, b) => b.totalReplies - a.totalReplies)
-    }
-    // 'newest' needs no re-sort — that's already the order the fetch returns
-    return sorted
   }
 
   async function startComparison() {
@@ -450,6 +444,14 @@ export default function Activity() {
     setSnapshotMap(newSnapshotMap)
   }
 
+  const sortedComments = useMemo(() => {
+    const arr = [...myComments]
+    if (commentSort === 'resonance') arr.sort((a, b) => b.resonance_count - a.resonance_count)
+    else if (commentSort === 'replies') arr.sort((a, b) => b.totalReplies - a.totalReplies)
+    else arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    return arr
+  }, [myComments, commentSort])
+
   const FETCHERS = {
     comments: fetchComments,
     shifts: fetchShifts,
@@ -479,15 +481,13 @@ export default function Activity() {
   }, [tab, user])
 
   return (
-    <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', minHeight: '100dvh', paddingBottom: '80px' }}>
+    <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
+    <div style={{ padding: '14px', boxSizing: 'border-box' }}>
+    <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
 
-      {/* Header */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
-          sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
-        </div>
-        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center' }}>Activity</div>
-        <div />
+      {/* Page title */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Activity</div>
       </div>
 
       {/* Tabs */}
@@ -520,39 +520,33 @@ export default function Activity() {
         </div>
       ) : (
         <>
-                    {/* Comments tab */}
+          {/* Comments tab */}
           {tab === 'comments' && (
             <div>
-              {myComments.length > 0 && (
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '1rem' }}>
-                  {[
-                    { key: 'newest', label: 'Newest' },
-                    { key: 'resonated', label: 'Most Resonated' },
-                    { key: 'replies', label: 'Most Replies' },
-                  ].map(opt => (
-                    <button
-                      key={opt.key}
-                      onClick={() => setCommentSort(opt.key)}
-                      style={{
-                        padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 500,
-                        border: commentSort === opt.key ? 'none' : '1px solid #D1D5DB',
-                        background: commentSort === opt.key ? '#2D3DCA' : 'transparent',
-                        color: commentSort === opt.key ? 'white' : '#6B7280',
-                        cursor: 'pointer', fontFamily: 'Merriweather, serif',
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
               {myComments.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
                   No comments yet. Vote on a question to join the conversation.
                 </div>
               ) : (
+                <>
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', background: '#F3F4F6', padding: '3px', borderRadius: '8px' }}>
+                  {COMMENT_SORTS.map(s => (
+                    <button
+                      key={s.key}
+                      onClick={() => setCommentSort(s.key)}
+                      style={{
+                        flex: 1, padding: '6px 4px', background: commentSort === s.key ? '#FFFFFF' : 'transparent',
+                        color: commentSort === s.key ? '#1A1A1A' : '#6B7280', border: 'none', borderRadius: '6px',
+                        fontSize: '11px', fontWeight: commentSort === s.key ? 700 : 500, cursor: 'pointer',
+                        fontFamily: 'Merriweather, serif', boxShadow: commentSort === s.key ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                      }}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {sortedComments(myComments).map(c => (
+                  {sortedComments.map(c => (
                     <MyCommentCard
                       key={c.id}
                       c={c}
@@ -568,6 +562,7 @@ export default function Activity() {
                     />
                   ))}
                 </div>
+                </>
               )}
             </div>
           )}
@@ -683,7 +678,8 @@ export default function Activity() {
           onClose={() => setActionSheet(null)}
         />
       )}
-      <BottomNav />
+    </div>
+    </div>
     </div>
   )
 }

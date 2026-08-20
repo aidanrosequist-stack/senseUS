@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import Header from '../components/layout/Header'
-import BottomNav from '../components/layout/BottomNav'
+import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -548,25 +547,17 @@ export default function Conversation() {
     setEditText('')
   }
 
-    async function toggleResonate(commentId) {
+  async function toggleResonate(commentId) {
     if (!user) return
     const hasResonated = userResonances.has(commentId)
 
     if (hasResonated) {
-      const { error } = await supabase.from('comment_resonances').delete()
+      await supabase.from('comment_resonances').delete()
         .eq('comment_id', commentId).eq('user_id', user.id)
-      if (error) {
-        console.error('Failed to remove resonance:', error)
-        return
-      }
       setUserResonances(prev => { const s = new Set(prev); s.delete(commentId); return s })
       setComments(prev => prev.map(c => c.id === commentId ? { ...c, resonance_count: c.resonance_count - 1 } : c))
     } else {
-      const { error } = await supabase.from('comment_resonances').insert({ comment_id: commentId, user_id: user.id })
-      if (error) {
-        console.error('Failed to add resonance:', error)
-        return
-      }
+      await supabase.from('comment_resonances').insert({ comment_id: commentId, user_id: user.id })
       setUserResonances(prev => new Set([...prev, commentId]))
       setComments(prev => prev.map(c => c.id === commentId ? { ...c, resonance_count: c.resonance_count + 1 } : c))
     }
@@ -723,7 +714,7 @@ export default function Conversation() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
         Loading...
       </div>
     )
@@ -731,7 +722,6 @@ export default function Conversation() {
 
   return (
     <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC' }}>
-      <Header />
       <div style={{ padding: '14px', boxSizing: 'border-box' }}>
         <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '100px', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
 
@@ -867,7 +857,6 @@ export default function Conversation() {
 
         </div>
       </div>
-      <BottomNav />
     </div>
   )
 }

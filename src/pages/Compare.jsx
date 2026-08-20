@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { BADGE_EMOJI } from '../lib/badgeInfo'
-import Header from '../components/layout/Header'
-import BottomNav from '../components/layout/BottomNav'
+import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f'
@@ -33,7 +32,7 @@ export default function Compare() {
   const [comparison, setComparison] = useState(null)
   const [processing, setProcessing] = useState(false)
 
-    const loadComparison = useCallback(async (tr) => {
+  const loadComparison = useCallback(async (tr) => {
     const otherId = tr.sender_id === user.id ? tr.recipient_id : tr.sender_id
 
     const [{ data: myVotes }, { data: theirVotes }, { data: otherProfile }] = await Promise.all([
@@ -110,12 +109,7 @@ export default function Compare() {
     if (user) load()
   }, [token, user, loadComparison])
 
-    async function handleAccept() {
-    if (new Date(tokenRow.expires_at) < new Date()) {
-      await supabase.from('comparison_tokens').update({ status: 'expired' }).eq('id', tokenRow.id)
-      setTokenRow({ ...tokenRow, status: 'expired' })
-      return
-    }
+  async function handleAccept() {
     setProcessing(true)
     const { error } = await supabase
       .from('comparison_tokens')
@@ -134,17 +128,12 @@ export default function Compare() {
     setProcessing(false)
   }
 
-    async function handleDecline() {
+  async function handleDecline() {
     setProcessing(true)
-    const { error } = await supabase
+    await supabase
       .from('comparison_tokens')
       .update({ status: 'declined' })
       .eq('id', tokenRow.id)
-    if (error) {
-      alert('Something went wrong: ' + error.message)
-      setProcessing(false)
-      return
-    }
     setTokenRow({ ...tokenRow, status: 'declined' })
     setProcessing(false)
   }
@@ -182,7 +171,7 @@ export default function Compare() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
         Loading...
       </div>
     )
@@ -190,7 +179,6 @@ export default function Compare() {
 
   return (
     <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC' }}>
-      <Header />
       <div style={{ padding: '14px', boxSizing: 'border-box' }}>
         <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '100px', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
 
@@ -223,12 +211,6 @@ export default function Compare() {
               <p style={{ fontSize: '12px', color: '#9CA3AF' }}>
                 This link expires 48 hours after you created it.
               </p>
-            </div>
-          )}
-
-          {!notFound && tokenRow?.status === 'expired' && (
-            <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-              <p style={{ fontSize: '14px', color: '#6B7280' }}>This comparison link has expired.</p>
             </div>
           )}
 
@@ -333,7 +315,6 @@ export default function Compare() {
 
         </div>
       </div>
-      <BottomNav />
     </div>
   )
 }

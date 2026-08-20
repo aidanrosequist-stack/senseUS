@@ -5,7 +5,6 @@ import { useAuth } from '../hooks/useAuth'
 import { Skeleton } from '../components/ui/Skeleton'
 import { useLongPress } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
-import BottomNav from '../components/layout/BottomNav'
 
 const DOMAINS = [
   'society & culture',
@@ -288,31 +287,37 @@ const getSponsoredQuestions = () => {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '100%', fontFamily: 'Merriweather, serif', padding: '1.25rem', paddingBottom: '80px' }}>
-        {[1, 2, 3].map(i => (
-          <div key={i} style={{ marginBottom: '1.75rem' }}>
-            <Skeleton height="13px" width="30%" style={{ marginBottom: '0.75rem' }} />
-            <div style={{ display: 'flex', gap: '10px', overflowX: 'hidden' }}>
-              {[1, 2, 3].map(j => (
-                <Skeleton key={j} width="140px" height="160px" borderRadius="12px" style={{ flexShrink: 0 }} />
-              ))}
-            </div>
+      <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
+        <div style={{ padding: '14px', boxSizing: 'border-box' }}>
+          <div style={{ maxWidth: '480px', margin: '0 auto', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)', padding: '1.25rem' }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{ marginBottom: '1.75rem' }}>
+                <Skeleton height="13px" width="30%" style={{ marginBottom: '0.75rem' }} />
+                <div style={{ display: 'flex', gap: '10px', overflowX: 'hidden' }}>
+                  {[1, 2, 3].map(j => (
+                    <Skeleton key={j} width="140px" height="160px" borderRadius="12px" style={{ flexShrink: 0 }} />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ maxWidth: '100%', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', minHeight: '100dvh', paddingBottom: '90px', background: '#F9FAFB' }}>
+    <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '90px' }}>
+    <div style={{ padding: '14px', boxSizing: 'border-box' }}>
+    {/* No horizontal padding here (unlike Profile/Activity's card) — every
+        section below already carries its own '0 1.25rem' inset, which used
+        to be measured against the full page width. Padding the card too
+        would double up and squeeze the horizontal-scroll rows. */}
+    <div style={{ maxWidth: '480px', margin: '0 auto', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)', padding: '1.5rem 0' }}>
 
-      {/* Header */}
-      <div style={{ padding: '1.25rem 1.25rem 0', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '1rem' }}>
-        <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
-          sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
-        </div>
-        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center' }}>Explore</div>
-        <div />
+      {/* Page title */}
+      <div style={{ padding: '1.25rem 1.25rem 0', marginBottom: '1rem' }}>
+        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Explore</div>
       </div>
 
       {/* Toggle */}
@@ -663,8 +668,8 @@ const getSponsoredQuestions = () => {
           ]}
         />
       )}
-
-      <BottomNav />
+    </div>
+    </div>
     </div>
   )
 }

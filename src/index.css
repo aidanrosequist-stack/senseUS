@@ -20,6 +20,17 @@ html, body {
   font-family: 'Merriweather', serif;
 }
 
+html {
+  /* Reserves the scrollbar's width whether or not the current page
+     actually needs to scroll. Without this, navigating between a page
+     that fits in one viewport (e.g. /vote) and one that scrolls (e.g.
+     /explore) changes the real available width by the scrollbar's
+     width, which shifts the centered #root column — and everything
+     sticky/fixed inside it — a few pixels sideways on every such
+     navigation. This is what that slight footer shift was. */
+  scrollbar-gutter: stable;
+}
+
 #root {
   min-height: 100%;
   margin: 0;

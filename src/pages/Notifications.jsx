@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../hooks/useNotifications'
-import BottomNav from '../components/layout/BottomNav'
+import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 
 const TYPE_ICONS = {
   badge_earned: '🏆',
@@ -33,7 +33,7 @@ export default function Notifications() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
         Loading...
       </div>
     )
@@ -42,13 +42,9 @@ export default function Notifications() {
   return (
     <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', minHeight: '100dvh', paddingBottom: '80px' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
-          sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
-        </div>
+      {/* Page title */}
+      <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Notifications</div>
-        <div style={{ width: '60px' }} />
       </div>
 
       {unreadCount > 0 && (
@@ -108,8 +104,6 @@ export default function Notifications() {
           ))}
         </div>
       )}
-
-      <BottomNav />
     </div>
   )
 }

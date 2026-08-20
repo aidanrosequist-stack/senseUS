@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
+import AppShell from './components/layout/AppShell'
 import NotificationPopup from './components/notifications/NotificationPopup'
 import { NotificationsContext } from './context/NotificationsContext'
 import { useNotifications } from './hooks/useNotifications'
@@ -69,17 +70,9 @@ function AppContent() {
       <Suspense fallback={<PageLoading />}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/vote" element={<ProtectedRoute><Vote /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/make-up-my-mind/:questionId" element={<ProtectedRoute><MakeUpMyMind /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-          <Route path="/activity" element={<ProtectedRoute><Activity /></ProtectedRoute>} />
-          <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
-          <Route path="/conversation/:questionId" element={<ProtectedRoute><Conversation /></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/mission" element={<Mission />} />
@@ -87,7 +80,26 @@ function AppContent() {
           <Route path="/transparency" element={<Transparency />} />
           <Route path="/ethos" element={<Ethos />} />
           <Route path="/q/:number" element={<QuestionPreview />} />
-          <Route path="/compare/:token" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
+
+          {/* Every route below shares one AppShell (Header + BottomNav),
+              mounted once and kept alive across navigation between them —
+              not rebuilt per page. ProtectedRoute wraps the shell itself,
+              so the login/profile check also runs once per visit instead
+              of re-fetching and re-flashing "Loading..." on every click
+              between these pages, which is what the old per-route
+              <ProtectedRoute> wrapping used to do. */}
+          <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+            <Route path="/vote" element={<Vote />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/make-up-my-mind/:questionId" element={<MakeUpMyMind />} />
+            <Route path="/activity" element={<Activity />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/conversation/:questionId" element={<Conversation />} />
+            <Route path="/notifications" element={<Notifications />} />
+            <Route path="/compare/:token" element={<Compare />} />
+          </Route>
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

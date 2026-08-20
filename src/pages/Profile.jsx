@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase'
 import { Skeleton, SkeletonCard, SkeletonStatGrid } from '../components/ui/Skeleton'
 import { useNotificationsContext } from '../context/NotificationsContext'
 import { BADGE_INFO } from '../lib/badgeInfo'
-import BottomNav from '../components/layout/BottomNav'
 
 function timeAgo(dateString) {
   const now = new Date()
@@ -87,54 +86,59 @@ async function openIntegrityInfo() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '420px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '80px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
-          <Skeleton width="48px" height="48px" borderRadius="50%" />
-          <div style={{ flex: 1 }}>
-            <Skeleton height="16px" width="50%" style={{ marginBottom: '6px' }} />
-            <Skeleton height="12px" width="35%" />
+      <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
+        <div style={{ padding: '14px', boxSizing: 'border-box' }}>
+          <div style={{ maxWidth: '420px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
+              <Skeleton width="48px" height="48px" borderRadius="50%" />
+              <div style={{ flex: 1 }}>
+                <Skeleton height="16px" width="50%" style={{ marginBottom: '6px' }} />
+                <Skeleton height="12px" width="35%" />
+              </div>
+            </div>
+            <SkeletonStatGrid />
+            <Skeleton height="14px" width="30%" style={{ marginBottom: '10px' }} />
+            <SkeletonCard style={{ marginBottom: '8px' }} />
+            <SkeletonCard style={{ marginBottom: '8px' }} />
+            <SkeletonCard />
           </div>
         </div>
-        <SkeletonStatGrid />
-        <Skeleton height="14px" width="30%" style={{ marginBottom: '10px' }} />
-        <SkeletonCard style={{ marginBottom: '8px' }} />
-        <SkeletonCard style={{ marginBottom: '8px' }} />
-        <SkeletonCard />
       </div>
     )
   }
 
   if (error || !profile) {
     return (
-      <div style={{ maxWidth: '420px', margin: '0 auto', padding: '2rem 1.5rem', fontFamily: 'Merriweather, serif' }}>
-        <p style={{ color: '#7a1313', fontSize: '14px' }}>{error || 'Profile not found.'}</p>
-        <Link to="/" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none' }}>← back to home</Link>
+      <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC' }}>
+        <div style={{ padding: '14px', boxSizing: 'border-box' }}>
+          <div style={{ maxWidth: '420px', margin: '0 auto', padding: '2rem 1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+            <p style={{ color: '#7a1313', fontSize: '14px' }}>{error || 'Profile not found.'}</p>
+            <Link to="/" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none' }}>← back to home</Link>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '80px' }}>
-
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
-          sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
-        </div>
-        <Link to="/settings" style={{ color: '#6B7280', textDecoration: 'none' }}>
-          <span style={{ fontSize: '20px' }}>⚙</span>
-        </Link>
-      </div>
+    <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
+    <div style={{ padding: '14px', boxSizing: 'border-box' }}>
+    <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
 
       {/* Identity */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
-        <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#E6F1FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
-          {profile.avatar || '🌿'}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#E6F1FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
+            {profile.avatar || '🌿'}
+          </div>
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>{getDisplayName(profile)}</div>
+            <div style={{ fontSize: '12px', color: '#6B7280', fontWeight: 300 }}>{getMemberSince(profile)}</div>
+          </div>
         </div>
-        <div>
-          <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>{getDisplayName(profile)}</div>
-          <div style={{ fontSize: '12px', color: '#6B7280', fontWeight: 300 }}>{getMemberSince(profile)}</div>
-        </div>
+        <Link to="/settings" style={{ color: '#6B7280', textDecoration: 'none', flexShrink: 0 }} aria-label="Settings">
+          <span style={{ fontSize: '20px' }}>⚙</span>
+        </Link>
       </div>
 
 {/* Stats grid */}
@@ -367,7 +371,9 @@ async function openIntegrityInfo() {
           </div>
         </div>
       )}
-      <BottomNav />
+
+    </div>
+    </div>
     </div>
   )
 }

@@ -1,11 +1,10 @@
-import BottomNav from '../components/layout/BottomNav'
-import Header from '../components/layout/Header'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useQuestions } from '../hooks/useQuestions'
 import QuestionFlow from '../components/vote/QuestionFlow'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 
 export default function Vote() {
   const { user } = useAuth()
@@ -104,15 +103,12 @@ export default function Vote() {
   
   async function handleHideQuestion(questionId) {
     if (!user) return
-    const { error } = await supabase.from('question_skips').insert({ user_id: user.id, question_id: questionId })
-    if (error) {
-      console.error('Failed to skip question:', error)
-    }
+    await supabase.from('question_skips').insert({ user_id: user.id, question_id: questionId })
   }
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
         Loading questions...
       </div>
     )
@@ -120,7 +116,7 @@ export default function Vote() {
 
   if (error) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
         Error loading questions. Please try again.
       </div>
     )
@@ -130,7 +126,11 @@ export default function Vote() {
     <div
       style={{
         width: '100%',
-        height: '100dvh',
+        // This used to be a flat 100dvh, sized on the assumption that
+        // Header was rendered inside this same div (its old first child).
+        // Now Header lives above this in AppShell, so this div only gets
+        // the rest of the viewport underneath it — hence the subtraction.
+        height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`,
         background: '#C7C7CC',
         display: 'flex',
         flexDirection: 'column',
@@ -142,7 +142,6 @@ export default function Vote() {
         position: 'relative',
       }}
     >
-      <Header />
       {showGlobalNotice && (
         <div style={{ position: 'absolute', top: '60px', left: '16px', right: '16px', background: '#2D3DCA', color: 'white', borderRadius: '10px', padding: '12px 14px', fontSize: '13px', fontFamily: 'Merriweather, serif', zIndex: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
           <span>You've answered everything from your country and around the world — now showing questions from other countries too.</span>
@@ -210,7 +209,6 @@ export default function Vote() {
           initialVoteForTarget={currentVoteParam}
         />
       </div>
-      <BottomNav />
     </div>
     </div>
   )

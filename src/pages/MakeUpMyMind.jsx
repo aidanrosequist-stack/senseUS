@@ -1,5 +1,4 @@
-import Header from '../components/layout/Header'
-import BottomNav from '../components/layout/BottomNav'
+import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -74,7 +73,7 @@ export default function MakeUpMyMind() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
         Loading...
       </div>
     )
@@ -82,7 +81,7 @@ export default function MakeUpMyMind() {
 
   if (error) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
         Something went wrong. Please go back and try again.
       </div>
     )
@@ -90,7 +89,6 @@ export default function MakeUpMyMind() {
 
   return (
     <div style={{ minHeight: '100dvh', background: '#C7C7CC', boxSizing: 'border-box', paddingBottom: '90px' }}>
-      <Header />
       <div style={{ padding: '14px', boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
         <div style={{ width: '100%', maxWidth: '480px', background: '#FFFFFF', borderRadius: '20px', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
 
@@ -187,7 +185,6 @@ export default function MakeUpMyMind() {
 
         </div>
       </div>
-      <BottomNav />
     </div>
   )
 }
