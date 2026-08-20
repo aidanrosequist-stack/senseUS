@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -11,6 +11,15 @@ const VOTE_COLORS = {
 
 const VOTE_LABELS = {
   yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no'
+}
+
+// 'Closely' groups by side of the issue (yes/leaning-yes vs no/leaning-no);
+// 'exactly' only counts agreement when both picked the identical choice.
+const SAME_SIDE = { yes: 'yes', ly: 'yes', ln: 'no', no: 'no' }
+
+function agrees(mine, theirs, mode) {
+  if (mode === 'exactly') return mine === theirs
+  return SAME_SIDE[mine] === SAME_SIDE[theirs]
 }
 
 function getDisplayName(profile) {
@@ -31,14 +40,16 @@ export default function Compare() {
   const [senderProfile, setSenderProfile] = useState(null)
   const [comparison, setComparison] = useState(null)
   const [processing, setProcessing] = useState(false)
+  const [matchMode, setMatchMode] = useState('closely')
 
   const loadComparison = useCallback(async (tr) => {
     const otherId = tr.sender_id === user.id ? tr.recipient_id : tr.sender_id
 
-    const [{ data: myVotes }, { data: theirVotes }, { data: otherProfile }] = await Promise.all([
+    const [{ data: myVotes }, { data: theirVotes }, { data: otherProfile }, { data: myProfile }] = await Promise.all([
       supabase.from('public_votes').select('question_id, choice').eq('user_id', user.id),
       supabase.from('public_votes').select('question_id, choice').eq('user_id', otherId),
       supabase.from('public_profiles').select('first_name, last_initial, display_preference, anon_name, badges').eq('id', otherId).single(),
+      supabase.from('public_profiles').select('badges').eq('id', user.id).single(),
     ])
 
     const theirByQuestion = new Map((theirVotes || []).map(v => [v.question_id, v.choice]))
@@ -47,13 +58,13 @@ export default function Compare() {
       .map(v => ({ questionId: v.question_id, mine: v.choice, theirs: theirByQuestion.get(v.question_id) }))
 
     if (shared.length === 0) {
-      setComparison({ otherProfile, shared: [], byCategory: {}, agreementPct: null })
+      setComparison({ otherProfile, myProfile, shared: [] })
       return
     }
 
     const { data: questions } = await supabase
       .from('questions')
-      .select('id, text, category')
+      .select('id, text, domain')
       .in('id', shared.map(s => s.questionId))
 
     const questionById = new Map((questions || []).map(q => [q.id, q]))
@@ -62,19 +73,35 @@ export default function Compare() {
       .map(s => ({ ...s, question: questionById.get(s.questionId) }))
       .filter(s => s.question)
 
-    const agreeCount = enriched.filter(s => s.mine === s.theirs).length
-    const agreementPct = Math.round((agreeCount / enriched.length) * 100)
+    setComparison({ otherProfile, myProfile, shared: enriched })
+  }, [user])
 
-    const byCategory = {}
-    enriched.forEach(s => {
-      const cat = s.question.category || 'other'
-      if (!byCategory[cat]) byCategory[cat] = { agree: 0, total: 0 }
-      byCategory[cat].total += 1
-      if (s.mine === s.theirs) byCategory[cat].agree += 1
+  // Recomputed client-side, not refetched — toggling match mode just
+  // re-scores the same already-loaded mine/theirs pairs, so this is
+  // instant with no loading state.
+  const { agreementPct, byDomain } = useMemo(() => {
+    const shared = comparison?.shared || []
+    if (shared.length === 0) return { agreementPct: null, byDomain: {} }
+
+    const agreeCount = shared.filter(s => agrees(s.mine, s.theirs, matchMode)).length
+    const pct = Math.round((agreeCount / shared.length) * 100)
+
+    const domains = {}
+    shared.forEach(s => {
+      const d = s.question.domain || 'other'
+      if (!domains[d]) domains[d] = { agree: 0, total: 0 }
+      domains[d].total += 1
+      if (agrees(s.mine, s.theirs, matchMode)) domains[d].agree += 1
     })
 
-    setComparison({ otherProfile, shared: enriched, byCategory, agreementPct })
-  }, [user])
+    return { agreementPct: pct, byDomain: domains }
+  }, [comparison, matchMode])
+
+  const myBadges = comparison?.myProfile?.badges || []
+  const theirBadges = comparison?.otherProfile?.badges || []
+  const sharedBadges = myBadges.filter(b => theirBadges.includes(b))
+  const onlyMyBadges = myBadges.filter(b => !theirBadges.includes(b))
+  const onlyTheirBadges = theirBadges.filter(b => !myBadges.includes(b))
 
   useEffect(() => {
     async function load() {
@@ -253,53 +280,113 @@ export default function Compare() {
                 </p>
               ) : (
                 <>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '1.25rem', background: '#F3F4F6', padding: '3px', borderRadius: '8px', maxWidth: '220px', margin: '0 auto 1.25rem' }}>
+                    {[
+                      { key: 'closely', label: 'Match closely' },
+                      { key: 'exactly', label: 'Match exactly' },
+                    ].map(m => (
+                      <button
+                        key={m.key}
+                        onClick={() => setMatchMode(m.key)}
+                        style={{
+                          flex: 1, padding: '6px 10px', background: matchMode === m.key ? '#FFFFFF' : 'transparent',
+                          color: matchMode === m.key ? '#1A1A1A' : '#6B7280', border: 'none', borderRadius: '6px',
+                          fontSize: '11px', fontWeight: matchMode === m.key ? 700 : 500, cursor: 'pointer',
+                          fontFamily: 'Merriweather, serif', boxShadow: matchMode === m.key ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                        }}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+
                   <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                     <div style={{ fontSize: '40px', fontWeight: 700, color: '#2D3DCA', fontFamily: 'Georgia, serif', lineHeight: 1 }}>
-                      {comparison.agreementPct}%
+                      {agreementPct}%
                     </div>
                     <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px' }}>
                       agreement on {comparison.shared.length} shared question{comparison.shared.length !== 1 ? 's' : ''}
                     </div>
                   </div>
 
-                {(comparison.otherProfile?.badges?.length > 0 || false) && (
+                {(sharedBadges.length > 0 || onlyMyBadges.length > 0 || onlyTheirBadges.length > 0) && (
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.5rem', textAlign: 'center' }}>
-                    Their badges
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    {comparison.otherProfile.badges.map(b => (
-                      <span key={b} title={b} style={{ fontSize: '22px' }}>{BADGE_EMOJI[b] || '🏅'}</span>
-                    ))}
-                  </div>
+                  {sharedBadges.length > 0 && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.5rem', textAlign: 'center' }}>
+                        Badges you both have
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        {sharedBadges.map(b => (
+                          <span key={b} title={b} style={{ fontSize: '22px' }}>{BADGE_EMOJI[b] || '🏅'}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(onlyMyBadges.length > 0 || onlyTheirBadges.length > 0) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', marginBottom: '0.4rem', textAlign: 'center' }}>
+                          Just you
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                          {onlyMyBadges.length > 0
+                            ? onlyMyBadges.map(b => (
+                                <span key={b} title={b} style={{ fontSize: '18px' }}>{BADGE_EMOJI[b] || '🏅'}</span>
+                              ))
+                            : <span style={{ fontSize: '11px', color: '#9CA3AF' }}>—</span>}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', marginBottom: '0.4rem', textAlign: 'center' }}>
+                          Just {getDisplayName(comparison.otherProfile)}
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                          {onlyTheirBadges.length > 0
+                            ? onlyTheirBadges.map(b => (
+                                <span key={b} title={b} style={{ fontSize: '18px' }}>{BADGE_EMOJI[b] || '🏅'}</span>
+                              ))
+                            : <span style={{ fontSize: '11px', color: '#9CA3AF' }}>—</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '1.5rem' }}>
-                    {Object.entries(comparison.byCategory).map(([cat, stats]) => (
-                      <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px 0', borderBottom: '0.5px solid #F3F4F6' }}>
-                        <span style={{ color: '#1A1A1A', textTransform: 'capitalize' }}>{cat}</span>
+                    {Object.entries(byDomain).map(([domain, stats]) => (
+                      <div key={domain} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px 0', borderBottom: '0.5px solid #F3F4F6' }}>
+                        <span style={{ color: '#1A1A1A', textTransform: 'capitalize' }}>{domain}</span>
                         <span style={{ color: '#6B7280' }}>{stats.agree}/{stats.total} agree</span>
                       </div>
                     ))}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {comparison.shared.map(s => (
-                      <div key={s.questionId} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
-                        <div style={{ fontSize: '13px', color: '#1A1A1A', marginBottom: '8px', lineHeight: 1.4 }}>
-                          {s.question.text}
+                    {comparison.shared.map(s => {
+                      const isAgree = agrees(s.mine, s.theirs, matchMode)
+                      return (
+                        <div key={s.questionId} style={{ background: '#FFFFFF', border: isAgree ? '1px solid #DAE9AF' : '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                          <div style={{ fontSize: '13px', color: '#1A1A1A', marginBottom: '8px', lineHeight: 1.4 }}>
+                            {s.question.text}
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: VOTE_COLORS[s.mine] + '20', color: VOTE_COLORS[s.mine], fontWeight: 500 }}>
+                              You: {VOTE_LABELS[s.mine]}
+                            </span>
+                            <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: VOTE_COLORS[s.theirs] + '20', color: VOTE_COLORS[s.theirs], fontWeight: 500 }}>
+                              Them: {VOTE_LABELS[s.theirs]}
+                            </span>
+                            {isAgree && (
+                              <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#4d621d', fontWeight: 700 }}>
+                                ✓ agree
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: VOTE_COLORS[s.mine] + '20', color: VOTE_COLORS[s.mine], fontWeight: 500 }}>
-                            You: {VOTE_LABELS[s.mine]}
-                          </span>
-                          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: VOTE_COLORS[s.theirs] + '20', color: VOTE_COLORS[s.theirs], fontWeight: 500 }}>
-                            Them: {VOTE_LABELS[s.theirs]}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </>
               )}
