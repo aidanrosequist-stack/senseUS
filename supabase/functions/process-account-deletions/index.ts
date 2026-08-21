@@ -2,7 +2,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from "jsr:@supabase/supabase-js@2"
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
-const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY")!
+// Was "SERVICE_ROLE_KEY" — Supabase only ever auto-injects
+// "SUPABASE_SERVICE_ROLE_KEY", so that name always resolved to undefined
+// and isAuthorized() below could never match a real caller, including the
+// legitimate cron job. Found in the 2026-08-21 security review: this
+// means accounts that requested deletion have very likely never actually
+// been deleted — deletion_requested_at gets set, but nothing ever acted
+// on it.
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 
 function isAuthorized(req: Request): boolean {
   const authHeader = req.headers.get("Authorization") || ""

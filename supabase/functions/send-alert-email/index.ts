@@ -12,7 +12,16 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY");
+// Was "SERVICE_ROLE_KEY" — Supabase only ever auto-injects
+// "SUPABASE_SERVICE_ROLE_KEY". The DB triggers in
+// 003_threshold_alert_triggers.sql send the real key as the Bearer token
+// (pulled from vault.decrypted_secrets), so this mismatch means
+// isAuthorized() below always returned false and every trigger-fired
+// alert (registration spikes, vote manipulation, coordinated signups,
+// flagged questions, transparency events) has very likely been silently
+// rejected with 401 — no alert emails actually going out. Found in the
+// 2026-08-21 security review.
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const ALERT_TO = "hello@senseus.app";
 const FROM_ADDRESS = "senseUS Alerts <hello@senseus.app>";
 

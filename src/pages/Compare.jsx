@@ -129,13 +129,13 @@ export default function Compare() {
 
   async function handleAccept() {
     setProcessing(true)
-    const { error } = await supabase
-      .from('comparison_tokens')
-      .update({ status: 'accepted', recipient_id: user.id })
-      .eq('id', tokenRow.id)
+    // Was a raw table update with no expiry check — accept_comparison_token
+    // enforces the 48h expiry (and self-accept/double-accept) server-side,
+    // since a client-side-only check can always be bypassed.
+    const { error } = await supabase.rpc('accept_comparison_token', { p_token: token })
 
     if (error) {
-      alert('This link is no longer available — it may have already been used or expired.')
+      alert(error.message || 'This link is no longer available — it may have already been used or expired.')
       setProcessing(false)
       return
     }
