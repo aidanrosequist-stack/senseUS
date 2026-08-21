@@ -113,13 +113,6 @@ useEffect(() => {
         return
       }
 
-      // Remove from waitlist if they pre-signed up — fire-and-forget,
-      // same as the welcome SMS below. This is cleanup, not a
-      // requirement for registration to succeed.
-      Promise.resolve(supabase.from('waitlist').delete().eq('phone', phone)).catch(() => {
-        // Silent fail
-      })
-
       // Send welcome SMS — fire and forget, don't block registration completion
       supabase.functions.invoke('send-welcome-sms', {
         body: { phone }

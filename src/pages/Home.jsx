@@ -1,47 +1,7 @@
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { Link } from 'react-router-dom'
-import { useState, useRef } from 'react'
-import { supabase } from '../lib/supabase'
-import TurnstileWidget from '../components/ui/TurnstileWidget'
-
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
 
 export default function Home() {
-  const [phone, setPhone] = useState('')
-  const [firstName, setFirstName] = useState('')
-  const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [turnstileToken, setTurnstileToken] = useState(null)
-  const turnstileRef = useRef(null)
-
-  async function handleSubmit() {
-    if (!phone) return
-    if (TURNSTILE_SITE_KEY && !turnstileToken) {
-      setError('Please complete the verification check above.')
-      return
-    }
-    setLoading(true)
-    setError(null)
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke('join-waitlist', {
-        body: { phone, first_name: firstName, turnstileToken },
-      })
-      if (fnError || data?.error) {
-        const message = data?.error || 'Something went wrong. Please try again.'
-        setError(message)
-        turnstileRef.current?.reset()
-        setTurnstileToken(null)
-      } else {
-        setSubmitted(true)
-      }
-    } catch {
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div
       style={{
@@ -117,99 +77,26 @@ export default function Home() {
           </div>
         </div>
 
-        <div
+        <Link
+          to="/register"
           style={{
             width: '100%',
-            background: '#FFFFFF',
-            border: '0.5px solid #E5E7EB',
-            borderRadius: '16px',
-            padding: '1.25rem',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            display: 'block',
+            boxSizing: 'border-box',
+            textAlign: 'center',
+            padding: '13px',
+            background: '#2D3DCA',
+            color: 'white',
+            borderRadius: '8px',
+            fontSize: '15px',
+            fontWeight: 600,
+            textDecoration: 'none',
             marginBottom: '1.5rem',
+            fontFamily: "'Merriweather', serif",
           }}
         >
-          <p style={{ fontSize: '13px', fontWeight: 500, color: '#1A1A1A', margin: '0 0 12px' }}>
-            Get early access
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <input
-              type="text"
-              placeholder="First name"
-              aria-label="First name"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              disabled={submitted}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid #D1D5DB',
-                borderRadius: '8px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                opacity: submitted ? 0.5 : 1,
-              }}
-            />
-            <input
-              type="tel"
-              placeholder="+1 (555) 000-0000"
-              aria-label="Phone number"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              disabled={submitted}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid #D1D5DB',
-                borderRadius: '8px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                opacity: submitted ? 0.5 : 1,
-              }}
-            />
-            {TURNSTILE_SITE_KEY && (
-              <TurnstileWidget
-                ref={turnstileRef}
-                siteKey={TURNSTILE_SITE_KEY}
-                onVerify={setTurnstileToken}
-                onExpire={() => setTurnstileToken(null)}
-                onError={() => setTurnstileToken(null)}
-              />
-            )}
-            <button
-              onClick={handleSubmit}
-              disabled={loading || submitted || !phone || !firstName || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
-              style={{
-                width: '100%',
-                padding: '11px',
-                background: submitted ? '#52B788' : '#2D3DCA',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: submitted ? 'default' : 'pointer',
-                transition: 'background 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                fontFamily: "'Merriweather', serif",
-              }}
-            >
-              {submitted ? '✓ you\'re on the list!' : loading ? 'Adding you...' : 'Notify me at launch'}
-            </button>
-          </div>
-
-          {error && (
-            <p style={{ fontSize: '12px', color: '#7a1313', margin: '8px 0 0', textAlign: 'left' }}>
-              {error}
-            </p>
-          )}
-
-          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '10px 0 0', lineHeight: 1.5 }}>
-            One SMS when we launch. No spam. No marketing. Ever.
-          </p>
-        </div>
+          Get started — verify with your phone
+        </Link>
 
         <div
           style={{

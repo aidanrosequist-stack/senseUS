@@ -59,8 +59,3 @@ entrypoint = "./functions/process-pending-exports/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/check-line-type/index.ts"
-
-[functions.join-waitlist]
-enabled = true
-verify_jwt = false
-entrypoint = "./functions/join-waitlist/index.ts"
