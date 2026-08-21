@@ -45,33 +45,24 @@ export default function Compare() {
   const loadComparison = useCallback(async (tr) => {
     const otherId = tr.sender_id === user.id ? tr.recipient_id : tr.sender_id
 
-    const [{ data: myVotes }, { data: theirVotes }, { data: otherProfile }, { data: myProfile }] = await Promise.all([
-      supabase.from('public_votes').select('question_id, choice').eq('user_id', user.id),
-      supabase.from('public_votes').select('question_id, choice').eq('user_id', otherId),
+    // Used to fetch both accounts' entire vote histories (unbounded) and
+    // intersect them in JS, then fetch every shared question. For two
+    // long-time users that's an ever-growing full-history download on
+    // both sides. get_comparison computes the intersection server-side
+    // via a self-join on votes, so only the shared rows ever cross the
+    // wire.
+    const [{ data: sharedRows }, { data: otherProfile }, { data: myProfile }] = await Promise.all([
+      supabase.rpc('get_comparison', { p_other_id: otherId }),
       supabase.from('public_profiles').select('first_name, last_initial, display_preference, anon_name, badges').eq('id', otherId).single(),
       supabase.from('public_profiles').select('badges').eq('id', user.id).single(),
     ])
 
-    const theirByQuestion = new Map((theirVotes || []).map(v => [v.question_id, v.choice]))
-    const shared = (myVotes || [])
-      .filter(v => theirByQuestion.has(v.question_id) && v.choice !== 'dec' && theirByQuestion.get(v.question_id) !== 'dec')
-      .map(v => ({ questionId: v.question_id, mine: v.choice, theirs: theirByQuestion.get(v.question_id) }))
-
-    if (shared.length === 0) {
-      setComparison({ otherProfile, myProfile, shared: [] })
-      return
-    }
-
-    const { data: questions } = await supabase
-      .from('questions')
-      .select('id, text, domain')
-      .in('id', shared.map(s => s.questionId))
-
-    const questionById = new Map((questions || []).map(q => [q.id, q]))
-
-    const enriched = shared
-      .map(s => ({ ...s, question: questionById.get(s.questionId) }))
-      .filter(s => s.question)
+    const enriched = (sharedRows || []).map(r => ({
+      questionId: r.question_id,
+      mine: r.mine,
+      theirs: r.theirs,
+      question: { id: r.question_id, text: r.question_text, domain: r.domain },
+    }))
 
     setComparison({ otherProfile, myProfile, shared: enriched })
   }, [user])

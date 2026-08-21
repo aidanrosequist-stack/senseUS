@@ -149,47 +149,32 @@ serve(async (req: Request) => {
       .select("*", { count: "exact", head: true })
       .gte("created_at", since);
 
-    // Total votes cast
-    const { count: totalVotes, data: votesData } = await supabase
+    // Total votes cast (24h)
+    const { count: totalVotes } = await supabase
       .from("votes")
-      .select("question_id", { count: "exact" })
+      .select("*", { count: "exact", head: true })
       .gte("created_at", since);
 
-    // Most voted question of the day
-    let topQuestion: { text: string; votes: number } | null = null;
-    if (votesData && votesData.length > 0) {
-      const counts: Record<string, number> = {};
-      for (const v of votesData) {
-        counts[v.question_id] = (counts[v.question_id] || 0) + 1;
-      }
-      const topId = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-      if (topId) {
-        const { data: q } = await supabase
-          .from("questions")
-          .select("text")
-          .eq("id", topId[0])
-          .single();
-        if (q) topQuestion = { text: q.text, votes: topId[1] };
-      }
-    }
+    // Most voted question of the day, and most popular domain. These used
+    // to each pull every vote (or, for the domain breakdown, every vote
+    // joined to its question) cast in the last 24h into function memory to
+    // group in JS — completely unwindowed on the domain query — plus an
+    // extra round trip to fetch the top question's text. Both now
+    // aggregate server-side via RPC (see migration 022), which also backs
+    // the weekly report's all-time versions of the same two queries
+    // (p_since is optional — null there, this 24h window here).
+    const { data: topQuestionRows } = await supabase.rpc("get_report_top_questions", {
+      p_limit: 1,
+      p_since: since,
+    });
+    const topQuestion: { text: string; votes: number } | null = topQuestionRows?.[0]
+      ? { text: topQuestionRows[0].text, votes: Number(topQuestionRows[0].votes) }
+      : null;
 
-    // Most popular domain (there's no separate categories table —
-    // questions.domain is a plain text field, e.g. "ethics & philosophy")
-    let topCategory: { name: string; votes: number } | null = null;
-    const { data: categoryVotes } = await supabase
-      .from("votes")
-      .select("questions(domain)")
-      .gte("created_at", since);
-
-    if (categoryVotes && categoryVotes.length > 0) {
-      const catCounts: Record<string, number> = {};
-      for (const row of categoryVotes as any[]) {
-        const domain = row.questions?.domain;
-        if (domain) catCounts[domain] = (catCounts[domain] || 0) + 1;
-      }
-      const topCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0];
-      if (topCat) topCategory = { name: topCat[0], votes: topCat[1] };
-    }
+    const { data: domainRows } = await supabase.rpc("get_report_domain_breakdown", { p_since: since });
+    const topCategory: { name: string; votes: number } | null = domainRows?.[0]
+      ? { name: domainRows[0].domain, votes: Number(domainRows[0].votes) }
+      : null;
 
     // Active streaks
     const { count: activeStreaks } = await supabase
@@ -201,12 +186,12 @@ serve(async (req: Request) => {
     // on profiles, not a separate table with awarded_at), so this counts
     // total current badge holders rather than "awarded in last 24h."
     // If per-award tracking is added later (e.g. a badge_events table),
-    // swap this out for a proper 24h count.
-    const { data: badgeProfiles } = await supabase
-      .from("profiles")
-      .select("badges")
-      .not("badges", "is", null);
-    const badgesAwarded = (badgeProfiles || []).filter((p: any) => p.badges && p.badges.length > 0).length;
+    // swap this out for a proper 24h count. Used to fetch every profile's
+    // full badges array (unbounded — not time-windowed at all, since this
+    // is a total, not a delta) just to filter/count in JS; now a single
+    // server-side count.
+    const { data: badgesAwardedCount } = await supabase.rpc("get_report_badge_holder_count");
+    const badgesAwarded = Number(badgesAwardedCount) || 0;
 
     // SMS delivery rate via Twilio
     const sms = await getSmsSuccessRate(since);

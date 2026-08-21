@@ -22,6 +22,17 @@ export default function CardActionSheet({ title, actions, onClose }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
+          // The scrim itself is meant to dim the full browser window —
+          // that's normal modal behavior even inside a centered-column
+          // layout. But this panel's own width: 100% was measured
+          // against that same full-viewport fixed parent, so on desktop
+          // it stretched edge-to-edge instead of matching the app's
+          // 480px column like every other surface. Capping it here
+          // (same width/centering #root already applies at ≥768px)
+          // keeps the sheet itself confined to the app card without
+          // changing the scrim's fixed, scroll-independent positioning.
+          maxWidth: '480px',
+          margin: '0 auto',
           background: '#FFFFFF',
           borderRadius: '16px 16px 0 0',
           padding: '1.5rem',

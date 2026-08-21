@@ -23,6 +23,13 @@ export default function Vote() {
   useEffect(() => {
     if (!targetQuestionId || !user) return
 
+    // A deep link like /vote?question=<id> (shares, "change your vote",
+    // notifications) used to always fetch that question separately, even
+    // when it's already sitting in the batch useQuestions just loaded —
+    // the common case for a freshly shared, still-unanswered question.
+    // Skip the extra round trip when it's already there.
+    if (questions.some(q => q.id === targetQuestionId)) return
+
     async function fetchTargetQuestion() {
       const { data } = await supabase
         .from('questions')
@@ -54,7 +61,7 @@ export default function Vote() {
     }
 
     fetchTargetQuestion()
-  }, [targetQuestionId, user])
+  }, [targetQuestionId, user, questions])
 
   async function handleVote(questionId, choice) {
     if (!user) return null
@@ -64,37 +71,23 @@ export default function Vote() {
     // table overwrites both server-side on every insert/update, so the
     // client can no longer influence a vote's weight or recorded tally
     // snapshot. See migration 007_secure_vote_fields.sql.
-
-    const { data: existingVote } = await supabase
-      .from('votes')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('question_id', questionId)
+    //
+    // This used to be up to four sequential round trips: a SELECT to
+    // check for an existing vote (just to know whether to increment
+    // answers_count), the upsert itself, a conditional increment RPC,
+    // then a separate tally refetch. Casting a vote is the single
+    // most-repeated action in the app, so that's now one round trip via
+    // cast_vote, which does all four steps server-side in one
+    // transaction and returns the fresh tally directly. See migration
+    // 017_cast_vote_rpc.sql.
+    const { data: freshTally, error: voteError } = await supabase
+      .rpc('cast_vote', { p_question_id: questionId, p_choice: choice })
       .single()
-
-    const isNewVote = !existingVote
-
-    const { error: voteError } = await supabase
-      .from('votes')
-      .upsert({
-        user_id: user.id,
-        question_id: questionId,
-        choice,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,question_id' })
 
     if (voteError) {
       console.error('Vote error:', voteError)
       throw new Error('Your vote could not be saved. Please check your connection and try again.')
     }
-
-    if (isNewVote) {
-      await supabase.rpc('increment_answers_count', { user_id: user.id })
-    }
-
-    const { data: freshTally } = await supabase
-      .rpc('get_vote_tally', { p_question_id: questionId })
-      .single()
 
     return freshTally
       ? { yes: freshTally.yes, ly: freshTally.ly, ln: freshTally.ln, no: freshTally.no }

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useNotifications } from '../hooks/useNotifications'
+import { useNotificationsContext } from '../context/NotificationsContext'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 
 const TYPE_ICONS = {
@@ -24,7 +24,14 @@ function timeAgo(dateString) {
 
 export default function Notifications() {
   const navigate = useNavigate()
-  const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotifications()
+  // Reads the single shared notification state App.jsx already fetched
+  // and subscribed to, instead of calling the hook again — calling it
+  // again here used to re-fetch the same 50 rows and open a second,
+  // duplicate realtime channel every time this page was visited, and
+  // its markAsRead/markAllAsRead mutated a private copy of the state
+  // that BottomNav's unread badge never saw, so the badge could go
+  // stale after reading notifications from this page.
+  const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotificationsContext()
 
   function handleNotificationClick(notification) {
     if (!notification.read) markAsRead(notification.id)

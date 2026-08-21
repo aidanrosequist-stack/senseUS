@@ -156,43 +156,36 @@ serve(async (req: Request) => {
       .select("*", { count: "exact", head: true })
       .eq("is_deleted", false);
 
-    // Top 5 questions by engagement (all-time vote count)
-    const { data: allVotes } = await supabase.from("votes").select("question_id");
-    const topQuestions: { text: string; votes: number }[] = [];
-    if (allVotes && allVotes.length > 0) {
-      const counts: Record<string, number> = {};
-      for (const v of allVotes) counts[v.question_id] = (counts[v.question_id] || 0) + 1;
-      const top5 = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-      for (const [qId, voteCount] of top5) {
-        const { data: q } = await supabase.from("questions").select("text").eq("id", qId).single();
-        if (q) topQuestions.push({ text: q.text, votes: voteCount });
-      }
-    }
+    // These three used to each pull an entire (or, for the domain
+    // breakdown, completely unwindowed joined) table into function memory
+    // to aggregate in JS — two separate full scans of `votes` for two
+    // different aggregations that could come from one GROUP BY each, plus
+    // an N+1 (one extra round trip per top-question to fetch its text).
+    // Same 1000-row PostgREST default applies to plain .select() calls —
+    // once votes/profiles exceed that, this was starting to silently
+    // under-report with no error. All three now aggregate server-side via
+    // RPC (see migration 022), returning only the small already-aggregated
+    // result this report actually needs.
+    const { data: topQuestionRows } = await supabase.rpc("get_report_top_questions", { p_limit: 5 });
+    const topQuestions: { text: string; votes: number }[] = (topQuestionRows || []).map((r: any) => ({
+      text: r.text,
+      votes: Number(r.votes),
+    }));
 
-    // Domain breakdown (questions.domain is a plain text field —
-    // no separate categories table)
-    const categoryBreakdown: { name: string; votes: number }[] = [];
-    const { data: categoryVotes } = await supabase.from("votes").select("questions(domain)");
-    if (categoryVotes) {
-      const catCounts: Record<string, number> = {};
-      for (const row of categoryVotes as any[]) {
-        const domain = row.questions?.domain;
-        if (domain) catCounts[domain] = (catCounts[domain] || 0) + 1;
-      }
-      for (const [name, votes] of Object.entries(catCounts)) categoryBreakdown.push({ name, votes });
-      categoryBreakdown.sort((a, b) => b.votes - a.votes);
-    }
+    const { data: domainRows } = await supabase.rpc("get_report_domain_breakdown");
+    const categoryBreakdown: { name: string; votes: number }[] = (domainRows || []).map((r: any) => ({
+      name: r.domain,
+      votes: Number(r.votes),
+    }));
 
-    // Integrity weight distribution (bucketed, since range is 1.0000-1.0050)
-    const { data: weights } = await supabase.from("profiles").select("integrity_weight");
+    // Integrity weight distribution (bucketed, since range is 1.0000-1.0050).
+    // The RPC only returns buckets that actually have at least one user in
+    // them, so merge onto the fixed 3-bucket template to keep all three
+    // present (at 0) the way the report has always shown them.
+    const { data: bucketRows } = await supabase.rpc("get_report_integrity_distribution");
     const buckets = { "1.0000": 0, "1.0001–1.0020": 0, "1.0021–1.0050": 0 };
-    if (weights) {
-      for (const w of weights as any[]) {
-        const val = w.integrity_weight;
-        if (val === 1.0) buckets["1.0000"]++;
-        else if (val <= 1.002) buckets["1.0001–1.0020"]++;
-        else buckets["1.0021–1.0050"]++;
-      }
+    for (const row of (bucketRows || []) as any[]) {
+      if (row.bucket in buckets) buckets[row.bucket as keyof typeof buckets] = Number(row.count);
     }
     const integrityDistribution = Object.entries(buckets).map(([bucket, count]) => ({ bucket, count }));
 

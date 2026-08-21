@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import VoteCard from './VoteCard'
 import ResultsCard from './ResultsCard'
@@ -88,13 +88,17 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
     }
   }
 
-  function advance() {
+  // Memoized so ResultsCard (which re-binds its touch-swipe listener
+  // whenever its onNext prop changes identity) doesn't tear down and
+  // re-add that native listener on every QuestionFlow re-render while
+  // results are showing — only when questions.length actually changes.
+  const advance = useCallback(() => {
     setExtraQuestion(null)
     setUserVote(null)
     setVoteError(null)
     setView('voting')
     setCurrentIndex((prev) => Math.min(prev + 1, questions.length))
-  }
+  }, [questions.length])
 
   function handleJoinConversation() {
     navigate(`/conversation/${currentQuestion.id}`)

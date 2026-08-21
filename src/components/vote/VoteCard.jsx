@@ -100,6 +100,22 @@ function ProgressRing({ progress }) {
 export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, voteError = null, onDismissError }) {
   const [zone, setZone] = useState(initialZone)
 
+  // The native touchmove listener below is bound in an effect with an
+  // empty dependency array (it only needs to attach once), so the
+  // onTouchMove closure it creates permanently sees whatever
+  // handleMove/startHold looked like at mount — including the
+  // mount-time value of the `submitting` prop. Without this ref,
+  // startHold's submitting guard would never see `submitting` become
+  // true once a vote is actually in flight, so a touch-drag gesture
+  // could restart the hold-to-vote timer mid-save and call onVote a
+  // second time. Reading through a ref instead of the closed-over prop
+  // means the guard always sees the current value, regardless of when
+  // the effect that created the listener last ran.
+  const submittingRef = useRef(submitting)
+  useEffect(() => {
+    submittingRef.current = submitting
+  }, [submitting])
+
 useEffect(() => {
     return () => {
       clearInterval(holdInterval.current)
@@ -122,7 +138,7 @@ useEffect(() => {
   const [holdZone, setHoldZone] = useState(null)
   const holdInterval = useRef(null)
   function startHold(currentZone) {
-    if (!currentZone || submitting) return
+    if (!currentZone || submittingRef.current) return
     setHoldZone(currentZone)
     setHoldProgress(0)
 

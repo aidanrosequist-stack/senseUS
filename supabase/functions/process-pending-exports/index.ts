@@ -32,6 +32,26 @@ function isAuthorized(req: Request): boolean {
   return token === SUPABASE_SERVICE_ROLE_KEY
 }
 
+// Runs `fn` over `items` with at most `limit` in flight at once. This
+// batch is already capped at 20 (below), but was still processed one
+// export at a time — each one several sequential round trips (profile
+// lookup, build, storage upload, signed URL, DB update, email send) — so
+// total runtime scaled with batch size. Bounded concurrency instead of a
+// higher cap keeps each individual export's work the same size while
+// letting several independent exports' round trips overlap.
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let next = 0
+  async function worker() {
+    while (next < items.length) {
+      const i = next++
+      results[i] = await fn(items[i])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
 function escapeHtml(value: unknown): string {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -130,9 +150,12 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
   }
 
+  // recovery_email is now embedded via the FK join instead of a separate
+  // per-export lookup below — that was a joinable N+1 (one extra round
+  // trip per export in this already-capped batch of 20).
   const { data: pending, error: pendingError } = await adminClient
     .from("exports")
-    .select("id, user_id")
+    .select("id, user_id, profiles(recovery_email)")
     .eq("status", "pending")
     .limit(20)
 
@@ -141,19 +164,13 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: pendingError.message }), { status: 500 })
   }
 
-  const results = []
-
-  for (const exportRow of pending || []) {
+  const results = await mapWithConcurrency(pending || [], 5, async (exportRow: any) => {
     try {
       await adminClient.from("exports").update({ status: "processing" }).eq("id", exportRow.id)
 
-      const { data: profile } = await adminClient
-        .from("profiles")
-        .select("recovery_email")
-        .eq("id", exportRow.user_id)
-        .single()
+      const recoveryEmail = exportRow.profiles?.recovery_email
 
-      if (!profile?.recovery_email) {
+      if (!recoveryEmail) {
         // Shouldn't happen — require_recovery_email_for_export_trigger
         // blocks the insert without one — but fail safe rather than
         // send nowhere.
@@ -161,8 +178,7 @@ Deno.serve(async (req) => {
           .from("exports")
           .update({ status: "failed", error_message: "No recovery email on file." })
           .eq("id", exportRow.id)
-        results.push({ id: exportRow.id, status: "failed" })
-        continue
+        return { id: exportRow.id, status: "failed" }
       }
 
       const exportData = await buildExportData(exportRow.user_id)
@@ -199,18 +215,18 @@ Deno.serve(async (req) => {
         })
         .eq("id", exportRow.id)
 
-      await sendExportEmail(profile.recovery_email, signedUrlData.signedUrl)
+      await sendExportEmail(recoveryEmail, signedUrlData.signedUrl)
 
-      results.push({ id: exportRow.id, status: "completed" })
+      return { id: exportRow.id, status: "completed" }
     } catch (err) {
       console.error(`Export ${exportRow.id} failed:`, err)
       await adminClient
         .from("exports")
         .update({ status: "failed", error_message: String(err) })
         .eq("id", exportRow.id)
-      results.push({ id: exportRow.id, status: "failed" })
+      return { id: exportRow.id, status: "failed" }
     }
-  }
+  })
 
   return new Response(JSON.stringify({ processed: results.length, results }), {
     status: 200,

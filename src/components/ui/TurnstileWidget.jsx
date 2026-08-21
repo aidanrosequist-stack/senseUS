@@ -46,27 +46,39 @@ const TurnstileWidget = forwardRef(function TurnstileWidget(
       }
     }
 
+    // Three branches load the widget differently (script already ready,
+    // script tag already loading, script not yet requested), but every
+    // branch needs the same teardown: remove any widget this effect
+    // actually registered, and stop listening for a load event we might
+    // not get to handle before unmount. Previously only two of the three
+    // branches returned a cleanup at all, so the `if (window.turnstile)`
+    // branch — which is what runs on every remount after the very first
+    // one anywhere in the app's lifetime — leaked a widget registration
+    // each time (Login/Register visited more than once per session).
+    let existingScript = null
+
     if (window.turnstile) {
       renderWidget()
-      return
+    } else {
+      existingScript = document.querySelector(
+        'script[src*="challenges.cloudflare.com/turnstile"]'
+      )
+      if (existingScript) {
+        existingScript.addEventListener('load', renderWidget)
+      } else {
+        const script = document.createElement('script')
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+        script.async = true
+        script.defer = true
+        script.onload = renderWidget
+        document.head.appendChild(script)
+      }
     }
-
-    const existingScript = document.querySelector(
-      'script[src*="challenges.cloudflare.com/turnstile"]'
-    )
-    if (existingScript) {
-      existingScript.addEventListener('load', renderWidget)
-      return () => existingScript.removeEventListener('load', renderWidget)
-    }
-
-    const script = document.createElement('script')
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
-    script.async = true
-    script.defer = true
-    script.onload = renderWidget
-    document.head.appendChild(script)
 
     return () => {
+      if (existingScript) {
+        existingScript.removeEventListener('load', renderWidget)
+      }
       if (widgetIdRef.current !== null && window.turnstile) {
         window.turnstile.remove(widgetIdRef.current)
         widgetIdRef.current = null

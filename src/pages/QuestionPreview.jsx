@@ -35,6 +35,16 @@ export default function QuestionPreview() {
 
    /* eslint-disable react-hooks/set-state-in-effect -- async question/tally fetch */
   useEffect(() => {
+    // Nothing previously guarded against out-of-order responses. Rapid
+    // navigation (a held arrow key before the goTo fix above, or just
+    // fast swiping/network jitter — this page is the target of shared
+    // links, so traffic bursts are the expected case) could let an
+    // earlier question's fetch resolve after a later one, silently
+    // showing mismatched question text/tallies. `ignore` is flipped in
+    // the cleanup below whenever a newer effect run supersedes this one,
+    // and every setState is skipped once that happens.
+    let ignore = false
+
     async function fetchData() {
       setLoading(true)
       try {
@@ -47,6 +57,7 @@ export default function QuestionPreview() {
           .eq('human_moderation_required', false)
           .single()
 
+        if (ignore) return
         if (!q) { setLoading(false); return }
         setQuestion(q)
 
@@ -54,6 +65,7 @@ export default function QuestionPreview() {
           .rpc('get_vote_tally', { p_question_id: q.id })
           .single()
 
+        if (ignore) return
         setTally(tallyRow
           ? { yes: tallyRow.yes, ly: tallyRow.ly, ln: tallyRow.ln, no: tallyRow.no }
           : { yes: 0, ly: 0, ln: 0, no: 0 }
@@ -66,8 +78,10 @@ export default function QuestionPreview() {
             .eq('user_id', user.id)
             .eq('question_id', q.id)
             .maybeSingle()
+          if (ignore) return
           setHasVoted(!!voteRow)
         } else {
+          if (ignore) return
           setHasVoted(false)
         }
 
@@ -79,15 +93,20 @@ export default function QuestionPreview() {
             .order('question_number', { ascending: false })
             .limit(1)
             .single()
+          if (ignore) return
           if (maxQ) setMaxNumber(maxQ.question_number)
         }
       } catch (err) {
         console.error(err)
       } finally {
-        setLoading(false)
+        if (!ignore) setLoading(false)
       }
     }
     fetchData()
+
+    return () => {
+      ignore = true
+    }
   }, [currentNum, user])
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -95,6 +114,16 @@ export default function QuestionPreview() {
   const canGoNext = (!maxNumber || currentNum < maxNumber) && currentNum < maxAllowed
 
   const goTo = useCallback((direction) => {
+    // The wheel handler below debounces itself with a 600ms timeout, but
+    // nothing previously stopped goTo itself from being called again
+    // while a transition was already in flight — and keydown auto-repeats
+    // continuously while a key is held. A held or rapidly-tapped arrow
+    // key could queue several unconditional advances within one 280ms
+    // transition window, each re-triggering fetchData's question/tally/
+    // vote-check round trip, on a page whose whole purpose is receiving
+    // shared-link traffic bursts. Bailing out while `sliding` is already
+    // set closes that off, the same way the wheel handler debounces.
+    if (sliding) return
     if (direction === 'next' && !canGoNext) return
     if (direction === 'prev' && !canGoPrev) return
     setSliding(direction === 'next' ? 'up' : 'down')
@@ -102,7 +131,7 @@ export default function QuestionPreview() {
       setSliding(null)
       setCurrentNum(prev => direction === 'next' ? prev + 1 : prev - 1)
     }, 280)
-  }, [canGoNext, canGoPrev])
+  }, [canGoNext, canGoPrev, sliding])
 
   useEffect(() => {
     function handleKey(e) {

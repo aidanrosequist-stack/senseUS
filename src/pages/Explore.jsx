@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -161,14 +161,24 @@ export default function Explore() {
     }
     async function fetchData() {
       try {
-        // Fetch all published questions with vote counts
+        // Fetch published questions with vote counts. The domain-row browsing
+        // UX (below) needs its working set loaded client-side to bucket into
+        // rows, so this can't be paginated the normal way without redesigning
+        // that UX — but it was previously fetched with no limit at all, which
+        // means it grows without bound as the catalog grows. Capping at the
+        // 500 most recent published questions keeps the browse experience
+        // working exactly as before for the foreseeable future while putting
+        // a ceiling on the payload; text search (which does need to reach
+        // further back than 500) now runs server-side via search_questions
+        // instead of scanning this array, so it isn't limited by this cap.
         const [{ data: questionsData }, { data: profileData }] = await Promise.all([
           supabase
             .from('questions')
             .select('id, text, category, domain, geo_scope, country_code, is_current_event, is_sponsored, archived_at, question_number')
             .not('published_at', 'is', null)
             .lte('published_at', new Date().toISOString())
-            .order('created_at', { ascending: false }),
+            .order('created_at', { ascending: false })
+            .limit(500),
           supabase
             .from('profiles')
             .select('country_code')
@@ -233,57 +243,76 @@ export default function Explore() {
     return q.country_code !== userCountry
   }
 
-  const getQuestionsForDomain = (domain) => {
-    return questions.filter(q => {
-      if (q.domain !== domain) return false
-      if (isCountrySpecific(q)) return false
-      if (q.is_current_event) return false
-      if (q.is_sponsored) return false
-      if (unansweredOnly && userVotes[q.id]) return false
-      return true
-    })
-  }
+  // Previously six separate functions (getQuestionsForDomain × 10 calls,
+  // getMyCountryQuestions, getOtherCountryQuestions, getCurrentEventQuestions,
+  // getSponsoredQuestions), each its own unmemoized full scan of `questions`,
+  // called fresh on every render — including renders triggered by state that
+  // has nothing to do with bucketing (e.g. showLongPressHint). One memoized
+  // pass here builds every bucket in a single walk over the array, and only
+  // recomputes when the inputs that actually affect bucketing change.
+  const buckets = useMemo(() => {
+    const byDomain = {}
+    DOMAINS.forEach(d => { byDomain[d] = [] })
+    const myCountry = []
+    const otherCountry = []
+    const currentEvents = []
+    const sponsored = []
 
-  const getMyCountryQuestions = () => {
-    return questions.filter(q => {
-      if (!isForMyCountry(q)) return false
-      if (unansweredOnly && userVotes[q.id]) return false
-      return true
-    })
-  }
+    for (const q of questions) {
+      if (unansweredOnly && userVotes[q.id]) continue
 
-  const getOtherCountryQuestions = () => {
-    return questions.filter(q => {
-      if (!isForOtherCountry(q)) return false
-      if (unansweredOnly && userVotes[q.id]) return false
-      return true
-    })
-  }
+      if (q.is_sponsored) {
+        if (!q.archived_at) sponsored.push(q)
+        continue
+      }
+      if (q.is_current_event) {
+        if (!q.archived_at) currentEvents.push(q)
+        continue
+      }
+      if (isCountrySpecific(q)) {
+        if (isForMyCountry(q)) myCountry.push(q)
+        else if (isForOtherCountry(q)) otherCountry.push(q)
+        continue
+      }
+      if (byDomain[q.domain]) byDomain[q.domain].push(q)
+    }
 
-  const getCurrentEventQuestions = () => {
-  return questions.filter(q => {
-    if (!q.is_current_event) return false
-    if (q.archived_at) return false
-    if (unansweredOnly && userVotes[q.id]) return false
-    return true
-  })
-}
+    return { byDomain, myCountry, otherCountry, currentEvents, sponsored }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions, unansweredOnly, userVotes, userCountry])
 
-const getSponsoredQuestions = () => {
-    return questions.filter(q => {
-      if (!q.is_sponsored) return false
-      if (q.archived_at) return false
-      if (unansweredOnly && userVotes[q.id]) return false
-      return true
-    })
-  }
+  // Search used to be a client-side .filter() over `questions` on every
+  // keystroke — fine while that array was unbounded, but now that the
+  // catalog fetch above is capped at the 500 most recent questions (see
+  // comment there), an older question wouldn't be searchable at all if
+  // search stayed client-side. It now runs server-side via the
+  // search_questions RPC instead, debounced so it fires once typing pauses
+  // rather than once per keystroke.
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
 
-  const searchResults = questions.filter(q => {
-    if (!searchQuery.trim()) return false
-    if (q.archived_at) return false
-    if (unansweredOnly && userVotes[q.id]) return false
-    return q.text.toLowerCase().includes(searchQuery.trim().toLowerCase())
-  })
+  useEffect(() => {
+    const trimmed = searchQuery.trim()
+    if (!trimmed) {
+      setSearchResults([])
+      setSearching(false)
+      return
+    }
+
+    let ignore = false
+    setSearching(true)
+    const timer = setTimeout(async () => {
+      const { data } = await supabase.rpc('search_questions', { p_query: trimmed })
+      if (ignore) return
+      setSearchResults((data || []).filter(q => !(unansweredOnly && userVotes[q.id])))
+      setSearching(false)
+    }, 300)
+
+    return () => {
+      ignore = true
+      clearTimeout(timer)
+    }
+  }, [searchQuery, unansweredOnly, userVotes])
 
   if (loading) {
     return (
@@ -378,7 +407,11 @@ const getSponsoredQuestions = () => {
       {/* Domain rows */}
       {searchQuery.trim() ? (
         <div style={{ padding: '0 1.25rem' }}>
-          {searchResults.length === 0 ? (
+          {searching ? (
+            <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '14px' }}>
+              Searching...
+            </div>
+          ) : searchResults.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '14px' }}>
               No questions match "{searchQuery}"
             </div>
@@ -397,7 +430,7 @@ const getSponsoredQuestions = () => {
       ) : (
       <>
       {(() => {
-        const sponsoredQuestions = getSponsoredQuestions()
+        const sponsoredQuestions = buckets.sponsored
         if (sponsoredQuestions.length === 0) return null
         return (
           <div style={{ marginBottom: '1.75rem' }}>
@@ -445,7 +478,7 @@ const getSponsoredQuestions = () => {
         )
       })()}
       {(() => {
-        const currentEventQuestions = getCurrentEventQuestions()
+        const currentEventQuestions = buckets.currentEvents
         if (currentEventQuestions.length === 0) return null
         return (
           <div style={{ marginBottom: '1.75rem' }}>
@@ -494,7 +527,7 @@ const getSponsoredQuestions = () => {
       })()}
       {/* Domain rows */}
       {DOMAINS.map(domain => {
-        const domainQuestions = getQuestionsForDomain(domain)
+        const domainQuestions = buckets.byDomain[domain] || []
         if (domainQuestions.length === 0) return null
         return (
           <div key={domain} style={{ marginBottom: '1.75rem' }}>
@@ -543,7 +576,7 @@ const getSponsoredQuestions = () => {
       })}
 
 {(() => {
-        const myCountryQuestions = getMyCountryQuestions()
+        const myCountryQuestions = buckets.myCountry
         if (myCountryQuestions.length === 0) return null
         return (
           <div style={{ marginBottom: '1.75rem' }}>
@@ -597,7 +630,7 @@ const getSponsoredQuestions = () => {
       })()}
 
       {(() => {
-        const otherCountryQuestions = getOtherCountryQuestions()
+        const otherCountryQuestions = buckets.otherCountry
         if (otherCountryQuestions.length === 0) return null
         return (
           <div style={{ marginBottom: '1.75rem' }}>

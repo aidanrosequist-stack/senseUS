@@ -33,24 +33,34 @@ export default function Transparency() {
     questionCount: null,
     voteCount: null,
     commentCount: null,
+    updatedAt: null,
     events: [],
   })
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [users, questions, votes, comments, events] = await Promise.all([
-          supabase.from('profiles').select('*', { count: 'exact', head: true }),
-          supabase.from('questions').select('*', { count: 'exact', head: true }).not('published_at', 'is', null),
-          supabase.from('votes').select('*', { count: 'exact', head: true }),
-          supabase.from('comments').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
-          supabase.from('transparency_events').select('*').eq('is_public', true).order('occurred_at', { ascending: false }),
+        // The four counts used to be `count: 'exact', head: true` queries
+        // against profiles/questions/votes/comments — each a full scan
+        // under the hood — recomputed synchronously on every visit to
+        // this public, unauthenticated page. votes in particular is the
+        // largest, fastest-growing table in the app, so this got linearly
+        // slower as it grew, on a page with no rate limiting. It's now a
+        // single read of a small cache table refreshed once a day by
+        // refresh_transparency_stats() via pg_cron (see migration 024) —
+        // exact-to-the-minute freshness isn't needed for a public "about
+        // the numbers" page. transparency_events also picked up a limit;
+        // it was previously fetched with no bound at all.
+        const [statsRow, events] = await Promise.all([
+          supabase.from('transparency_stats_cache').select('user_count, question_count, vote_count, comment_count, updated_at').maybeSingle(),
+          supabase.from('transparency_events').select('*').eq('is_public', true).order('occurred_at', { ascending: false }).limit(100),
         ])
         setStats({
-          userCount: users.count ?? 0,
-          questionCount: questions.count ?? 0,
-          voteCount: votes.count ?? 0,
-          commentCount: comments.count ?? 0,
+          userCount: statsRow.data?.user_count ?? 0,
+          questionCount: statsRow.data?.question_count ?? 0,
+          voteCount: statsRow.data?.vote_count ?? 0,
+          commentCount: statsRow.data?.comment_count ?? 0,
+          updatedAt: statsRow.data?.updated_at ?? null,
           events: events.data || [],
         })
       } catch (err) {
@@ -300,6 +310,11 @@ export default function Transparency() {
             note="In conversations"
           />
         </div>
+        {stats.updatedAt && (
+          <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '1rem' }}>
+            Figures above as of {new Date(stats.updatedAt).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} — refreshed daily.
+          </div>
+        )}
         {p(`Government requests received: ${stats.events.filter(e => e.event_type === 'government_request').length}`, { color: '#4d621d', fontWeight: 500 })}
         {p(`Security incidents: ${stats.events.filter(e => e.event_type === 'security_incident').length}`, { color: '#4d621d', fontWeight: 500 })}
         {p("Third-party audits completed: 0 (first audit planned within 12 months of launch)", { color: '#6B7280' })}

@@ -119,7 +119,7 @@ function CommentCard({
   depth = 0,
   featured = false,
   pinned = false,
-  comments,
+  childrenByParent,
   user,
   canParticipate,
   userResonances,
@@ -142,7 +142,13 @@ function CommentCard({
   const displayName = getDisplayName(comment.profiles)
   const voteChoice = comment.votes?.[0]?.choice
   const hasResonated = userResonances.has(comment.id)
-  const replies = comments.filter(c => c.parent_id === comment.id)
+  // Previously `comments.filter(c => c.parent_id === comment.id)` — a full
+  // scan of every comment on the question, run again for every card,
+  // including recursively for every reply of every reply (O(n) per card ×
+  // n cards = O(n²) per render). childrenByParent is built once by the
+  // parent Conversation component via useMemo, so this is now an O(1)
+  // map lookup per card.
+  const replies = childrenByParent.get(comment.id) || []
   const avatarColor = getVoteColor(comment)
   const isOwn = comment.user_id === user?.id
   const isEditing = editingId === comment.id
@@ -150,7 +156,7 @@ function CommentCard({
   // Shared props every recursive reply needs — same list every time,
   // just the comment/depth changing per call.
   const sharedProps = {
-    comments, user, canParticipate, userResonances,
+    childrenByParent, user, canParticipate, userResonances,
     replyingTo, setReplyingTo, replyText, setReplyText,
     editingId, setEditingId, editText, setEditText, submitting,
     toggleResonate, shareComment, flagComment, deleteComment, updateComment, submitComment,
@@ -364,14 +370,13 @@ export default function Conversation() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // None of these six queries depend on each other's results, so
+        // None of these five queries depend on each other's results, so
         // fetch them all together instead of one round trip at a time.
         const [
           { data: q },
           { data: vote },
           { data: tallyRow },
           { data: commentsData },
-          { data: votesForQuestion },
           { data: resonances },
         ] = await Promise.all([
           supabase
@@ -397,6 +402,16 @@ export default function Conversation() {
           // table only allows reading your own row, so an embedded join
           // silently returned null for everyone but yourself. Public
           // display fields are fetched separately below via public_profiles.
+          //
+          // Capped at 500 — this was previously unbounded, and paired with
+          // the recursive CommentCard tree rendering every comment with no
+          // windowing, a heavily-discussed question could mean thousands of
+          // DOM nodes and array entries per page view. Ordering by
+          // resonance_count means the cap drops the least-engaged threads
+          // first, not arbitrary ones. A true "top N threads, load more"
+          // pagination UI would handle this more gracefully at very high
+          // comment counts, but that's a UX change beyond this pass — this
+          // at least puts a ceiling on the unbounded growth.
           supabase
             .from('comments')
             .select(`
@@ -404,19 +419,8 @@ export default function Conversation() {
             `)
             .eq('question_id', questionId)
             .eq('is_deleted', false)
-            .order('resonance_count', { ascending: false }),
-          // Comments don't have a direct DB relationship to votes (they're
-          // linked only by matching user_id + question_id), so we fetch
-          // every vote on this question separately (via the public_votes
-          // view, since the real votes table is also locked to "own row
-          // only") and merge each commenter's own choice in — this is what
-          // colors each comment by how that person actually voted. This is
-          // fetched once per page load, so a vote change elsewhere won't
-          // recolor a comment until the next visit to this page.
-          supabase
-            .from('public_votes')
-            .select('user_id, choice')
-            .eq('question_id', questionId),
+            .order('resonance_count', { ascending: false })
+            .limit(500),
           user
             ? supabase
                 .from('comment_resonances')
@@ -432,16 +436,36 @@ export default function Conversation() {
           setTally({ yes: tallyRow.yes, ly: tallyRow.ly, ln: tallyRow.ln, no: tallyRow.no })
         }
 
-        const voteByUser = new Map((votesForQuestion || []).map(v => [v.user_id, v.choice]))
-
         const commenterIds = [...new Set((commentsData || []).map(c => c.user_id))]
-        const { data: commenterProfiles } = commenterIds.length
-          ? await supabase
-              .from('public_profiles')
-              .select('id, first_name, last_initial, display_preference, anon_name')
-              .in('id', commenterIds)
-          : { data: [] }
+
+        // Comments don't have a direct DB relationship to votes (they're
+        // linked only by matching user_id + question_id), so we look up
+        // each commenter's own choice separately — this is what colors
+        // each comment by how that person actually voted. Previously this
+        // fetched EVERY vote ever cast on the question (via public_votes,
+        // since the real votes table is locked to "own row only") just to
+        // look up a handful of commenters — on a popular question that's
+        // the entire votes table downloaded to color a few dozen avatars.
+        // Scoping to just the commenter ids keeps this bounded by comment
+        // count, not by total vote count. Both queries only depend on
+        // commenterIds, so they run together. This is still fetched once
+        // per page load, so a vote change elsewhere won't recolor a
+        // comment until the next visit to this page.
+        const [{ data: commenterProfiles }, { data: commenterVotes }] = commenterIds.length
+          ? await Promise.all([
+              supabase
+                .from('public_profiles')
+                .select('id, first_name, last_initial, display_preference, anon_name')
+                .in('id', commenterIds),
+              supabase
+                .from('public_votes')
+                .select('user_id, choice')
+                .eq('question_id', questionId)
+                .in('user_id', commenterIds),
+            ])
+          : [{ data: [] }, { data: [] }]
         const profileById = new Map((commenterProfiles || []).map(p => [p.id, p]))
+        const voteByUser = new Map((commenterVotes || []).map(v => [v.user_id, v.choice]))
 
         const commentsWithVotes = (commentsData || []).map(c => ({
           ...c,
@@ -703,10 +727,22 @@ export default function Conversation() {
 
   const showFeatured = filter === 'all' && (topYesComment || topNoComment)
 
+  // Built once per comments change, not per card — see the comment on
+  // CommentCard's `replies` line for what this replaces.
+  const childrenByParent = useMemo(() => {
+    const map = new Map()
+    for (const c of comments) {
+      if (!c.parent_id) continue
+      if (!map.has(c.parent_id)) map.set(c.parent_id, [])
+      map.get(c.parent_id).push(c)
+    }
+    return map
+  }, [comments])
+
   // Bundled once here so every CommentCard render site below can just
   // spread the same object instead of repeating this long prop list.
   const cardProps = {
-    comments, user, canParticipate, userResonances,
+    childrenByParent, user, canParticipate, userResonances,
     replyingTo, setReplyingTo, replyText, setReplyText,
     editingId, setEditingId, editText, setEditText, submitting,
     toggleResonate, shareComment, flagComment, deleteComment, updateComment, submitComment,

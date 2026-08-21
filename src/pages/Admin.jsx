@@ -214,10 +214,17 @@ async function toggleRegistration(open) {
 
   async function loadQuestions() {
     setLoadingData(true)
+    // Capped at 500 — this was previously unbounded, and it's re-run after
+    // nearly every admin mutation (add/publish/delete/edit), so every edit
+    // round-tripped and re-rendered the entire growing list. A full switch
+    // to optimistic local updates (never refetching at all) would touch
+    // every mutation handler below; capping the fetch is the lower-risk fix
+    // for now and still bounds the worst case.
     const { data, error } = await supabase
       .from('questions')
       .select('id, text, category, domain, published_at, is_tracking_anchor')
       .order('created_at', { ascending: false })
+      .limit(500)
     if (!error) setQuestions(data || [])
     setLoadingData(false)
   }
@@ -294,37 +301,37 @@ async function toggleRegistration(open) {
   }
 
   async function pushAsBreakingNews(q) {
+    // A plain count — bypasses the same 1000-row cap that used to bite the
+    // actual broadcast below, since count:'exact',head:true asks Postgres
+    // for a row count rather than returning rows themselves. Used only to
+    // show the admin an accurate number before they confirm.
+    const { count: userCount, error: countError } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+    if (countError) {
+      showMessage('Error checking user count: ' + countError.message, true)
+      return
+    }
+
     const confirmed = confirm(
-      `Push "${q.text}" to the top of every user's feed and notify everyone? This can't be easily undone once sent.`
+      `Push "${q.text}" to the top of every user's feed and notify ${userCount ?? 0} user${userCount === 1 ? '' : 's'}? This can't be easily undone once sent.`
     )
     if (!confirmed) return
 
     try {
-      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+      // Previously fetched every profile id to the client (capped at 1000
+      // by PostgREST's default row limit — once the user base passed that,
+      // this was silently notifying only a subset with no error or
+      // indication to the admin) and built/inserted the notification rows
+      // from there. broadcast_breaking_news does the update + insert
+      // entirely server-side via INSERT ... SELECT, so there's no
+      // client-side row cap to hit no matter how large the user base gets.
+      const { data, error } = await supabase
+        .rpc('broadcast_breaking_news', { p_question_id: q.id })
+        .single()
+      if (error) throw error
 
-      const { error: updateError } = await supabase
-        .from('questions')
-        .update({ is_priority: true, priority_expires_at: expiresAt })
-        .eq('id', q.id)
-      if (updateError) throw updateError
-
-      const { data: users, error: usersError } = await supabase.from('profiles').select('id')
-      if (usersError) throw usersError
-      if (!users?.length) return showMessage('No users found.', true)
-
-      const notifications = users.map(u => ({
-        user_id: u.id,
-        type: 'breaking_question',
-        priority: 'high',
-        title: 'We want your thoughts on a new question that was just added',
-        body: q.text,
-        action_url: `/vote?question=${q.id}`,
-      }))
-
-      const { error: notifyError } = await supabase.from('notifications').insert(notifications)
-      if (notifyError) throw notifyError
-
-      showMessage(`Pushed to top of feed and notified ${users.length} users!`)
+      showMessage(`Pushed to top of feed and notified ${data?.notified_count ?? 0} users!`)
       loadQuestions()
     } catch (err) {
       showMessage('Error pushing question: ' + err.message, true)

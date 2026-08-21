@@ -238,6 +238,9 @@ export default function Activity() {
   const [tab, setTab] = useState('history')
   const [commentSort, setCommentSort] = useState('newest')
   const [myComments, setMyComments] = useState([])
+  const [commentsHasMore, setCommentsHasMore] = useState(false)
+  const [commentsLoadingMore, setCommentsLoadingMore] = useState(false)
+  const COMMENTS_PAGE_SIZE = 50
   const [shifts, setShifts] = useState([])
   const [skipped, setSkipped] = useState([])
   const [votes, setVotes] = useState([])
@@ -304,8 +307,11 @@ export default function Activity() {
     }
   }
 
-  async function fetchComments() {
-    const { data: myComments } = await supabase
+  // Shared by the initial load and "load more" — fetches one page of the
+  // user's own comments plus the reply-count/vote-choice enrichment that
+  // used to happen once for the whole (unbounded) list.
+  async function fetchCommentsPage(offset) {
+    const { data: pageComments, error: commentsError } = await supabase
       .from('comments')
       .select(`
         id, body, created_at, resonance_count,
@@ -314,43 +320,69 @@ export default function Activity() {
       .eq('user_id', user.id)
       .eq('is_deleted', false)
       .order('created_at', { ascending: false })
+      .range(offset, offset + COMMENTS_PAGE_SIZE - 1)
 
-    if (myComments?.length > 0) {
-      const { data: allCommentsOnMyQuestions } = await supabase
-        .from('comments')
-        .select('id, parent_id')
-        .eq('is_deleted', false)
+    // Previously silently swallowed — if this fetch ever comes back empty
+    // because of a real error rather than the user genuinely having no
+    // comments, this makes that visible in the console instead of just
+    // showing an empty tab with no explanation.
+    if (commentsError) {
+      console.error('fetchComments: comments query failed', commentsError)
+      return []
+    }
+    if (!pageComments?.length) return []
 
-      const childrenByParent = new Map()
-      ;(allCommentsOnMyQuestions || []).forEach(c => {
-        if (!c.parent_id) return
-        if (!childrenByParent.has(c.parent_id)) childrenByParent.set(c.parent_id, [])
-        childrenByParent.get(c.parent_id).push(c.id)
-      })
+    // Used to fetch every non-deleted comment on the entire platform just
+    // to build a reply-count map for these few dozen comments — scales
+    // with total platform comment volume, not with how many comments this
+    // one user has made. get_comment_reply_counts walks the reply tree
+    // server-side, scoped to exactly these comment ids.
+    const commentIds = pageComments.map(c => c.id)
+    const { data: replyCounts, error: replyCountsError } = await supabase.rpc('get_comment_reply_counts', {
+      p_comment_ids: commentIds,
+    })
+    if (replyCountsError) console.error('fetchComments: get_comment_reply_counts failed', replyCountsError)
+    const countsByComment = new Map(
+      (replyCounts || []).map(r => [r.comment_id, { direct: Number(r.direct_replies), total: Number(r.total_replies) }])
+    )
 
-      function countDescendants(commentId) {
-        const children = childrenByParent.get(commentId) || []
-        return children.length + children.reduce((sum, childId) => sum + countDescendants(childId), 0)
-      }
+    const questionIds = [...new Set(pageComments.map(c => c.questions?.id).filter(Boolean))]
+    const { data: ownVotes } = questionIds.length
+      ? await supabase
+          .from('votes')
+          .select('question_id, choice')
+          .eq('user_id', user.id)
+          .in('question_id', questionIds)
+      : { data: [] }
+    const voteByQuestion = new Map((ownVotes || []).map(v => [v.question_id, v.choice]))
 
-      const questionIds = [...new Set(myComments.map(c => c.questions?.id).filter(Boolean))]
-      const { data: ownVotes } = questionIds.length
-        ? await supabase
-            .from('votes')
-            .select('question_id, choice')
-            .eq('user_id', user.id)
-            .in('question_id', questionIds)
-        : { data: [] }
-      const voteByQuestion = new Map((ownVotes || []).map(v => [v.question_id, v.choice]))
+    return pageComments.map(c => ({
+      ...c,
+      directReplies: countsByComment.get(c.id)?.direct || 0,
+      totalReplies: countsByComment.get(c.id)?.total || 0,
+      voteChoice: voteByQuestion.get(c.questions?.id),
+    }))
+  }
 
-      setMyComments(myComments.map(c => ({
-        ...c,
-        directReplies: (childrenByParent.get(c.id) || []).length,
-        totalReplies: countDescendants(c.id),
-        voteChoice: voteByQuestion.get(c.questions?.id),
-      })))
-    } else {
-      setMyComments([])
+  async function fetchComments() {
+    // Was capped at a flat 50 with no way to see anything older — a
+    // long-tenured, active commenter (more than 50 comments) would have
+    // older comments silently vanish from this tab, including ones with
+    // replies. Now paginated: this loads the first page, and "Load more"
+    // (below) fetches the rest on demand instead of dropping them.
+    const page = await fetchCommentsPage(0)
+    setMyComments(page)
+    setCommentsHasMore(page.length === COMMENTS_PAGE_SIZE)
+  }
+
+  async function loadMoreComments() {
+    setCommentsLoadingMore(true)
+    try {
+      const page = await fetchCommentsPage(myComments.length)
+      setMyComments(prev => [...prev, ...page])
+      setCommentsHasMore(page.length === COMMENTS_PAGE_SIZE)
+    } finally {
+      setCommentsLoadingMore(false)
     }
   }
 
@@ -400,15 +432,22 @@ export default function Activity() {
   }
 
   async function fetchRevisit() {
+    // Capped at 50 for the same reason as fetchComments above — this list
+    // was previously unbounded and would grow indefinitely for a user who
+    // skips a lot of questions.
     const { data: skipsData } = await supabase
       .from('question_skips')
       .select('id, question_id, created_at, questions (id, text, category, question_number)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      .limit(50)
     setSkipped(skipsData || [])
   }
 
   async function fetchHistory() {
+    // Capped at 50 — same reasoning as fetchComments/fetchRevisit. A
+    // long-tenured user's full vote history could otherwise be thousands
+    // of unbounded, unvirtualized rows.
     const { data: votesData } = await supabase
       .from('votes')
       .select(`
@@ -417,6 +456,7 @@ export default function Activity() {
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      .limit(50)
 
     const questionIds = (votesData || []).map(v => v.questions?.id).filter(Boolean)
     let newSnapshotMap = {}
@@ -535,10 +575,14 @@ export default function Activity() {
                       key={s.key}
                       onClick={() => setCommentSort(s.key)}
                       style={{
-                        flex: 1, padding: '6px 4px', background: commentSort === s.key ? '#FFFFFF' : 'transparent',
-                        color: commentSort === s.key ? '#1A1A1A' : '#6B7280', border: 'none', borderRadius: '6px',
+                        // Matches the blue-active segmented-pill pattern used
+                        // elsewhere (Explore's All/Unanswered toggle, Compare's
+                        // match-mode toggle) instead of the white-pill style
+                        // this one had drifted to.
+                        flex: 1, padding: '6px 4px', background: commentSort === s.key ? '#2D3DCA' : 'transparent',
+                        color: commentSort === s.key ? 'white' : '#6B7280', border: 'none', borderRadius: '6px',
                         fontSize: '11px', fontWeight: commentSort === s.key ? 700 : 500, cursor: 'pointer',
-                        fontFamily: 'Merriweather, serif', boxShadow: commentSort === s.key ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                        fontFamily: 'Merriweather, serif',
                       }}
                     >
                       {s.label}
@@ -562,6 +606,20 @@ export default function Activity() {
                     />
                   ))}
                 </div>
+                {commentsHasMore && (
+                  <button
+                    onClick={loadMoreComments}
+                    disabled={commentsLoadingMore}
+                    style={{
+                      width: '100%', marginTop: '12px', padding: '10px', background: '#F3F4F6',
+                      color: '#2D3DCA', border: 'none', borderRadius: '8px', fontSize: '13px',
+                      fontWeight: 600, cursor: commentsLoadingMore ? 'default' : 'pointer',
+                      fontFamily: 'Merriweather, serif', opacity: commentsLoadingMore ? 0.6 : 1,
+                    }}
+                  >
+                    {commentsLoadingMore ? 'Loading…' : 'Load more'}
+                  </button>
+                )}
                 </>
               )}
             </div>

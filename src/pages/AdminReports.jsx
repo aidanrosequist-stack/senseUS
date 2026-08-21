@@ -62,32 +62,37 @@ export default function AdminReports({ supabase }) {
       const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
+      // This used to fetch every profiles/votes row from the last 30 days
+      // (no limit) and bucket them into a 30-point daily chart in JS —
+      // at meaningful volume, a multi-MB payload every 60s poll. It also
+      // separately fetched the 400 most-recently-created questions and
+      // sorted THOSE client-side by vote count for "top by engagement" —
+      // since the bound was on recency, not votes, an older
+      // high-engagement question outside that 400-row window could never
+      // surface, silently returning the wrong ranking rather than just a
+      // slow one. get_daily_activity and get_top_questions_by_votes move
+      // both aggregations server-side (see migration 021), returning only
+      // the small, already-correct results this dashboard actually needs.
       const [
         { count: newRegistrations },
         { count: totalVotes24h },
         { count: totalUsers },
         { count: totalVotesAll },
-        { data: profilesLast30 },
-        { data: votesLast30 },
+        { data: dailyActivity },
         { data: anomalyRows },
-        { data: questionRows },
+        { data: topQuestions },
       ] = await Promise.all([
         supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", since24h),
         supabase.from("votes").select("*", { count: "exact", head: true }).gte("created_at", since24h),
         supabase.from("profiles").select("*", { count: "exact", head: true }),
         supabase.from("votes").select("*", { count: "exact", head: true }),
-        supabase.from("profiles").select("created_at").gte("created_at", since30d),
-        supabase.from("votes").select("created_at").gte("created_at", since30d),
+        supabase.rpc("get_daily_activity", { p_since: since30d }),
         supabase
           .from("anomaly_log")
           .select("*")
           .order("triggered_at", { ascending: false })
           .limit(25),
-        supabase
-          .from("questions")
-          .select("id, text, domain, human_moderation_required, created_at, votes(count)")
-          .order("created_at", { ascending: false })
-          .limit(400),
+        supabase.rpc("get_top_questions_by_votes", { p_limit: 20 }),
       ]);
 
       setStats({
@@ -97,21 +102,16 @@ export default function AdminReports({ supabase }) {
         totalVotesAll: totalVotesAll || 0,
       });
 
-      setRegistrationSeries(bucketByDay(profilesLast30 || [], "created_at"));
-      setVoteSeries(bucketByDay(votesLast30 || [], "created_at"));
+      setRegistrationSeries((dailyActivity || []).map((d) => ({ date: d.day, count: Number(d.registrations) })));
+      setVoteSeries((dailyActivity || []).map((d) => ({ date: d.day, count: Number(d.votes) })));
       setAnomalies(anomalyRows || []);
-      const questionIds = (questionRows || []).map((q) => q.id);
-      const { data: tallyRows } = await supabase.rpc("get_vote_tallies_batch", {
-        p_question_ids: questionIds,
-      });
-      const totalsById = {};
-      for (const row of tallyRows || []) {
-        totalsById[row.question_id] = Number(row.total);
-      }
+      // Now genuinely the top 20 by vote count platform-wide, not the top
+      // 20 (by whichever column is sorted) within a 400-most-recent pool —
+      // the column-header sort below re-orders within this same set of 20.
       setQuestions(
-        (questionRows || []).map((q) => ({
+        (topQuestions || []).map((q) => ({
           ...q,
-          voteCount: totalsById[q.id] ?? 0,
+          voteCount: Number(q.vote_count),
         }))
       );
     } catch (err) {
@@ -141,18 +141,6 @@ async function resolveAnomaly(id) {
   }
   setAnomalies((prev) => prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)))
 }
-
-  function bucketByDay(rows, field) {
-    const buckets = {};
-    for (const row of rows) {
-      const day = row[field]?.split("T")[0];
-      if (!day) continue;
-      buckets[day] = (buckets[day] || 0) + 1;
-    }
-    return Object.entries(buckets)
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([date, count]) => ({ date, count }));
-  }
 
   function sortedQuestions() {
     const sorted = [...questions].sort((a, b) => {
