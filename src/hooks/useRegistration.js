@@ -113,9 +113,17 @@ useEffect(() => {
         return
       }
 
-      // Send welcome SMS — fire and forget, don't block registration completion
+      // Send welcome SMS — fire and forget, don't block registration completion.
+      // Sourced from userData.user.phone (already fetched above, and always
+      // populated for a phone-OTP-verified session) rather than the `phone`
+      // component state. State is normally populated by the phone-entry step,
+      // but on a resumed session (verify, close the tab, come back later)
+      // it depends on checkExistingSession() having already set it — reading
+      // straight off the auth session removes that dependency instead of
+      // just patching the one path that was missing it.
+      const smsPhone = userData.user.phone ? `+${userData.user.phone}` : phone
       supabase.functions.invoke('send-welcome-sms', {
-        body: { phone }
+        body: { phone: smsPhone }
       }).catch(() => {
         // Silent fail — welcome SMS failure shouldn't break registration
       })
