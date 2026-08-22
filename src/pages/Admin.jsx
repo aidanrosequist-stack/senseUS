@@ -210,6 +210,10 @@ async function toggleRegistration(open) {
     }
     setRegistrationOpen(open)
     showMessage(open ? 'Registration is now open.' : 'Registration is now closed.')
+    // Best-effort — an audit-log write failing shouldn't block or roll
+    // back an admin action that already succeeded.
+    supabase.rpc('log_admin_action', { p_action_type: open ? 'open_registration' : 'close_registration' })
+      .then(({ error }) => { if (error) console.error('log_admin_action failed', error) })
   }
 
   async function loadQuestions() {
@@ -279,24 +283,36 @@ async function toggleRegistration(open) {
   }
 
   async function togglePublish(question) {
+    const wasPublished = !!question.published_at
     const { error } = await supabase
       .from('questions')
-      .update({ published_at: question.published_at ? null : new Date().toISOString() })
+      .update({ published_at: wasPublished ? null : new Date().toISOString() })
       .eq('id', question.id)
     if (!error) {
-      showMessage(question.published_at ? 'Question unpublished.' : 'Question published!')
+      showMessage(wasPublished ? 'Question unpublished.' : 'Question published!')
       loadQuestions()
+      supabase.rpc('log_admin_action', {
+        p_action_type: wasPublished ? 'unpublish_question' : 'publish_question',
+        p_target_type: 'question',
+        p_target_id: question.id,
+      }).then(({ error }) => { if (error) console.error('log_admin_action failed', error) })
     }
   }
 
   async function toggleTrackingAnchor(question) {
+    const wasAnchor = question.is_tracking_anchor
     const { error } = await supabase
       .from('questions')
-      .update({ is_tracking_anchor: !question.is_tracking_anchor })
+      .update({ is_tracking_anchor: !wasAnchor })
       .eq('id', question.id)
     if (!error) {
-      showMessage(question.is_tracking_anchor ? 'Removed tracking anchor.' : 'Set as tracking anchor!')
+      showMessage(wasAnchor ? 'Removed tracking anchor.' : 'Set as tracking anchor!')
       loadQuestions()
+      supabase.rpc('log_admin_action', {
+        p_action_type: wasAnchor ? 'remove_tracking_anchor' : 'set_tracking_anchor',
+        p_target_type: 'question',
+        p_target_id: question.id,
+      }).then(({ error }) => { if (error) console.error('log_admin_action failed', error) })
     }
   }
 
@@ -347,6 +363,15 @@ async function toggleRegistration(open) {
     if (!error) {
       showMessage('Question deleted.')
       loadQuestions()
+      // Logged after the delete — target_id will point at a now-gone row,
+      // which is expected for an audit trail entry; the question text is
+      // captured in details since it wouldn't otherwise be recoverable.
+      supabase.rpc('log_admin_action', {
+        p_action_type: 'delete_question',
+        p_target_type: 'question',
+        p_target_id: question.id,
+        p_details: { question_text: question.text },
+      }).then(({ error }) => { if (error) console.error('log_admin_action failed', error) })
     } else {
       showMessage('Error deleting: ' + error.message, true)
     }
@@ -908,6 +933,12 @@ async function toggleRegistration(open) {
                         }
                         showMessage('Comment removed.')
                         loadFlaggedComments()
+                        supabase.rpc('log_admin_action', {
+                          p_action_type: 'remove_comment',
+                          p_target_type: 'comment',
+                          p_target_id: comment.id,
+                          p_details: { comment_body: comment.body, flag_count: comment.flag_count },
+                        }).then(({ error }) => { if (error) console.error('log_admin_action failed', error) })
                       }}
                       style={{ flex: 1, padding: '7px', background: '#f9d8d8', color: '#7a1313', border: '1px solid #7a1313', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
                     >
@@ -925,6 +956,12 @@ async function toggleRegistration(open) {
                         }
                         showMessage('Comment cleared — no action taken.')
                         loadFlaggedComments()
+                        supabase.rpc('log_admin_action', {
+                          p_action_type: 'clear_comment_flag',
+                          p_target_type: 'comment',
+                          p_target_id: comment.id,
+                          p_details: { comment_body: comment.body, flag_count: comment.flag_count },
+                        }).then(({ error }) => { if (error) console.error('log_admin_action failed', error) })
                       }}
                       style={{ flex: 1, padding: '7px', background: '#eef3e0', color: '#4d621d', border: '1px solid #4d621d', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
                     >

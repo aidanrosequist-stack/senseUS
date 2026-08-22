@@ -1,7 +1,26 @@
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 export default function Home() {
+  const { user, loading } = useAuth()
+
+  // Already signed in — skip the logged-out landing page and go straight
+  // to the app. If the session has no profile yet (mid-registration),
+  // ProtectedRoute (which wraps /vote) already handles bouncing to
+  // /register, so this doesn't need to duplicate that check.
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+        Loading...
+      </div>
+    )
+  }
+
+  if (user) {
+    return <Navigate to="/vote" replace />
+  }
+
   return (
     <div
       style={{

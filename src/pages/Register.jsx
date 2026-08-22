@@ -105,7 +105,7 @@ if (checkingStatus) {
           Registration is temporarily closed
         </h1>
         <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-          We're not accepting new accounts right now. Check back soon, or join the waitlist to be notified when we reopen.
+          We're not accepting new accounts right now. Check back soon.
         </p>
         <Link
           to="/"
