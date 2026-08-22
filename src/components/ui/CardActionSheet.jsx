@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 // A shared bottom-sheet menu, opened by long-pressing a card anywhere in
 // the app. Each surface passes in its own list of relevant actions —
 // Explore/Shifts might offer Share + View, Comments offers two separate
@@ -6,6 +8,29 @@
 //
 // actions: [{ label: string, onClick: () => void, danger?: boolean }]
 export default function CardActionSheet({ title, actions, onClose }) {
+  const panelRef = useRef(null)
+
+  // Focus management: move focus into the sheet when it opens (nothing
+  // did before, so a keyboard/screen-reader user got no indication
+  // anything had changed), close on Escape same as the backdrop click
+  // already does, and hand focus back to whatever triggered this sheet
+  // when it closes rather than leaving it lost.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement
+    panelRef.current?.focus()
+
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount/unmount only, same as any modal-open effect; onClose is stable enough here and re-running this on every parent re-render would refocus the panel unexpectedly
+  }, [])
+
   return (
     <div
       onClick={onClose}
@@ -19,6 +44,11 @@ export default function CardActionSheet({ title, actions, onClose }) {
       }}
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title || 'Actions'}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
@@ -39,6 +69,7 @@ export default function CardActionSheet({ title, actions, onClose }) {
           paddingBottom: '2rem',
           fontFamily: 'Merriweather, serif',
           boxSizing: 'border-box',
+          outline: 'none',
         }}
       >
         {title && (

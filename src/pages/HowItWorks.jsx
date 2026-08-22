@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 function Section({ title, children }) {
   return (
@@ -18,6 +19,7 @@ function Detail({ title, children }) {
     <div style={{ border: '0.5px solid #E5E7EB', borderRadius: '10px', marginBottom: '10px', overflow: 'hidden' }}>
       <button
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
         <span style={{ fontSize: '15px', fontWeight: 600, color: '#1A1A1A' }}>{title}</span>
@@ -33,6 +35,7 @@ function Detail({ title, children }) {
 }
 
 export default function HowItWorks() {
+  usePageTitle('How It Works')
   return (
     <div style={{ maxWidth: '680px', margin: '0 auto', padding: '3rem 1.5rem', boxSizing: 'border-box' }}>
 
@@ -154,10 +157,10 @@ export default function HowItWorks() {
       </Detail>
 
       <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: '1.5rem', marginTop: '3rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-        <Link to="/mission" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Our Mission</Link>
-         <Link to="/ethos" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Our Ethos</Link>
-        <Link to="/privacy" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Privacy Policy</Link>
-        <Link to="/terms" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Terms of Service</Link>
+        <Link to="/mission" style={{ fontSize: '12px', color: '#6B7280', textDecoration: 'none' }}>Our Mission</Link>
+         <Link to="/ethos" style={{ fontSize: '12px', color: '#6B7280', textDecoration: 'none' }}>Our Ethos</Link>
+        <Link to="/privacy" style={{ fontSize: '12px', color: '#6B7280', textDecoration: 'none' }}>Privacy Policy</Link>
+        <Link to="/terms" style={{ fontSize: '12px', color: '#6B7280', textDecoration: 'none' }}>Terms of Service</Link>
       </div>
 
     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -18,7 +19,7 @@ function StatCard({ label, value, note }) {
     <div style={{ background: '#F9FAFB', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '1rem', textAlign: 'center' }}>
       <div style={{ fontSize: '28px', fontWeight: 700, color: '#2D3DCA', marginBottom: '4px' }}>{value}</div>
       <div style={{ fontSize: '12px', fontWeight: 500, color: '#1A1A1A', marginBottom: '2px' }}>{label}</div>
-      {note && <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{note}</div>}
+      {note && <div style={{ fontSize: '11px', color: '#6B7280' }}>{note}</div>}
     </div>
   )
 }
@@ -28,6 +29,7 @@ function p(text, style = {}) {
 }
 
 export default function Transparency() {
+  usePageTitle('Transparency')
   const [stats, setStats] = useState({
     userCount: null,
     questionCount: null,
@@ -311,7 +313,7 @@ export default function Transparency() {
           />
         </div>
         {stats.updatedAt && (
-          <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '1rem' }}>
+          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '1rem' }}>
             Figures above as of {new Date(stats.updatedAt).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} — refreshed daily.
           </div>
         )}
@@ -334,15 +336,15 @@ export default function Transparency() {
 
       {/* Footer */}
       <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: '1.5rem', marginTop: '2rem' }}>
-        <p style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '1rem' }}>
+        <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '1rem' }}>
           Questions about this report? Contact us at privacy@senseus.app
         </p>
         <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-          <Link to="/privacy" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Privacy Policy</Link>
-          <Link to="/terms" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Terms of Service</Link>
-          <Link to="/mission" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Our Mission</Link>
-          <Link to="/ethos" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>Our Ethos</Link>
-          <Link to="/how-it-works" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>How It Works</Link>
+          <Link to="/privacy" style={{ fontSize: '12px', color: '#6B7280', textDecoration: 'none' }}>Privacy Policy</Link>
+          <Link to="/terms" style={{ fontSize: '12px', color: '#6B7280', textDecoration: 'none' }}>Terms of Service</Link>
+          <Link to="/mission" style={{ fontSize: '12px', color: '#6B7280', textDecoration: 'none' }}>Our Mission</Link>
+          <Link to="/ethos" style={{ fontSize: '12px', color: '#6B7280', textDecoration: 'none' }}>Our Ethos</Link>
+          <Link to="/how-it-works" style={{ fontSize: '12px', color: '#6B7280', textDecoration: 'none' }}>How It Works</Link>
         </div>
       </div>
 

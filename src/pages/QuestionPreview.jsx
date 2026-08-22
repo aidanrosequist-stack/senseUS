@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -8,6 +9,7 @@ const VOTE_COLORS = {
 }
 
 export default function QuestionPreview() {
+  usePageTitle('Question Preview')
   const { number } = useParams()
   const originNumber = useRef(parseInt(number, 10))
   const [currentNum, setCurrentNum] = useState(parseInt(number, 10))
@@ -107,7 +109,8 @@ export default function QuestionPreview() {
     return () => {
       ignore = true
     }
-  }, [currentNum, user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user?.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern). AuthContext hands out a new user object reference on every onAuthStateChange firing, including Supabase's routine hourly token refresh.
+  }, [currentNum, user?.id])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const canGoPrev = currentNum > 1 && currentNum > minAllowed
@@ -202,7 +205,7 @@ export default function QuestionPreview() {
             <div style={{ fontSize: '20px', fontWeight: 400, color: '#1A1A1A' }}>
               sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>
             </div>
-            <div style={{ fontSize: '9px', color: '#9CA3AF', letterSpacing: '0.04em', marginTop: '1px' }}>
+            <div style={{ fontSize: '9px', color: '#6B7280', letterSpacing: '0.04em', marginTop: '1px' }}>
               real humans. real opinions. real truth.
             </div>
           </div>
@@ -236,7 +239,7 @@ export default function QuestionPreview() {
                 <span style={{ fontSize: '10px', fontWeight: 500, padding: '3px 10px', borderRadius: '20px', background: '#E6F1FB', color: '#0C447C' }}>
                   {question.category}
                 </span>
-                <span style={{ fontSize: '11px', color: '#9CA3AF' }}>#{question.question_number}</span>
+                <span style={{ fontSize: '11px', color: '#6B7280' }}>#{question.question_number}</span>
               </div>
 
               <div style={{ fontSize: '17px', fontWeight: 700, color: '#1A1A1A', lineHeight: 1.5, marginBottom: '1.25rem' }}>
@@ -257,7 +260,7 @@ export default function QuestionPreview() {
                   </div>
                 </div>
               ) : (
-                <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '1.25rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '1.25rem', textAlign: 'center' }}>
                   Be the first to vote on this question.
                 </div>
               )}
@@ -320,7 +323,7 @@ export default function QuestionPreview() {
               </div>
             )}
             {!canGoPrev && !canGoNext && (
-              <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', color: '#9CA3AF', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
+              <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', color: '#6B7280', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
                 Join senseUS to see all {maxNumber} questions
               </div>
             )}
@@ -332,7 +335,7 @@ export default function QuestionPreview() {
       {/* Footer — never re-renders */}
       <div style={{ background: '#FFFFFF', padding: '0.85rem 1.25rem', borderTop: '0.5px solid #E5E7EB', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: '10px', color: '#9CA3AF' }}>© Gudboi Enterprises, LLC</div>
+          <div style={{ fontSize: '10px', color: '#6B7280' }}>© Gudboi Enterprises, LLC</div>
          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
             <Link to="/privacy" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Privacy</Link>
             <Link to="/terms" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Terms</Link>

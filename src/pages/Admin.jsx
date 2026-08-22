@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAdmin } from '../hooks/useAdmin'
@@ -40,6 +41,7 @@ function Tab({ label, active, onClick, badge }) {
 }
 
 export default function Admin() {
+  usePageTitle('Admin')
   const { isAdmin, loading } = useAdmin()
   const navigate = useNavigate()
   const [tab, setTab] = useState('questions')
@@ -914,7 +916,7 @@ async function toggleRegistration(open) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {flaggedComments.map(comment => (
                 <div key={comment.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
-                  <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '4px' }}>
                     On: {comment.questions?.text?.substring(0, 60)}... · {comment.flag_count} flag{comment.flag_count !== 1 ? 's' : ''}
                   </div>
                   <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '10px' }}>
@@ -1068,7 +1070,7 @@ async function toggleRegistration(open) {
                       </span>
                     </div>
                     <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>{row.question_text}</div>
-                    <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '10px' }}>
                       {row.domain} · {row.sponsor_category} · requested {new Date(row.created_at).toLocaleDateString()}
                     </div>
                     {canActivate && (

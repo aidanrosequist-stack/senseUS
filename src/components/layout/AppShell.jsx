@@ -18,7 +18,9 @@ export default function AppShell() {
   return (
     <>
       <Header />
-      <Outlet />
+      <main>
+        <Outlet />
+      </main>
       <BottomNav />
     </>
   )

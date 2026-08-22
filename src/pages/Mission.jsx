@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function Mission() {
+  usePageTitle('Our Mission')
   return (
     <div style={{ maxWidth: '680px', margin: '0 auto', padding: '3rem 1.5rem', boxSizing: 'border-box' }}>
 
@@ -49,8 +51,8 @@ export default function Mission() {
       </div>
 
       <div style={{ borderTop: '0.5px solid #E5E7EB', marginTop: '3rem', paddingTop: '1.5rem', display: 'flex', gap: '1.5rem' }}>
-        <a href="/privacy" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none', fontFamily: 'Arial, sans-serif' }}>Privacy Policy</a>
-        <a href="/terms" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none', fontFamily: 'Arial, sans-serif' }}>Terms of Service</a>
+        <a href="/privacy" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none', fontFamily: 'Arial, sans-serif' }}>Privacy Policy</a>
+        <a href="/terms" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none', fontFamily: 'Arial, sans-serif' }}>Terms of Service</a>
       </div>
 
     </div>

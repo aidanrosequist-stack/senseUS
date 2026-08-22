@@ -6,6 +6,7 @@ import { Skeleton, SkeletonCard } from '../components/ui/Skeleton'
 import { useLongPress } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
 import { IconThumbUp, IconThumbDown } from '@tabler/icons-react'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
@@ -97,7 +98,7 @@ function MyCommentCard({ c, navigate, onLongPress }) {
           {c.body}
         </span>
       </div>
-      <div style={{ display: 'flex', gap: '14px', fontSize: '11px', color: '#9CA3AF' }}>
+      <div style={{ display: 'flex', gap: '14px', fontSize: '11px', color: '#6B7280' }}>
         <span>{c.resonance_count} resonate{c.resonance_count !== 1 ? 's' : ''}</span>
         <span>{c.directReplies} direct repl{c.directReplies !== 1 ? 'ies' : 'y'}</span>
         <span>{c.totalReplies} overall</span>
@@ -123,7 +124,7 @@ function ShiftCard({ shift, onLongPress }) {
           <div style={{ fontSize: '11px', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
             You voted <VoteIcon choice={shift.choice} size={13} />
           </div>
-          <div style={{ fontSize: '10px', color: '#9CA3AF' }}>
+          <div style={{ fontSize: '10px', color: '#6B7280' }}>
             on {formatVoteTimestamp(shift.created_at)}
           </div>
         </div>
@@ -133,11 +134,11 @@ function ShiftCard({ shift, onLongPress }) {
             <span style={{ fontSize: '11px', color: '#7a1313', fontWeight: 700 }}>▼ {shift.pctNo}% no</span>
           </div>
           {shift.delta !== null && (
-            <div style={{ fontSize: '10px', fontWeight: 700, color: shift.delta > 0 ? '#4d621d' : shift.delta < 0 ? '#7a1313' : '#9CA3AF' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: shift.delta > 0 ? '#4d621d' : shift.delta < 0 ? '#7a1313' : '#6B7280' }}>
               {shift.delta > 0 ? `↑ +${shift.delta} pts since you voted` : shift.delta < 0 ? `↓ ${shift.delta} pts since you voted` : 'No shift since you voted'}
             </div>
           )}
-          <div style={{ fontSize: '10px', color: '#9CA3AF' }}>
+          <div style={{ fontSize: '10px', color: '#6B7280' }}>
             {shift.total} {shift.total === 1 ? 'human' : 'humans'} answered to date
           </div>
         </div>
@@ -154,7 +155,7 @@ function RevisitCard({ skip, navigate, onLongPress, onRevisit }) {
         {skip.questions?.text}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+        <div style={{ fontSize: '11px', color: '#6B7280' }}>
           {skip.questions?.category} · {timeAgo(skip.created_at)}
         </div>
         <button
@@ -233,6 +234,7 @@ function HistoryCard({ vote, snapshotMap, navigate, onLongPress }) {
 }
 
 export default function Activity() {
+  usePageTitle('Your Activity')
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('history')
@@ -518,7 +520,8 @@ export default function Activity() {
       })
 
     return () => { cancelled = true }
-  }, [tab, user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user?.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern). AuthContext hands out a new user object reference on every onAuthStateChange firing, including Supabase's routine hourly token refresh — the loadedTabs guard above already prevents a real re-fetch in that case, but there's no reason to re-invoke the effect at all.
+  }, [tab, user?.id])
 
   return (
     <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
@@ -527,7 +530,7 @@ export default function Activity() {
 
       {/* Page title */}
       <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Activity</div>
+        <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>Activity</h1>
       </div>
 
       {/* Tabs */}

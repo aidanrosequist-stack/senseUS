@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function NotFound() {
+  usePageTitle('Page Not Found')
   return (
     <div
       style={{
@@ -21,7 +23,7 @@ export default function NotFound() {
         <div style={{ fontSize: '28px', fontWeight: 500, color: '#2D3DCA', marginBottom: '4px' }}>
           sense<span style={{ fontWeight: 700 }}>US</span>
         </div>
-        <div style={{ fontSize: '11px', color: '#9CA3AF', letterSpacing: '0.05em', marginBottom: '3rem' }}>
+        <div style={{ fontSize: '11px', color: '#6B7280', letterSpacing: '0.05em', marginBottom: '3rem' }}>
           real humans. real opinions. real truth.
         </div>
 
@@ -74,9 +76,9 @@ export default function NotFound() {
         </div>
 
         <div style={{ marginTop: '3rem', display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
-          <a href="/privacy" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Privacy</a>
-          <a href="/terms" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Terms</a>
-          <a href="/mission" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Mission</a>
+          <a href="/privacy" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none' }}>Privacy</a>
+          <a href="/terms" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none' }}>Terms</a>
+          <a href="/mission" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none' }}>Mission</a>
         </div>
 
       </div>

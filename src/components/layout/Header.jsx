@@ -19,7 +19,7 @@ export const HEADER_HEIGHT_PX = 58
 
 export default function Header() {
   return (
-    <div style={{
+    <header style={{
       position: 'sticky',
       top: 0,
       zIndex: 40,
@@ -54,6 +54,6 @@ export default function Header() {
           </div>
         </div>
       </div>
-    </div>
+    </header>
   )
 }

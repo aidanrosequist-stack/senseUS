@@ -158,7 +158,7 @@ export default function OnboardingAnimation({ onComplete }) {
         <button
           onClick={handleSkip}
           style={{
-            width: '100%', padding: '8px', background: 'none', color: '#9CA3AF',
+            width: '100%', padding: '8px', background: 'none', color: '#6B7280',
             border: 'none', fontSize: '12px', cursor: 'pointer', fontFamily: 'Merriweather, serif',
           }}
         >

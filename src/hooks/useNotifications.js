@@ -71,7 +71,8 @@ export function useNotifications() {
         channelRef.current = null
       }
     }
-  }, [user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern). AuthContext hands out a new user object reference on every onAuthStateChange firing, including Supabase's routine hourly token refresh — depending on the whole object here would tear down and recreate this realtime channel, and re-fetch all 50 notifications, on every refresh.
+  }, [user?.id])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   async function markAsRead(notificationId) {

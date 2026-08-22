@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const PRINCIPLES = [
   {
@@ -36,6 +37,7 @@ const PRINCIPLES = [
 ]
 
 export default function Ethos() {
+  usePageTitle('Ethos')
   return (
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: '3rem 1.5rem 4rem', fontFamily: 'Merriweather, serif', color: '#1A1A1A' }}>
       <h1 style={{ fontSize: '26px', fontWeight: 700, marginBottom: '2rem', textAlign: 'center' }}>
@@ -101,10 +103,10 @@ export default function Ethos() {
       </div>
 
       <div style={{ textAlign: 'center', marginTop: '3rem', paddingTop: '1.5rem', borderTop: '0.5px solid #E5E7EB' }}>
-        <Link to="/how-it-works" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none', marginRight: '1.5rem' }}>
+        <Link to="/how-it-works" style={{ fontSize: '12px', color: '#6B7280', textDecoration: 'none', marginRight: '1.5rem' }}>
           How It Works
         </Link>
-        <Link to="/transparency" style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>
+        <Link to="/transparency" style={{ fontSize: '12px', color: '#6B7280', textDecoration: 'none' }}>
           Transparency Report
         </Link>
       </div>

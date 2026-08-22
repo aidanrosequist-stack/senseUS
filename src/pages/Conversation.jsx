@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -24,7 +25,7 @@ const VOTE_WASH = {
 // Comments are color-coded by how the commenter voted rather than a
 // random per-user hue — a comment's avatar always reflects yes/leaning
 // yes/leaning no/no/undecided, same palette as everywhere else on senseUS.
-const NEUTRAL_AVATAR_COLOR = '#9CA3AF' // fallback for a comment with no vote on record
+const NEUTRAL_AVATAR_COLOR = '#6B7280' // fallback for a comment with no vote on record
 
 const MAX_REPLY_DEPTH = 2 // comment (0) -> reply (1) -> reply (2), then no further replying
 
@@ -196,16 +197,16 @@ function CommentCard({
               </span>
             )}
             {comment.edited_at && !comment.is_removed && (
-              <span style={{ fontSize: '10px', color: '#9CA3AF', fontStyle: 'italic' }}>
+              <span style={{ fontSize: '10px', color: '#6B7280', fontStyle: 'italic' }}>
                 --edited--
               </span>
             )}
           </div>
-          <span style={{ fontSize: '10px', color: '#9CA3AF' }}>{timeAgo(comment.created_at)}</span>
+          <span style={{ fontSize: '10px', color: '#6B7280' }}>{timeAgo(comment.created_at)}</span>
         </div>
 
         {comment.is_removed ? (
-          <p style={{ fontSize: '14px', color: '#9CA3AF', fontStyle: 'italic', lineHeight: 1.6, margin: '0 0 10px' }}>
+          <p style={{ fontSize: '14px', color: '#6B7280', fontStyle: 'italic', lineHeight: 1.6, margin: '0 0 10px' }}>
             [deleted by user]
           </p>
         ) : isEditing ? (
@@ -262,7 +263,7 @@ function CommentCard({
             <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
               <button
                 onClick={() => shareComment(comment.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}
                 title="Share this comment"
               >
                 <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⤴</span>
@@ -271,7 +272,7 @@ function CommentCard({
               {canParticipate && !isOwn && (
                 <button
                   onClick={() => flagComment(comment.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}
                   title="Flag this comment"
                 >
                   <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⚑</span>
@@ -293,14 +294,14 @@ function CommentCard({
               <>
                 <button
                   onClick={() => { setEditingId(comment.id); setEditText(comment.body) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}
                   title="Edit this comment"
                 >
                   <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Edit</span>
                 </button>
                 <button
                   onClick={() => deleteComment(comment.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}
                   title="Delete this comment"
                 >
                   <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Delete</span>
@@ -346,6 +347,7 @@ function CommentCard({
 }
 
 export default function Conversation() {
+  usePageTitle('Conversation')
   const { questionId } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -486,7 +488,8 @@ export default function Conversation() {
     }
 
     fetchData()
-  }, [questionId, user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user?.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern). AuthContext hands out a new user object reference on every onAuthStateChange firing, including Supabase's routine hourly token refresh.
+  }, [questionId, user?.id])
 
   async function submitComment(body, parentId = null) {
     if (!body.trim() || !user) return
@@ -687,7 +690,8 @@ export default function Conversation() {
   const myComment = useMemo(() => {
     if (!user) return null
     return comments.find(c => c.user_id === user.id && !c.parent_id) || null
-  }, [comments, user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user?.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern).
+  }, [comments, user?.id])
 
   // Top-level comments only, filtered by vote-choice tab, then sorted.
   // Your own comment (shown pinned separately) and the two featured
@@ -824,7 +828,7 @@ export default function Conversation() {
               padding: '10px', fontSize: '14px', fontFamily: 'Merriweather, serif',
               boxSizing: 'border-box', resize: 'none',
               background: canParticipate ? 'white' : '#F9FAFB',
-              color: canParticipate ? '#1A1A1A' : '#9CA3AF',
+              color: canParticipate ? '#1A1A1A' : '#6B7280',
             }}
           />
           {canParticipate && (

@@ -15,7 +15,8 @@ export default function BottomNav() {
   ]
 
   return (
-    <div
+    <nav
+      aria-label="Primary"
       style={{
         // `sticky`, not `fixed` — this is the fix for the footer spanning
         // the full browser window while the header doesn't. On desktop,
@@ -53,6 +54,8 @@ export default function BottomNav() {
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
+              aria-current={active ? 'page' : undefined}
+              aria-label={tab.badge > 0 ? `${tab.label}, ${tab.badge} unread` : undefined}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -93,6 +96,6 @@ export default function BottomNav() {
           )
         })}
       </div>
-    </div>
+    </nav>
   )
 }

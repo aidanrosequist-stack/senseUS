@@ -1,4 +1,5 @@
 import PhoneInput from 'react-phone-number-input'
+import { usePageTitle } from '../hooks/usePageTitle'
 import 'react-phone-number-input/style.css'
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -44,6 +45,7 @@ function Row({ label, children, border = true }) {
 }
 
 export default function Settings() {
+  usePageTitle('Settings')
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
@@ -83,7 +85,8 @@ export default function Settings() {
       .limit(1)
       .maybeSingle()
       .then(({ data }) => setLatestExport(data))
-  }, [user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern). AuthContext hands out a new user object reference on every onAuthStateChange firing, including Supabase's routine hourly token refresh.
+  }, [user?.id])
 
   function toggleSound() {
     const newVal = !soundEnabled
@@ -206,12 +209,12 @@ function maskPhone(phone) {
         <Link to="/profile" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none' }}>
           ← profile
         </Link>
-        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Settings</div>
+        <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>Settings</h1>
         <div style={{ width: '48px' }} />
       </div>
 
       {saveMessage && (
-        <div style={{ background: saveMessage === 'Saved!' ? '#eef3e0' : '#f9d8d8', color: saveMessage === 'Saved!' ? '#4d621d' : '#7a1313', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', textAlign: 'center', marginBottom: '1rem' }}>
+        <div role="status" aria-live="polite" style={{ background: saveMessage === 'Saved!' ? '#eef3e0' : '#f9d8d8', color: saveMessage === 'Saved!' ? '#4d621d' : '#7a1313', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', textAlign: 'center', marginBottom: '1rem' }}>
           {saveMessage}
         </div>
       )}
@@ -321,7 +324,7 @@ function maskPhone(phone) {
                 style={{ fontSize: '13px', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '6px 8px', fontFamily: 'Merriweather, serif', width: '160px' }}
               />
             </Row>
-            <p style={{ fontSize: '11px', color: '#9CA3AF', lineHeight: 1.5, padding: '0 16px 14px', margin: 0 }}>
+            <p style={{ fontSize: '11px', color: '#6B7280', lineHeight: 1.5, padding: '0 16px 14px', margin: 0 }}>
               Used only if you lose access to your phone number — never for marketing.
             </p>
           </>
@@ -433,7 +436,7 @@ function maskPhone(phone) {
       <Section title="Your data">
         <Row label="Export my data" border={!!latestExport}>
           {!profile?.recovery_email ? (
-            <span style={{ fontSize: '12px', color: '#9CA3AF' }}>
+            <span style={{ fontSize: '12px', color: '#6B7280' }}>
               Add a recovery email above first
             </span>
           ) : (

@@ -5,8 +5,11 @@ import QuestionFlow from '../components/vote/QuestionFlow'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
+import VisuallyHidden from '../components/ui/VisuallyHidden'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function Vote() {
+  usePageTitle('Vote')
   const { user } = useAuth()
   const { questions, loading, error, usingFallbackPool } = useQuestions(user?.id)
   const [showGlobalNotice, setShowGlobalNotice] = useState(
@@ -61,7 +64,8 @@ export default function Vote() {
     }
 
     fetchTargetQuestion()
-  }, [targetQuestionId, user, questions])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user?.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern). AuthContext hands out a new user object reference on every onAuthStateChange firing, including Supabase's routine hourly token refresh.
+  }, [targetQuestionId, user?.id, questions])
 
   async function handleVote(questionId, choice) {
     if (!user) return null
@@ -139,6 +143,7 @@ export default function Vote() {
         position: 'relative',
       }}
     >
+      <VisuallyHidden as="h1">Vote</VisuallyHidden>
       {showGlobalNotice && (
         <div style={{ position: 'absolute', top: '60px', left: '16px', right: '16px', background: '#2D3DCA', color: 'white', borderRadius: '10px', padding: '12px 14px', fontSize: '13px', fontFamily: 'Merriweather, serif', zIndex: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
           <span>You've answered everything from your country and around the world — now showing questions from other countries too.</span>

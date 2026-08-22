@@ -5,7 +5,13 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // 'dist' is the web build output. 'android/app/build' and
+  // 'android/app/src/main/assets' are Capacitor's copied/synced web build
+  // plus its own native-bridge.js — vendored, minified build artifacts,
+  // not source. None of these were ever meant to be linted; without this
+  // they account for the vast majority of `npm run lint`'s reported
+  // problems (~1050 of ~1090 as of 2026-08-22), none of them real.
+  globalIgnores(['dist', 'android/app/build', 'android/app/src/main/assets']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

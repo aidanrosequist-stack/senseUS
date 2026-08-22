@@ -321,9 +321,9 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
       <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '0.5rem', fontVariantNumeric: 'tabular-nums' }}>
         {totalDisplayed.toLocaleString()} verified humans answered
       </div>
-      <div style={{ fontSize: '10px', color: '#9CA3AF', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+      <div style={{ fontSize: '10px', color: '#6B7280', marginBottom: '1.25rem', lineHeight: 1.5 }}>
         Results are integrity-weighted.{' '}
-        <a href="/how-it-works" style={{ color: '#9CA3AF', textDecoration: 'underline' }}>Learn more</a>
+        <a href="/how-it-works" style={{ color: '#6B7280', textDecoration: 'underline' }}>Learn more</a>
       </div>
 
       <button
@@ -376,7 +376,7 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
               background: 'none',
               border: 'none',
               fontSize: '12px',
-              color: '#9CA3AF',
+              color: '#6B7280',
               cursor: 'pointer',
               textDecoration: 'underline',
               fontFamily: 'Merriweather, serif',
@@ -390,7 +390,7 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
               background: 'none',
               border: 'none',
               fontSize: '12px',
-              color: '#9CA3AF',
+              color: '#6B7280',
               cursor: 'pointer',
               textDecoration: 'underline',
               fontFamily: 'Merriweather, serif',

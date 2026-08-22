@@ -5,6 +5,8 @@ import { useAuth } from '../hooks/useAuth'
 import { Skeleton } from '../components/ui/Skeleton'
 import { useLongPress } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
+import VisuallyHidden from '../components/ui/VisuallyHidden'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const DOMAINS = [
   'society & culture',
@@ -123,6 +125,7 @@ function SearchResultCard({ question, userVote, onClick, onLongPress }) {
 }
 
 export default function Explore() {
+  usePageTitle('Explore')
   const { user } = useAuth()
   const navigate = useNavigate()
   const [questions, setQuestions] = useState([])
@@ -215,7 +218,8 @@ export default function Explore() {
       }
     }
     fetchData()
-  }, [user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern). AuthContext hands out a new user object reference on every onAuthStateChange firing, including Supabase's routine hourly token refresh — depending on the whole object here would re-shuffle and re-fetch the whole question list under the user's feet on every refresh.
+  }, [user?.id])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleThumbnailClick(question) {
@@ -337,6 +341,7 @@ export default function Explore() {
 
   return (
     <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '90px' }}>
+    <VisuallyHidden as="h1">Explore</VisuallyHidden>
     <div style={{ padding: '14px', boxSizing: 'border-box' }}>
     {/* No horizontal padding here (unlike Profile/Activity's card) — every
         section below already carries its own '0 1.25rem' inset, which used
@@ -439,7 +444,7 @@ export default function Explore() {
                 🏷️ Sponsored
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                <div style={{ fontSize: '11px', color: '#6B7280' }}>
                   {sponsoredQuestions.length} question{sponsoredQuestions.length !== 1 ? 's' : ''}
                 </div>
                 <div style={{ display: 'flex', gap: '4px' }}>
@@ -487,7 +492,7 @@ export default function Explore() {
                 🔴 Current Events
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                <div style={{ fontSize: '11px', color: '#6B7280' }}>
                   {currentEventQuestions.length} question{currentEventQuestions.length !== 1 ? 's' : ''}
                 </div>
                 <div style={{ display: 'flex', gap: '4px' }}>
@@ -536,7 +541,7 @@ export default function Explore() {
                 {domainLabel(domain)}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                <div style={{ fontSize: '11px', color: '#6B7280' }}>
                   {domainQuestions.length} question{domainQuestions.length !== 1 ? 's' : ''}
                 </div>
                 <div style={{ display: 'flex', gap: '4px' }}>
@@ -585,12 +590,12 @@ export default function Explore() {
                 <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
                   My Country
                 </div>
-                <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '2px' }}>
+                <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px' }}>
                   Questions specific to where you live
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                <div style={{ fontSize: '11px', color: '#6B7280' }}>
                   {myCountryQuestions.length} question{myCountryQuestions.length !== 1 ? 's' : ''}
                 </div>
                 <div style={{ display: 'flex', gap: '4px' }}>
@@ -639,12 +644,12 @@ export default function Explore() {
                 <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
                   Around the World
                 </div>
-                <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '2px' }}>
+                <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px' }}>
                   Questions specific to other countries
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                <div style={{ fontSize: '11px', color: '#6B7280' }}>
                   {otherCountryQuestions.length} question{otherCountryQuestions.length !== 1 ? 's' : ''}
                 </div>
                 <div style={{ display: 'flex', gap: '4px' }}>

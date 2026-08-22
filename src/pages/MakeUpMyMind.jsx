@@ -1,4 +1,5 @@
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -14,6 +15,7 @@ const STANCE_CONFIG = {
 const STANCE_ORDER = ['yes', 'ly', 'neutral', 'ln', 'no']
 
 export default function MakeUpMyMind() {
+  usePageTitle('Make Up My Mind')
   const { questionId } = useParams()
   const navigate = useNavigate()
   const [question, setQuestion] = useState(null)
@@ -116,7 +118,7 @@ export default function MakeUpMyMind() {
       <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '1rem' }}>
         Read perspectives from across the spectrum, then return to cast your vote.
       </p>
-      <div style={{ background: '#F9FAFB', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '10px 12px', marginBottom: '1.5rem', fontSize: '11px', color: '#9CA3AF', lineHeight: 1.6 }}>
+      <div style={{ background: '#F9FAFB', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '10px 12px', marginBottom: '1.5rem', fontSize: '11px', color: '#6B7280', lineHeight: 1.6 }}>
         Articles were sourced with AI assistance and reviewed by our editorial team. Links may break over time — if you find a dead link, please let us know at hello@senseus.app. For questions about AI itself, all articles are human-selected only.
       </div>
 

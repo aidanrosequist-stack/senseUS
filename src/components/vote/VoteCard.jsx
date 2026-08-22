@@ -478,7 +478,7 @@ useEffect(() => {
           )}
         </div>
         {question.is_sponsored && question.sponsor_name && (
-          <div style={{ fontSize: '11px', color: zone ? 'rgba(255,255,255,0.75)' : '#9CA3AF', marginBottom: '0.5rem' }}>
+          <div style={{ fontSize: '11px', color: zone ? 'rgba(255,255,255,0.75)' : '#6B7280', marginBottom: '0.5rem' }}>
             sponsored by {question.sponsor_name}
           </div>
         )}
@@ -496,9 +496,9 @@ useEffect(() => {
 
         <button
           onClick={shareQuestion}
-          style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', cursor: 'pointer', marginTop: '10px', color: zone ? 'rgba(255,255,255,0.85)' : '#9CA3AF', fontSize: '12px', fontFamily: 'Merriweather, serif' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', cursor: 'pointer', marginTop: '10px', color: zone ? 'rgba(255,255,255,0.85)' : '#6B7280', fontSize: '12px', fontFamily: 'Merriweather, serif' }}
         >
-          <IconShare size={14} color={zone ? 'rgba(255,255,255,0.85)' : '#9CA3AF'} />
+          <IconShare size={14} color={zone ? 'rgba(255,255,255,0.85)' : '#6B7280'} />
           Share this question
         </button>
 
@@ -608,7 +608,7 @@ useEffect(() => {
         <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '8px' }}>
           <button
             onClick={() => onHideQuestion && onHideQuestion()}
-            style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '11px', cursor: 'pointer', fontFamily: 'Merriweather, serif', textDecoration: 'underline' }}
+            style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: '11px', cursor: 'pointer', fontFamily: 'Merriweather, serif', textDecoration: 'underline' }}
           >
             I don't want to see this question again
           </button>

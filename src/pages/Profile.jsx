@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Skeleton, SkeletonCard, SkeletonStatGrid } from '../components/ui/Skeleton'
 import { useNotificationsContext } from '../context/NotificationsContext'
 import { BADGE_INFO } from '../lib/badgeInfo'
+import { useModalFocus } from '../hooks/useModalFocus'
 
 function timeAgo(dateString) {
   const now = new Date()
@@ -16,6 +18,7 @@ function timeAgo(dateString) {
 }
 
 export default function Profile() {
+  usePageTitle('Your Profile')
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -24,6 +27,8 @@ export default function Profile() {
   const [showIntegrityInfo, setShowIntegrityInfo] = useState(false)
   const [integrityStatus, setIntegrityStatus] = useState(null)
   const { notifications, markAsRead, markAllAsRead, deleteNotification } = useNotificationsContext()
+  const resonancePanelRef = useModalFocus(showResonanceInfo, () => setShowResonanceInfo(false))
+  const integrityPanelRef = useModalFocus(showIntegrityInfo, () => setShowIntegrityInfo(false))
 
 async function openIntegrityInfo() {
     setShowIntegrityInfo(true)
@@ -132,7 +137,7 @@ async function openIntegrityInfo() {
             {profile.avatar || '🌿'}
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>{getDisplayName(profile)}</div>
+            <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{getDisplayName(profile)}</h1>
             <div style={{ fontSize: '12px', color: '#6B7280', fontWeight: 300 }}>{getMemberSince(profile)}</div>
           </div>
         </div>
@@ -143,13 +148,14 @@ async function openIntegrityInfo() {
 
 {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', marginBottom: '1.5rem' }}>
-        <div 
+        <button
+          type="button"
           onClick={() => setShowResonanceInfo(true)}
-          style={{ background: '#F9FAFB', borderRadius: '8px', padding: '1rem', textAlign: 'center', cursor: 'pointer' }}>
+          style={{ background: '#F9FAFB', borderRadius: '8px', padding: '1rem', textAlign: 'center', cursor: 'pointer', border: 'none', width: '100%', fontFamily: 'inherit' }}>
           <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '6px', fontWeight: 300 }}>Resonance score ⓘ</div>
           <div style={{ fontSize: '24px', fontWeight: 700, color: '#1A1A1A' }}>{profile.resonance_score}</div>
           <div style={{ fontSize: '11px', color: '#2D3DCA', marginTop: '4px' }}>{profile.resonance_tier}</div>
-        </div>
+        </button>
         <div style={{ background: '#F9FAFB', borderRadius: '8px', padding: '1rem', textAlign: 'center' }}>
           <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '6px', fontWeight: 300 }}>Answered</div>
           <div style={{ fontSize: '24px', fontWeight: 700, color: '#1A1A1A' }}>{profile.answers_count}</div>
@@ -160,13 +166,14 @@ async function openIntegrityInfo() {
           <div style={{ fontSize: '24px', fontWeight: 700, color: '#1A1A1A' }}>{profile.streak_days}</div>
           <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '4px', fontWeight: 300 }}>days</div>
         </div>
-        <div
+        <button
+          type="button"
           onClick={openIntegrityInfo}
-          style={{ background: '#F9FAFB', borderRadius: '8px', padding: '1rem', textAlign: 'center', cursor: 'pointer' }}
+          style={{ background: '#F9FAFB', borderRadius: '8px', padding: '1rem', textAlign: 'center', cursor: 'pointer', border: 'none', width: '100%', fontFamily: 'inherit' }}
         >
           <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '6px', fontWeight: 300 }}>Integrity weight ⓘ</div>
           <div style={{ fontSize: '24px', fontWeight: 700, color: '#1A1A1A' }}>{profile.integrity_weight?.toFixed(4)}</div>
-        </div>
+        </button>
       </div>
 
 {/* Badges widget */}
@@ -175,7 +182,7 @@ async function openIntegrityInfo() {
     Badges
   </div>
   {(profile?.badges || []).length === 0 ? (
-    <div style={{ fontSize: '12px', color: '#9CA3AF' }}>
+    <div style={{ fontSize: '12px', color: '#6B7280' }}>
       Keep voting to earn your first badge.
     </div>
   ) : (
@@ -230,9 +237,10 @@ async function openIntegrityInfo() {
             padding: '12px 14px',
           }}
         >
-          <div
+          <button
+            type="button"
             onClick={() => markAsRead(notification.id)}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: 0, fontFamily: 'inherit' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
@@ -245,13 +253,13 @@ async function openIntegrityInfo() {
             <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5, marginBottom: '4px' }}>
               {notification.body}
             </div>
-            <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+            <div style={{ fontSize: '11px', color: '#6B7280' }}>
               {new Date(notification.created_at).toLocaleDateString()}
             </div>
-          </div>
+          </button>
           <button
             onClick={() => deleteNotification(notification.id)}
-            style={{ marginTop: '8px', fontSize: '11px', color: '#9CA3AF', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', padding: 0, textDecoration: 'underline' }}
+            style={{ marginTop: '8px', fontSize: '11px', color: '#6B7280', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', padding: 0, textDecoration: 'underline' }}
           >
             Delete
           </button>
@@ -271,10 +279,16 @@ async function openIntegrityInfo() {
           }}
         >
           <div
+            ref={resonancePanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Resonance Score"
+            tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
             style={{
               background: '#FFFFFF', borderRadius: '16px', padding: '1.5rem',
               maxWidth: '360px', width: '100%', fontFamily: 'Merriweather, serif',
+              outline: 'none',
             }}
           >
             <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
@@ -317,10 +331,16 @@ async function openIntegrityInfo() {
           }}
         >
           <div
+            ref={integrityPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Reach your full weight"
+            tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
             style={{
               background: '#FFFFFF', borderRadius: '16px', padding: '1.5rem',
               maxWidth: '360px', width: '100%', fontFamily: 'Merriweather, serif',
+              outline: 'none',
             }}
           >
             <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
@@ -330,7 +350,7 @@ async function openIntegrityInfo() {
               Your integrity weight reflects sustained, genuine participation. It only ever moves up, and it's based on your activity over the last 30 days.
             </p>
             {!integrityStatus ? (
-              <p style={{ fontSize: '13px', color: '#9CA3AF' }}>Loading...</p>
+              <p style={{ fontSize: '13px', color: '#6B7280' }}>Loading...</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '1rem' }}>
                 {[
@@ -344,7 +364,7 @@ async function openIntegrityInfo() {
                         width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         background: item.done ? '#6d8a1c' : item.started ? '#d9c01a' : '#F3F4F6',
-                        color: item.done || item.started ? 'white' : '#9CA3AF',
+                        color: item.done || item.started ? 'white' : '#6B7280',
                         fontSize: '11px', fontWeight: 700,
                       }}
                     >

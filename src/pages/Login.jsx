@@ -8,6 +8,7 @@ import PhoneInput from 'react-phone-number-input'
 import { getExampleNumber } from 'libphonenumber-js'
 import examples from 'libphonenumber-js/examples.mobile.json'
 import 'react-phone-number-input/style.css'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 function getDefaultCountryFromLocale() {
   try {
@@ -23,6 +24,7 @@ function getDefaultCountryFromLocale() {
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
 
 export default function Login() {
+  usePageTitle('Log In')
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [step, setStep] = useState('phone')
@@ -103,7 +105,7 @@ export default function Login() {
       </div>
 
       {error && (
-        <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f9d8d8', color: '#7a1313', borderRadius: '8px', fontSize: '13px' }}>
+        <div role="alert" style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f9d8d8', color: '#7a1313', borderRadius: '8px', fontSize: '13px' }}>
           {error}
         </div>
       )}
@@ -139,7 +141,7 @@ export default function Login() {
           >
             {loading ? 'Sending...' : 'Send verification code'}
           </button>
-          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0, lineHeight: 1.5, textAlign: 'center' }}>
+          <p style={{ fontSize: '11px', color: '#6B7280', margin: 0, lineHeight: 1.5, textAlign: 'center' }}>
             Don't have an account?{' '}
             <Link to="/register" style={{ color: '#2D3DCA', textDecoration: 'none' }}>Sign up here</Link>
           </p>

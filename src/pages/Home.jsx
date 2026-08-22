@@ -50,13 +50,13 @@ export default function Home() {
             alt="senseUS"
             style={{ height: '120px', width: 'auto', marginBottom: '8px' }}
           />
-          <div style={{ fontSize: '36px', fontWeight: 500, color: '#1A1A1A', marginBottom: '4px' }}>
+          <h1 style={{ fontSize: '36px', fontWeight: 500, color: '#1A1A1A', marginTop: 0, marginBottom: '4px' }}>
             sense<AnimatedWordmark />
-          </div>
+          </h1>
           <div style={{ fontSize: '12px', color: '#6B7280', letterSpacing: '0.05em', marginBottom: '8px' }}>
             real humans. real opinions. real truth.
           </div>
-          <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '12px' }}>
+          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '12px' }}>
             Operated by Gudboi Enterprises, LLC
           </div>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -154,18 +154,18 @@ export default function Home() {
         </div>
 
         <div style={{ width: '100%', marginTop: '1rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '12px', color: '#9CA3AF', lineHeight: 1.6, margin: '0 0 0.75rem' }}>
+          <p style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.6, margin: '0 0 0.75rem' }}>
             senseUS is a verified human opinion platform. Our mission is to create a trusted, bot-free source of truth for public opinion.
           </p>
-          <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '0 0 0.75rem' }}>
+          <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 0.75rem' }}>
             Contact us: <a href="mailto:hello@senseus.app" style={{ color: '#6B7280', textDecoration: 'none' }}>hello@senseus.app</a>
           </p>
           <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="/privacy" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Privacy Policy</a>
-            <a href="/terms" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Terms of Service</a>
-            <a href="/mission" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Our Mission</a>
-            <a href="/ethos" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>Our Ethos</a>
-            <a href="/how-it-works" style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}>How It Works</a>
+            <a href="/privacy" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none' }}>Privacy Policy</a>
+            <a href="/terms" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none' }}>Terms of Service</a>
+            <a href="/mission" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none' }}>Our Mission</a>
+            <a href="/ethos" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none' }}>Our Ethos</a>
+            <a href="/how-it-works" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none' }}>How It Works</a>
             <a href="/login" style={{ fontSize: '11px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>Log in</a>
           </div>
         </div>

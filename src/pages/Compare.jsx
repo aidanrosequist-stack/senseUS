@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -30,6 +31,7 @@ function getDisplayName(profile) {
 }
 
 export default function Compare() {
+  usePageTitle('Compare')
   const { token } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -65,7 +67,10 @@ export default function Compare() {
     }))
 
     setComparison({ otherProfile, myProfile, shared: enriched })
-  }, [user])
+    // Note: eslint's exhaustive-deps rule is satisfied by [user?.id] directly
+    // here (it only sees the .id access), unlike the other fix sites in this
+    // pass where a disable comment was needed — so none is added here.
+  }, [user?.id])
 
   // Recomputed client-side, not refetched — toggling match mode just
   // re-scores the same already-loaded mine/theirs pairs, so this is
@@ -125,7 +130,8 @@ export default function Compare() {
     }
 
     if (user) load()
-  }, [token, user, loadComparison])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern) — loadComparison's own identity is now stable across token refreshes too, since its useCallback was fixed the same way.
+  }, [token, user?.id, loadComparison])
 
   async function handleAccept() {
     setProcessing(true)
@@ -233,7 +239,7 @@ export default function Compare() {
               <p style={{ fontSize: '14px', color: '#1A1A1A', marginBottom: '0.5rem' }}>
                 Waiting for your friend to accept.
               </p>
-              <p style={{ fontSize: '12px', color: '#9CA3AF' }}>
+              <p style={{ fontSize: '12px', color: '#6B7280' }}>
                 This link expires 48 hours after you created it.
               </p>
             </div>
@@ -332,7 +338,7 @@ export default function Compare() {
                             ? onlyMyBadges.map(b => (
                                 <span key={b} title={b} style={{ fontSize: '18px' }}>{BADGE_EMOJI[b] || '🏅'}</span>
                               ))
-                            : <span style={{ fontSize: '11px', color: '#9CA3AF' }}>—</span>}
+                            : <span style={{ fontSize: '11px', color: '#6B7280' }}>—</span>}
                         </div>
                       </div>
                       <div>
@@ -344,7 +350,7 @@ export default function Compare() {
                             ? onlyTheirBadges.map(b => (
                                 <span key={b} title={b} style={{ fontSize: '18px' }}>{BADGE_EMOJI[b] || '🏅'}</span>
                               ))
-                            : <span style={{ fontSize: '11px', color: '#9CA3AF' }}>—</span>}
+                            : <span style={{ fontSize: '11px', color: '#6B7280' }}>—</span>}
                         </div>
                       </div>
                     </div>

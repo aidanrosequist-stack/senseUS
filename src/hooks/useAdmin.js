@@ -30,7 +30,8 @@ export function useAdmin() {
         }
         setLoading(false)
       })
-  }, [user, authLoading])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern). AuthContext hands out a new user object reference on every onAuthStateChange firing, including Supabase's routine hourly token refresh.
+  }, [user?.id, authLoading])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   return { isAdmin, loading }

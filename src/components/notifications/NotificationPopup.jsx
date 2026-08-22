@@ -105,7 +105,7 @@ export default function NotificationPopup({ urgentNotification, highNotification
           </div>
         </div>
         {highNotifications.length > 1 && (
-          <div style={{ textAlign: 'center', fontSize: '11px', color: '#9CA3AF', marginTop: '6px' }}>
+          <div style={{ textAlign: 'center', fontSize: '11px', color: '#6B7280', marginTop: '6px' }}>
             +{highNotifications.length - 1} more notification{highNotifications.length - 1 !== 1 ? 's' : ''}
           </div>
         )}

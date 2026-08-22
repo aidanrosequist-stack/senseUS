@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { supabase } from '../lib/supabase'
 import { useRegistration } from '../hooks/useRegistration'
 import PhoneInput from 'react-phone-number-input'
@@ -37,6 +38,7 @@ function getPlaceholderForCountry(countryCode) {
 }
 
 export default function Register() {
+  usePageTitle('Sign Up')
   const {
     phone, setPhone,
     code, setCode,
@@ -132,7 +134,7 @@ if (checkingStatus) {
       </h1>
 
       {error && (
-        <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f9d8d8', color: '#7a1313', borderRadius: '8px', fontSize: '13px' }}>
+        <div role="alert" style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f9d8d8', color: '#7a1313', borderRadius: '8px', fontSize: '13px' }}>
           {error}
         </div>
       )}

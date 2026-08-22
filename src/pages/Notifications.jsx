@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useNotificationsContext } from '../context/NotificationsContext'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const TYPE_ICONS = {
   badge_earned: '🏆',
@@ -23,6 +24,7 @@ function timeAgo(dateString) {
 }
 
 export default function Notifications() {
+  usePageTitle('Notifications')
   const navigate = useNavigate()
   // Reads the single shared notification state App.jsx already fetched
   // and subscribed to, instead of calling the hook again — calling it
@@ -51,7 +53,7 @@ export default function Notifications() {
 
       {/* Page title */}
       <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Notifications</div>
+        <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>Notifications</h1>
       </div>
 
       {unreadCount > 0 && (
@@ -70,7 +72,8 @@ export default function Notifications() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {notifications.map(notification => (
-            <div
+            <button
+              type="button"
               key={notification.id}
               onClick={() => handleNotificationClick(notification)}
               style={{
@@ -86,6 +89,9 @@ export default function Notifications() {
                 display: 'flex',
                 gap: '12px',
                 alignItems: 'flex-start',
+                width: '100%',
+                textAlign: 'left',
+                fontFamily: 'inherit',
               }}
             >
               <div style={{ fontSize: '20px', flexShrink: 0 }}>
@@ -103,11 +109,11 @@ export default function Notifications() {
                 <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5, marginBottom: '4px' }}>
                   {notification.body}
                 </div>
-                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                <div style={{ fontSize: '11px', color: '#6B7280' }}>
                   {timeAgo(notification.created_at)}
                 </div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
