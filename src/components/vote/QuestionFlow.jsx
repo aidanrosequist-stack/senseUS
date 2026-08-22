@@ -13,6 +13,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
   const [changingVote, setChangingVote] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [voteError, setVoteError] = useState(null)
+  const [submittingLabel, setSubmittingLabel] = useState('Saving your vote...')
   const skipHistory = useRef([])
   const swipeStart = useRef(null)
 
@@ -41,6 +42,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
     const tally = getTallyFor(currentQuestion)
 
     setSubmitting(true)
+    setSubmittingLabel('Saving your vote...')
     setVoteError(null)
 
     const isChange = userVote !== null
@@ -74,10 +76,26 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
     advance()
   }
 
-  function handleHideQuestion() {
+  async function handleHideQuestion() {
     if (submitting) return
-    if (onHideQuestion) onHideQuestion(currentQuestion.id)
-    advance()
+
+    setSubmitting(true)
+    setSubmittingLabel('Hiding this question...')
+    setVoteError(null)
+
+    try {
+      // Wait for the skip to actually be recorded before moving on — this
+      // used to fire the insert and advance() in the same tick, so a
+      // failed write (offline, RLS error, etc.) was invisible: the
+      // question just moved on as if it had been hidden, and would keep
+      // resurfacing since nothing was ever saved.
+      if (onHideQuestion) await onHideQuestion(currentQuestion.id)
+      advance()
+    } catch (err) {
+      setVoteError(err.message || 'This question could not be hidden. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   function handleSwipeDownRecover() {
@@ -169,6 +187,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
           initialZone={currentInitialZone || userVote}
           changingVote={changingVote}
           submitting={submitting}
+          submittingLabel={submittingLabel}
           voteError={voteError}
           onDismissError={() => setVoteError(null)}
         />

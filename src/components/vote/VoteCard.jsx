@@ -97,7 +97,7 @@ function ProgressRing({ progress }) {
   )
 }
 
-export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, voteError = null, onDismissError }) {
+export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, submittingLabel = 'Saving your vote...', voteError = null, onDismissError }) {
   const [zone, setZone] = useState(initialZone)
 
   // The native touchmove listener below is bound in an effect with an
@@ -617,7 +617,7 @@ useEffect(() => {
 
       {submitting && (
         <div role="status" aria-live="polite" style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, fontFamily: 'Merriweather, serif', fontSize: '13px', color: '#1A1A1A' }}>
-          Saving your vote...
+          {submittingLabel}
         </div>
       )}
 

@@ -148,10 +148,17 @@ export default function Compare() {
 
   async function handleDecline() {
     setProcessing(true)
-    await supabase
+    const { error } = await supabase
       .from('comparison_tokens')
       .update({ status: 'declined' })
       .eq('id', tokenRow.id)
+
+    if (error) {
+      alert('Something went wrong — please try again.')
+      setProcessing(false)
+      return
+    }
+
     setTokenRow({ ...tokenRow, status: 'declined' })
     setProcessing(false)
   }
