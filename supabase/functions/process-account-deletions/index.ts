@@ -93,5 +93,15 @@ Deno.serve(async (req) => {
     })
   }
 
+  // Best-effort — see migration 033_function_heartbeats.sql. A failed
+  // heartbeat write should never fail the actual job, and this still
+  // records a heartbeat even when deletedCount is 0 (nothing due yet is
+  // a normal, successful run, not a failure).
+  const { error: heartbeatError } = await adminClient.rpc("record_function_heartbeat", {
+    p_function_name: "process-account-deletions",
+    p_details: { deleted: deletedCount, error_count: errors.length },
+  })
+  if (heartbeatError) console.error("record_function_heartbeat failed:", heartbeatError)
+
   return new Response(JSON.stringify({ deleted: deletedCount, errors }), { status: 200 })
 })

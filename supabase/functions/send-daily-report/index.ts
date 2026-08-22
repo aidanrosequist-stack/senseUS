@@ -220,6 +220,13 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "Failed to send report", details: err }), { status: 502 });
     }
 
+    // Best-effort — see migration 033_function_heartbeats.sql. A failed
+    // heartbeat write should never fail the actual job.
+    const { error: heartbeatError } = await supabase.rpc("record_function_heartbeat", {
+      p_function_name: "send-daily-report",
+    });
+    if (heartbeatError) console.error("record_function_heartbeat failed:", heartbeatError);
+
     return new Response(JSON.stringify({ success: true }), { status: 200 });
   } catch (err) {
     console.error("send-daily-report error:", err);

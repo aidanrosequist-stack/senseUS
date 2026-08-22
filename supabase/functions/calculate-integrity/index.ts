@@ -29,6 +29,14 @@ Deno.serve(async (req) => {
     const { data, error } = await adminClient.rpc("calculate_all_integrity_weights")
     if (error) throw error
 
+    // Best-effort — see migration 033_function_heartbeats.sql. A failed
+    // heartbeat write should never fail the actual job.
+    const { error: heartbeatError } = await adminClient.rpc("record_function_heartbeat", {
+      p_function_name: "calculate-integrity",
+      p_details: { profiles_updated: data },
+    })
+    if (heartbeatError) console.error("record_function_heartbeat failed:", heartbeatError)
+
     return new Response(
       JSON.stringify({ success: true, profiles_updated: data }),
       { headers: { "Content-Type": "application/json" }, status: 200 }

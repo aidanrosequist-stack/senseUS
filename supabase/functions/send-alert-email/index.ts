@@ -53,6 +53,9 @@ const ALERT_LABELS: Record<string, string> = {
   coordinated_signup: "Coordinated Signup Signal",
   flagged_question: "Question Flagged for Review",
   transparency_event: "New Transparency Event",
+  security_check_failed: "Security Check Failed",
+  unauthorized_admin_grant: "Unauthorized Admin Grant",
+  function_heartbeat_stale: "Scheduled Function Stale",
 };
 
 function buildAlertHtml(payload: AlertPayload) {
