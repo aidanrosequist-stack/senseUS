@@ -33,11 +33,27 @@ function domainLabel(domain) {
   return domain.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
+// Shared by the Current Events and Sponsored rows — both are the only
+// buckets that ever populate archive_at (see Admin.jsx's Add Question
+// form for current events, and activate_sponsored_question() for
+// sponsored questions), so a plain presence check is enough to scope
+// this to the right cards without threading an extra "kind" prop
+// through QuestionThumbnail.
+function timeLeftLabel(archiveAt) {
+  if (!archiveAt) return null
+  const msLeft = new Date(archiveAt).getTime() - Date.now()
+  if (msLeft <= 0) return 'Ending soon'
+  const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24))
+  if (daysLeft <= 1) return 'Less than a day left to vote'
+  return `${daysLeft} days left to vote`
+}
+
 function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
   const voted = !!userVote
   const longPress = useLongPress(() => onLongPress(question))
   const bgColor = voted ? VOTE_COLORS[userVote] : '#FFFFFF'
   const textColor = voted ? 'white' : '#1A1A1A'
+  const timeLeft = timeLeftLabel(question.archive_at)
 
   return (
     <div
@@ -67,6 +83,14 @@ function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
         }}>
           {question.category}
         </div>
+        {timeLeft && (
+          <div style={{
+            fontSize: '9px', fontWeight: 500, color: voted ? 'rgba(255,255,255,0.85)' : '#856404',
+            marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '3px',
+          }}>
+            <span aria-hidden="true">⏱️</span> {timeLeft}
+          </div>
+        )}
         <div style={{ fontSize: '12px', fontWeight: 500, color: textColor, lineHeight: 1.4, fontFamily: 'Merriweather, serif' }}>
           {question.text.length > 70 ? question.text.substring(0, 70) + '...' : question.text}
         </div>
@@ -177,7 +201,7 @@ export default function Explore() {
         const [{ data: questionsData }, { data: profileData }] = await Promise.all([
           supabase
             .from('questions')
-            .select('id, text, category, domain, geo_scope, country_code, is_current_event, is_sponsored, archived_at, question_number')
+            .select('id, text, category, domain, geo_scope, country_code, is_current_event, is_sponsored, archived_at, archive_at, question_number')
             .not('published_at', 'is', null)
             .lte('published_at', new Date().toISOString())
             .order('created_at', { ascending: false })
