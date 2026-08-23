@@ -120,9 +120,17 @@ export default function Admin() {
   })
 
   async function loadSponsoredQueue() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('sponsored_queue')
       .select('*')
+    if (error) {
+      // Previously silent: this dropped `error` entirely, so a missing
+      // view or an RLS denial looked identical to "no sponsorships yet"
+      // — which is exactly how a genuinely live sponsored question went
+      // unnoticed here. Surface it instead.
+      showMessage('Error loading sponsored queue: ' + error.message, true)
+      return
+    }
     setSponsoredQueue(data || [])
   }
 
@@ -273,6 +281,11 @@ async function toggleRegistration(open) {
     }
     const { error } = await supabase.from('questions').insert({
       ...newQuestion,
+      // archive_at is a timestamptz column — an empty string (the form's
+      // default when "Current event" isn't checked) fails Postgres with
+      // `invalid input syntax for type timestamp with time zone: ""`.
+      // Send null instead so the column stays genuinely unset.
+      archive_at: newQuestion.archive_at ? newQuestion.archive_at : null,
       published_at: new Date().toISOString(),
     })
     if (error) {
@@ -917,7 +930,18 @@ async function toggleRegistration(open) {
               {flaggedComments.map(comment => (
                 <div key={comment.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
                   <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '4px' }}>
-                    On: {comment.questions?.text?.substring(0, 60)}... · {comment.flag_count} flag{comment.flag_count !== 1 ? 's' : ''}
+                    {/* is_flagged is set two ways: a user flagging the comment
+                        (increments flag_count via increment_flag_count) or
+                        moderate_comment()'s automatic keyword filter catching
+                        a borderline word on post/edit (flag_count untouched,
+                        stays 0). Both land in this same queue by design —
+                        showing "0 flags" for the second case read like a
+                        bug (a comment nobody flagged, sitting in "Flagged
+                        Comments"), so it's called out explicitly instead. */}
+                    On: {comment.questions?.text?.substring(0, 60)}...{' '}
+                    {comment.flag_count > 0
+                      ? `· ${comment.flag_count} flag${comment.flag_count !== 1 ? 's' : ''}`
+                      : '· flagged for review (auto-detected, no user flags)'}
                   </div>
                   <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '10px' }}>
                     {comment.body}

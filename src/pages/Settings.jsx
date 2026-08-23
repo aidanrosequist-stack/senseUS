@@ -51,6 +51,8 @@ export default function Settings() {
   const [profile, setProfile] = useState(null)
   const [latestExport, setLatestExport] = useState(null)
   const [exportRequesting, setExportRequesting] = useState(false)
+  const [exportDownloading, setExportDownloading] = useState(false)
+  const [exportDownloadError, setExportDownloadError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saveMessage, setSaveMessage] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -190,6 +192,42 @@ function maskPhone(phone) {
 
     setProfile(prev => ({ ...prev, deletion_requested_at: null }))
   }
+
+  // A plain <a href> to a Supabase Storage signed URL just navigates the
+  // browser there — for a .json file with no Content-Disposition header
+  // that means it opens inline in the tab rather than downloading, and
+  // the `download` attribute is silently ignored by browsers for
+  // cross-origin links like this one. Fetching it ourselves and handing
+  // the bytes back as a same-origin blob URL is what actually makes the
+  // browser download a named file. It also means we find out here,
+  // directly, if the signed link has actually expired (a 400 from
+  // Supabase Storage) instead of only failing silently on click.
+  async function handleDownloadExport(url) {
+    setExportDownloadError(null)
+    setExportDownloading(true)
+    try {
+      const res = await fetch(url)
+      if (!res.ok) {
+        setExportDownloadError('This export link has expired. Request a new export below.')
+        return
+      }
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = `senseus-export-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(blobUrl)
+    } catch {
+      setExportDownloadError('Could not download your export. Please try again.')
+    } finally {
+      setExportDownloading(false)
+    }
+  }
+
+  const exportExpired = !!(latestExport?.expires_at && new Date(latestExport.expires_at) < new Date())
 
   if (loading) {
     return (
@@ -475,15 +513,27 @@ function maskPhone(phone) {
         </Row>
         {latestExport && (
           <div style={{ padding: '10px 16px 14px' }}>
-            {latestExport.status === 'completed' && latestExport.download_url && (
+            {latestExport.status === 'completed' && latestExport.download_url && !exportExpired && (
               <p style={{ fontSize: '12px', color: '#52B788', margin: 0, lineHeight: 1.6 }}>
                 Your export is ready.{' '}
-                <a href={latestExport.download_url} style={{ color: '#2D3DCA', fontWeight: 500 }}>
-                  Download it
-                </a>
+                <button
+                  onClick={() => handleDownloadExport(latestExport.download_url)}
+                  disabled={exportDownloading}
+                  style={{ fontSize: '12px', color: '#2D3DCA', fontWeight: 500, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'Merriweather, serif', opacity: exportDownloading ? 0.6 : 1 }}
+                >
+                  {exportDownloading ? 'Downloading...' : 'Download it'}
+                </button>
                 {latestExport.expires_at && (
                   <> (link expires {new Date(latestExport.expires_at).toLocaleDateString()})</>
                 )}
+                {exportDownloadError && (
+                  <><br /><span style={{ color: '#c21f1f' }}>{exportDownloadError}</span></>
+                )}
+              </p>
+            )}
+            {latestExport.status === 'completed' && latestExport.download_url && exportExpired && (
+              <p style={{ fontSize: '12px', color: '#6B7280', margin: 0, lineHeight: 1.6 }}>
+                Your export link expired {new Date(latestExport.expires_at).toLocaleDateString()}. Request a new export above to get a fresh link.
               </p>
             )}
             {latestExport.status === 'failed' && (

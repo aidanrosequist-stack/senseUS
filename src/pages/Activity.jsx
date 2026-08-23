@@ -7,6 +7,7 @@ import { useLongPress } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
 import { IconThumbUp, IconThumbDown } from '@tabler/icons-react'
 import { usePageTitle } from '../hooks/usePageTitle'
+import { useModalFocus } from '../hooks/useModalFocus'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
@@ -249,6 +250,17 @@ export default function Activity() {
   const [snapshotMap, setSnapshotMap] = useState({})
   const [actionSheet, setActionSheet] = useState(null)
 
+  // Comparison-link modal: startComparison() used to rely entirely on
+  // navigator.share() / navigator.clipboard succeeding, with nothing
+  // rendered if both silently failed or were unavailable (the reported
+  // bug — the token was created server-side but the user never saw the
+  // link). Now we always show it here as the reliable path, and offer
+  // the device share sheet as an optional extra inside the modal.
+  const [comparisonLink, setComparisonLink] = useState(null)
+  const [comparisonLinkError, setComparisonLinkError] = useState(null)
+  const [comparisonCopyState, setComparisonCopyState] = useState('idle')
+  const comparisonPanelRef = useModalFocus(!!comparisonLink, () => setComparisonLink(null))
+
   // Each tab's data is fetched only once, the first time that tab is
   // actually opened — not all four upfront on page load. loadedTabs
   // tracks which ones have already been fetched; tabLoading tracks
@@ -279,6 +291,7 @@ export default function Activity() {
   }
 
   async function startComparison() {
+    setComparisonLinkError(null)
     const { data, error } = await supabase
       .from('comparison_tokens')
       .insert({ sender_id: user.id })
@@ -286,26 +299,42 @@ export default function Activity() {
       .single()
 
     if (error || !data) {
-      alert('Something went wrong creating your link.')
+      setComparisonLinkError('Something went wrong creating your link. Please try again.')
       return
     }
 
-    const url = `https://senseus.app/compare/${data.token}`
-    const shareData = { title: 'senseUS', text: 'Compare voting histories with me on senseUS', url }
+    // Always surface the link in-app rather than depending solely on
+    // navigator.share()/clipboard succeeding — both can fail silently
+    // (no native share sheet in some environments, clipboard permission
+    // denied, etc.) with nothing visible to the user. The modal below is
+    // the reliable path; device share is offered as an extra button
+    // inside it, on demand rather than auto-fired.
+    setComparisonLink(`https://senseus.app/compare/${data.token}`)
+    setComparisonCopyState('idle')
+  }
 
+  async function copyComparisonLink() {
+    if (!comparisonLink) return
+    try {
+      await navigator.clipboard.writeText(comparisonLink)
+      setComparisonCopyState('copied')
+      setTimeout(() => setComparisonCopyState('idle'), 2000)
+    } catch {
+      setComparisonCopyState('manual')
+    }
+  }
+
+  async function shareComparisonLink() {
+    if (!comparisonLink) return
+    const shareData = { title: 'senseUS', text: 'Compare voting histories with me on senseUS', url: comparisonLink }
     if (navigator.share) {
       try {
         await navigator.share(shareData)
       } catch {
-        // User cancelled the share sheet — not an error, do nothing
+        // User cancelled the share sheet — not an error, the link modal is still open behind it
       }
     } else {
-      try {
-        await navigator.clipboard.writeText(url)
-        alert('Link copied to clipboard!')
-      } catch {
-        prompt('Copy this link:', url)
-      }
+      copyComparisonLink()
     }
   }
 
@@ -698,10 +727,14 @@ export default function Activity() {
             <div>
               <button
                 onClick={startComparison}
-                style={{ width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '1.5rem' }}
+                style={{ width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
               >
                 Compare your vote history with a friend
               </button>
+              {comparisonLinkError && (
+                <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '6px', marginBottom: 0 }}>{comparisonLinkError}</p>
+              )}
+              <div style={{ marginBottom: '1.5rem' }} />
 
               {votes.length === 0 ? (
                 <p style={{ fontSize: '13px', color: '#6B7280', textAlign: 'center', padding: '2rem 0' }}>
@@ -738,6 +771,71 @@ export default function Activity() {
           actions={actionSheet.actions}
           onClose={() => setActionSheet(null)}
         />
+      )}
+
+      {comparisonLink && (
+        <div
+          onClick={() => setComparisonLink(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: '1.5rem', boxSizing: 'border-box',
+          }}
+        >
+          <div
+            ref={comparisonPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Compare your vote history with a friend"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#FFFFFF', borderRadius: '16px', padding: '1.5rem',
+              maxWidth: '360px', width: '100%', fontFamily: 'Merriweather, serif',
+              outline: 'none',
+            }}
+          >
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
+              Your comparison link is ready
+            </div>
+            <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.6, marginBottom: '1rem' }}>
+              Send this to a friend. Once they open it and accept, you'll both see how your votes line up.
+            </p>
+            <div style={{
+              fontSize: '12px', color: '#1A1A1A', background: '#F3F4F6', borderRadius: '8px',
+              padding: '10px 12px', marginBottom: '0.75rem', wordBreak: 'break-all', userSelect: 'all',
+            }}>
+              {comparisonLink}
+            </div>
+            {comparisonCopyState === 'manual' && (
+              <p style={{ fontSize: '12px', color: '#991B1B', marginBottom: '0.75rem' }}>
+                Couldn't copy automatically — select the link above and copy it manually.
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '0.75rem' }}>
+              <button
+                onClick={copyComparisonLink}
+                style={{ flex: 1, padding: '10px', background: comparisonCopyState === 'copied' ? '#4d621d' : '#F3F4F6', color: comparisonCopyState === 'copied' ? 'white' : '#1A1A1A', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+              >
+                {comparisonCopyState === 'copied' ? 'Copied!' : 'Copy link'}
+              </button>
+              {typeof navigator !== 'undefined' && navigator.share && (
+                <button
+                  onClick={shareComparisonLink}
+                  style={{ flex: 1, padding: '10px', background: '#F3F4F6', color: '#1A1A1A', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                >
+                  Share...
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => setComparisonLink(null)}
+              style={{ width: '100%', padding: '10px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+            >
+              Done
+            </button>
+          </div>
+        </div>
       )}
     </div>
     </div>
