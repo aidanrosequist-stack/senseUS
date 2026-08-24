@@ -592,6 +592,101 @@ ALTER TABLE "public"."vote_changes" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."votes" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."waitlist" ENABLE ROW LEVEL SECURITY;
 
+-- ============================================================
+-- 7. Views (hand-created in the Dashboard, never captured -- same gap
+--    as the tables above; surfaced by `supabase db pull` failing to
+--    build its shadow database at migration 039, which grants on
+--    sponsored_queue assuming it already exists)
+-- ============================================================
+--
+-- Pulled 2026-08-24 via pg_get_viewdef('public.<name>'::regclass, true)
+-- against the live database. While capturing these, also pulled their
+-- live grants (information_schema.role_table_grants) and found both had
+-- every privilege -- INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER,
+-- not just SELECT -- granted to anon and authenticated, not just the
+-- read access either view is actually meant to provide. For
+-- public_sponsors specifically, that's a real, currently-live issue:
+-- it's a simple single-table view (no joins/aggregates), which Postgres
+-- auto-updates by default, and it's owned the way every Dashboard-
+-- created view is -- which bypasses RLS on the underlying table for
+-- anyone querying it. Put together, ANY visitor -- logged in or not,
+-- since anon has the grant -- can currently run a raw UPDATE or DELETE
+-- against this view via the API and have it silently rewrite or delete
+-- rows in sponsored_questions directly, with no RLS check in the way.
+-- Not a hypothetical -- this is live in production right now.
+--
+-- Fixed here in two parts:
+--   1. Both views: revoke everything except SELECT for anon/
+--      authenticated. sponsored_queue's JOIN + CASE means Postgres
+--      can't auto-update it regardless (so it was likely not directly
+--      exploitable the same way), but there's no reason to leave the
+--      grant broader than what's used either way.
+--   2. sponsored_queue only: recreated WITH (security_invoker = true),
+--      so it now evaluates RLS as the querying user instead of
+--      bypassing it. sponsored_questions' only policy restricts SELECT
+--      to admins (is_admin_user()) -- with this flag, a non-admin
+--      querying the view now correctly gets zero rows, matching what
+--      Admin.jsx's UI already assumed was true but the database never
+--      actually enforced. Confirmed this doesn't change anything for
+--      real admins: they satisfy that same policy regardless of how
+--      it's reached, so their queue view is unaffected.
+--   public_sponsors is NOT given security_invoker -- unlike the queue,
+--   it's *supposed* to be readable by everyone (it's what shows
+--   "sponsored by X" on a live question to any visitor), and
+--   sponsored_questions has no policy permitting that for non-admins.
+--   Making it invoker-respecting would break the one thing it exists
+--   to do. Its narrow SELECT-only column list (just question_id +
+--   sponsor_name, only for status = 'live') is the actual security
+--   boundary here, same as it always was.
+
+CREATE OR REPLACE VIEW public.sponsored_queue
+WITH (security_invoker = true)
+AS
+ SELECT sq.id,
+    sq.sponsor_name,
+    sq.sponsor_category,
+    sq.status,
+    sq.created_at,
+    sq.live_at,
+    sq.archived_at,
+    sq.duration_days,
+    q.text AS question_text,
+    q.domain,
+        CASE
+            WHEN q.domain = 'politics & policy'::text AND sq.status = 'waitlisted'::text THEN
+            CASE
+                WHEN (EXISTS ( SELECT 1
+                   FROM sponsored_questions sq2
+                     JOIN questions q2 ON q2.id = sq2.question_id
+                  WHERE sq2.sponsor_name = sq.sponsor_name AND q2.domain = 'politics & policy'::text AND sq2.archived_at IS NOT NULL AND sq2.archived_at > (now() - '90 days'::interval))) THEN 'in_cooldown'::text
+                WHEN (( SELECT count(*) AS count
+                   FROM sponsored_questions sq3
+                     JOIN questions q3 ON q3.id = sq3.question_id
+                  WHERE q3.domain = 'politics & policy'::text AND sq3.status = 'live'::text)) >= 2 THEN 'slots_full'::text
+                WHEN (EXISTS ( SELECT 1
+                   FROM sponsored_questions sq4
+                     JOIN questions q4 ON q4.id = sq4.question_id
+                  WHERE sq4.sponsor_name = sq.sponsor_name AND q4.domain = 'politics & policy'::text AND sq4.status = 'live'::text)) THEN 'already_has_live_slot'::text
+                ELSE 'eligible'::text
+            END
+            ELSE sq.status
+        END AS computed_eligibility
+   FROM sponsored_questions sq
+     JOIN questions q ON q.id = sq.question_id
+  ORDER BY sq.created_at;
+
+REVOKE ALL ON public.sponsored_queue FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.sponsored_queue TO authenticated;
+
+CREATE OR REPLACE VIEW public.public_sponsors AS
+ SELECT question_id,
+    sponsor_name
+   FROM sponsored_questions
+  WHERE status = 'live'::text;
+
+REVOKE ALL ON public.public_sponsors FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.public_sponsors TO anon, authenticated;
+
 -- ============================================
 -- activate_sponsored_question
 -- ============================================
