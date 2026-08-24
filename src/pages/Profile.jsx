@@ -27,6 +27,21 @@ export default function Profile() {
   const [showIntegrityInfo, setShowIntegrityInfo] = useState(false)
   const [integrityStatus, setIntegrityStatus] = useState(null)
   const { notifications, markAsRead, markAllAsRead, deleteNotification } = useNotificationsContext()
+  const [notifError, setNotifError] = useState(null)
+
+  async function handleMarkAllAsRead() {
+    setNotifError(null)
+    try {
+      await markAllAsRead()
+    } catch (err) {
+      // markAllAsRead() previously swallowed its own write error and
+      // fell through to an optimistic UI update regardless, which is
+      // exactly why clicking this used to look like it did nothing —
+      // there was no path for a failure to ever become visible here.
+      console.error('Mark all as read failed:', err)
+      setNotifError('Could not mark notifications as read. Please try again.')
+    }
+  }
   const resonancePanelRef = useModalFocus(showResonanceInfo, () => setShowResonanceInfo(false))
   const integrityPanelRef = useModalFocus(showIntegrityInfo, () => setShowIntegrityInfo(false))
 
@@ -214,13 +229,18 @@ async function openIntegrityInfo() {
     <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A' }}>Notifications</div>
     {notifications.length > 0 && (
       <button
-        onClick={markAllAsRead}
+        onClick={handleMarkAllAsRead}
         style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', padding: 0 }}
       >
         Mark all as read
       </button>
     )}
   </div>
+  {notifError && (
+    <div style={{ fontSize: '12px', color: '#7a1313', background: '#f9d8d8', borderRadius: '8px', padding: '8px 12px', marginBottom: '0.75rem' }}>
+      {notifError}
+    </div>
+  )}
   {notifications.length === 0 ? (
     <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '14px' }}>
       No notifications yet.
