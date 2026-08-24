@@ -88,11 +88,21 @@ export function useNotifications() {
   }
 
   async function markAllAsRead() {
-    await supabase
+    // Previously ignored the { error } this resolves with (supabase-js
+    // resolves, rather than rejects, on a database/RLS-level failure —
+    // it only rejects on a genuine network error), so a permission
+    // denial or any other write failure here was invisible: the code
+    // fell straight through to the optimistic local-state update below
+    // regardless of whether the write actually happened. Now surfaced to
+    // the caller so Profile.jsx can show something went wrong instead of
+    // silently pretending it worked.
+    const { error } = await supabase
       .from('notifications')
       .update({ read: true })
       .eq('user_id', user.id)
       .eq('read', false)
+
+    if (error) throw error
 
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
     setUnreadCount(0)

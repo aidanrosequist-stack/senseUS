@@ -799,7 +799,7 @@ export default function Conversation() {
       <VoteBreakdownBar tally={tally} />
 
       <button
-        onClick={() => navigate(`/make-up-my-mind/${questionId}`)}
+        onClick={() => navigate(`/make-up-my-mind/${questionId}`, { state: { from: 'conversation' } })}
         style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#FFFFFF', border: '1.5px solid #2D3DCA', color: '#2D3DCA', borderRadius: '8px', padding: '7px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif', marginBottom: '0.75rem' }}
       >
         <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#2D3DCA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
