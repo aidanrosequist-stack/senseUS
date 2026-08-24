@@ -50,17 +50,9 @@ export default function Profile() {
   }
 
   async function handleMarkAllAsRead() {
-    // Temporary diagnostic logging — the underlying bug report is that
-    // clicking this button produces no network request at all, old code
-    // or new, which points at the click never reaching this function in
-    // the first place rather than anything inside it. These three logs
-    // pin down exactly how far execution actually gets.
-    console.log('[MarkAllAsRead] button clicked, notifications:', notifications.length)
     setNotifError(null)
     try {
-      console.log('[MarkAllAsRead] calling markAllAsRead()...')
       await markAllAsRead()
-      console.log('[MarkAllAsRead] markAllAsRead() resolved successfully')
     } catch (err) {
       // markAllAsRead() previously swallowed its own write error and
       // fell through to an optimistic UI update regardless, which is

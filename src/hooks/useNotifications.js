@@ -114,16 +114,12 @@ export function useNotifications() {
     // regardless of whether the write actually happened. Now surfaced to
     // the caller so Profile.jsx can show something went wrong instead of
     // silently pretending it worked.
-    //
-    // Temporary diagnostic log — see the matching one in Profile.jsx.
-    console.log('[MarkAllAsRead] inside hook, about to call supabase.update(), user:', user?.id)
     const { error } = await supabase
       .from('notifications')
       .update({ read: true })
       .eq('user_id', user.id)
       .eq('read', false)
 
-    console.log('[MarkAllAsRead] supabase.update() returned, error:', error)
     if (error) throw error
 
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
