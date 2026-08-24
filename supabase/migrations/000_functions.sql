@@ -1226,6 +1226,34 @@ $function$
 ;
 
 -- ============================================
+-- is_admin_user
+-- ============================================
+-- Added 2026-08-24: like every table above, this was created directly in
+-- the Dashboard and was never captured in any migration file -- except
+-- this gap was worse, because it's referenced by RLS policies (which are
+-- validated against the catalog at CREATE POLICY time, unlike a plpgsql
+-- function body) starting in migration 032. That's what actually surfaced
+-- it: `supabase db pull` builds its own throwaway database by replaying
+-- every migration from empty, and failed outright on migration 032's
+-- "Admins can view admin actions" policy with "function is_admin_user()
+-- does not exist" -- it couldn't even finish building the comparison
+-- database. Confirmed via `pg_get_functiondef('public.is_admin_user()'::
+-- regprocedure)` against the live database that this is the complete,
+-- unmodified live definition. Same fix pattern as the table structure
+-- above: merged into this file (which already runs first) rather than a
+-- new migration number, since `db push` tracks by version only and won't
+-- re-run anything against production -- this changes nothing live.
+CREATE OR REPLACE FUNCTION public.is_admin_user()
+ RETURNS boolean
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  select coalesce((select is_admin from profiles where id = auth.uid()), false);
+$function$
+;
+
+-- ============================================
 -- log_anomaly_only
 -- ============================================
 CREATE OR REPLACE FUNCTION public.log_anomaly_only(p_alert_type text, p_severity text, p_details jsonb, p_related_question_id uuid DEFAULT NULL::uuid, p_related_country text DEFAULT NULL::text)
