@@ -1239,51 +1239,53 @@ async function toggleRegistration(open) {
               if (!broadcast.title.trim() || !broadcast.body.trim()) return showMessage('Title and message are required.', true)
               setBroadcasting(true)
 
+              // Both the recipient-count preview and the actual send run through
+              // the same server-side RPC (p_dry_run toggles whether it inserts),
+              // so the audience-filtering logic lives in exactly one place and
+              // the preview number can never drift from what actually gets sent.
+              // Previously this fetched every matching profile id — and, for the
+              // "active users" audience, every votes row from the last 30 days —
+              // to the client with no limit. PostgREST caps an unbounded select
+              // at 1000 rows by default, so past that many users or votes this
+              // would have silently notified only a subset, with no error and no
+              // indication to the admin. Mirrors the fix already shipped for
+              // "push as breaking news" (broadcast_breaking_news, migration 023)
+              // — see broadcast_admin_notification, migration 040.
+              const rpcParams = {
+                p_title: broadcast.title,
+                p_body: broadcast.body,
+                p_priority: broadcast.priority,
+                p_action_url: broadcast.action_url || null,
+                p_audience: broadcast.audience,
+                p_country_code: broadcast.country_code || null,
+                p_age_min: broadcast.age_min ? parseInt(broadcast.age_min) : null,
+                p_age_max: broadcast.age_max ? parseInt(broadcast.age_max) : null,
+              }
+
               try {
-                const currentYear = new Date().getFullYear()
-                let query = supabase.from('profiles').select('id')
+                const { data: preview, error: previewError } = await supabase
+                  .rpc('broadcast_admin_notification', { ...rpcParams, p_dry_run: true })
+                  .single()
+                if (previewError) throw previewError
 
-                if (broadcast.audience === 'active') {
-                  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-                  const { data: activeUsers } = await supabase
-                    .from('votes')
-                    .select('user_id')
-                    .gte('created_at', thirtyDaysAgo)
-                  const activeIds = [...new Set((activeUsers || []).map(v => v.user_id))]
-                  query = query.in('id', activeIds)
+                const previewCount = preview?.notified_count ?? 0
+                if (previewCount === 0) {
+                  showMessage('No users found.', true)
+                  return
                 }
 
-                if ((broadcast.audience === 'country' || broadcast.audience === 'country_age') && broadcast.country_code) {
-                  query = query.eq('country_code', broadcast.country_code)
-                }
+                const confirmed = confirm(
+                  `Send this broadcast to ${previewCount} user${previewCount === 1 ? '' : 's'}?`
+                )
+                if (!confirmed) return
 
-                if ((broadcast.audience === 'age' || broadcast.audience === 'country_age') && broadcast.age_min) {
-                  const maxBirthYear = currentYear - parseInt(broadcast.age_min)
-                  query = query.lte('birth_year', maxBirthYear)
-                }
-
-                if ((broadcast.audience === 'age' || broadcast.audience === 'country_age') && broadcast.age_max) {
-                  const minBirthYear = currentYear - parseInt(broadcast.age_max)
-                  query = query.gte('birth_year', minBirthYear)
-                }
-
-                const { data: users } = await query
-                if (!users?.length) return showMessage('No users found.', true)
-
-                const notifications = users.map(u => ({
-                  user_id: u.id,
-                  type: 'admin_broadcast',
-                  priority: broadcast.priority,
-                  title: broadcast.title,
-                  body: broadcast.body,
-                  action_url: broadcast.action_url || null,
-                }))
-
-                const { error } = await supabase.from('notifications').insert(notifications)
+                const { data, error } = await supabase
+                  .rpc('broadcast_admin_notification', { ...rpcParams, p_dry_run: false })
+                  .single()
                 if (error) throw error
 
-                showMessage(`Broadcast sent to ${users.length} users!`)
-                setBroadcast({ title: '', body: '', type: 'admin_broadcast', priority: 'normal', action_url: '', audience: 'all' })
+                showMessage(`Broadcast sent to ${data?.notified_count ?? 0} users!`)
+                setBroadcast({ title: '', body: '', type: 'admin_broadcast', priority: 'normal', action_url: '', audience: 'all', country_code: '', age_min: '', age_max: '' })
               } catch (err) {
                 showMessage('Error sending broadcast: ' + err.message, true)
               } finally {
