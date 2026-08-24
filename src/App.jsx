@@ -26,7 +26,6 @@ const HowItWorks = lazy(() => import('./pages/HowItWorks'))
 const QuestionPreview = lazy(() => import('./pages/QuestionPreview'))
 const Transparency = lazy(() => import('./pages/Transparency'))
 const NotFound = lazy(() => import('./pages/NotFound'))
-const Notifications = lazy(() => import('./pages/Notifications'))
 const Ethos = lazy(() => import('./pages/Ethos'))
 
 function PageLoading() {
@@ -119,7 +118,13 @@ function AppRoutes() {
           <Route path="/activity" element={<Activity />} />
           <Route path="/explore" element={<Explore />} />
           <Route path="/conversation/:questionId" element={<Conversation />} />
-          <Route path="/notifications" element={<Notifications />} />
+          {/* /notifications used to route here — removed along with
+              src/pages/Notifications.jsx. Nothing in the app ever linked
+              to it (confirmed via a repo-wide search), and /profile is
+              now the one place notifications are shown, with the same
+              type-icon/click-to-navigate behavior that page had. The
+              file itself is still on disk; delete it whenever you get a
+              chance since nothing here can remove files on your machine. */}
           <Route path="/compare/:token" element={<Compare />} />
         </Route>
 

@@ -7,11 +7,15 @@ export default function BottomNav() {
   const navigate = useNavigate()
   const path = useLocation().pathname
 
+  // The unread badge used to sit on Activity (via the bell icon), but
+  // Activity is streaks/stats/compare-with-friend — nothing to do with
+  // notifications. The actual notifications list lives on /profile, so
+  // that's where an unread count should point too.
   const tabs = [
     { label: 'Vote', icon: IconThumbUp, path: '/vote' },
     { label: 'Explore', icon: IconCompass, path: '/explore' },
-    { label: 'Activity', icon: IconBell, path: '/activity', badge: unreadCount },
-    { label: 'Profile', icon: IconUser, path: '/profile' },
+    { label: 'Activity', icon: IconBell, path: '/activity' },
+    { label: 'Profile', icon: IconUser, path: '/profile', badge: unreadCount },
   ]
 
   return (

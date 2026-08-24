@@ -17,6 +17,21 @@ function timeAgo(dateString) {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
+// Ported over from the standalone /notifications page, which is going
+// away — nothing in the app ever linked to it, so its nicer notification
+// card (type icon, relative timestamp, click-to-navigate) was built but
+// never actually seen by anyone. This is the one place notifications are
+// shown now, so it inherits that behavior instead.
+const NOTIFICATION_TYPE_ICONS = {
+  badge_earned: '🏆',
+  new_tracking_question: '📊',
+  system_message: '💬',
+  milestone: '🎯',
+  admin_broadcast: '📣',
+  welcome: '👋',
+  urgent: '🚨',
+}
+
 export default function Profile() {
   usePageTitle('Your Profile')
   const [profile, setProfile] = useState(null)
@@ -26,13 +41,26 @@ export default function Profile() {
   const [showResonanceInfo, setShowResonanceInfo] = useState(false)
   const [showIntegrityInfo, setShowIntegrityInfo] = useState(false)
   const [integrityStatus, setIntegrityStatus] = useState(null)
-  const { notifications, markAsRead, markAllAsRead, deleteNotification } = useNotificationsContext()
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotificationsContext()
   const [notifError, setNotifError] = useState(null)
 
+  function handleNotificationClick(notification) {
+    if (!notification.read) markAsRead(notification.id)
+    if (notification.action_url) navigate(notification.action_url)
+  }
+
   async function handleMarkAllAsRead() {
+    // Temporary diagnostic logging — the underlying bug report is that
+    // clicking this button produces no network request at all, old code
+    // or new, which points at the click never reaching this function in
+    // the first place rather than anything inside it. These three logs
+    // pin down exactly how far execution actually gets.
+    console.log('[MarkAllAsRead] button clicked, notifications:', notifications.length)
     setNotifError(null)
     try {
+      console.log('[MarkAllAsRead] calling markAllAsRead()...')
       await markAllAsRead()
+      console.log('[MarkAllAsRead] markAllAsRead() resolved successfully')
     } catch (err) {
       // markAllAsRead() previously swallowed its own write error and
       // fell through to an optimistic UI update regardless, which is
@@ -232,7 +260,7 @@ async function openIntegrityInfo() {
         onClick={handleMarkAllAsRead}
         style={{ fontSize: '12px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', padding: 0 }}
       >
-        Mark all as read
+        Mark all as read{unreadCount > 0 ? ` (${unreadCount})` : ''}
       </button>
     )}
   </div>
@@ -259,22 +287,27 @@ async function openIntegrityInfo() {
         >
           <button
             type="button"
-            onClick={() => markAsRead(notification.id)}
-            style={{ cursor: 'pointer', display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: 0, fontFamily: 'inherit' }}
+            onClick={() => handleNotificationClick(notification)}
+            style={{ cursor: notification.action_url ? 'pointer' : 'default', display: 'flex', gap: '10px', alignItems: 'flex-start', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: 0, fontFamily: 'inherit' }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
-                {notification.title}
+            <div style={{ fontSize: '18px', flexShrink: 0, lineHeight: 1.3 }}>
+              {NOTIFICATION_TYPE_ICONS[notification.type] || '💬'}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+                  {notification.title}
+                </div>
+                {!notification.read && (
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2D3DCA', flexShrink: 0, marginTop: '4px' }} />
+                )}
               </div>
-              {!notification.read && (
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2D3DCA', flexShrink: 0, marginTop: '4px' }} />
-              )}
-            </div>
-            <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5, marginBottom: '4px' }}>
-              {notification.body}
-            </div>
-            <div style={{ fontSize: '11px', color: '#6B7280' }}>
-              {new Date(notification.created_at).toLocaleDateString()}
+              <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5, marginBottom: '4px' }}>
+                {notification.body}
+              </div>
+              <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                {timeAgo(notification.created_at)}
+              </div>
             </div>
           </button>
           <button
