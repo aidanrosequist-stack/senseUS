@@ -1,7 +1,7 @@
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const STANCE_CONFIG = {
@@ -18,6 +18,31 @@ export default function MakeUpMyMind() {
   usePageTitle('Make Up My Mind')
   const { questionId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Where "back to vote" should actually go depends on how this page was
+  // reached — Conversation.jsx (already voted, reading up afterward) and
+  // QuestionFlow.jsx (mid-vote, via VoteCard's Make Up My Mind button)
+  // both link here. The header button used to just do navigate(-1)
+  // (plain browser-history back), which is exactly the bug report this
+  // fixes: the vote flow's current question is local React state inside
+  // QuestionFlow, not part of the URL, so going back to a bare /vote
+  // remounts it from scratch — a fresh candidate batch gets fetched and
+  // the flow starts over from whatever question lands first in it, not
+  // the one the user was actually reading about. The sticky CTA at the
+  // bottom already worked around this by hardcoding a jump to
+  // /vote?question=<id> (the same deep-link path Vote.jsx uses for
+  // shares/notifications), but that's wrong for the *other* entry point:
+  // coming from Conversation (already voted), it would detour back
+  // through a vote card instead of returning to the conversation being
+  // read. Tracking which entry point was used via router state and
+  // picking the right destination fixes both buttons for both paths at
+  // once, and does it without depending on browser history at all.
+  const cameFromConversation = location.state?.from === 'conversation'
+  const backDestination = cameFromConversation
+    ? `/conversation/${questionId}`
+    : `/vote?question=${questionId}`
+
   const [question, setQuestion] = useState(null)
   const [articles, setArticles] = useState([])
   const [loading, setLoading] = useState(true)
@@ -97,7 +122,7 @@ export default function MakeUpMyMind() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(backDestination)}
           style={{ fontSize: '13px', color: '#2D3DCA', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', padding: 0 }}
         >
           ← back to vote
@@ -166,7 +191,7 @@ export default function MakeUpMyMind() {
       {/* Back to vote CTA */}
       <div style={{ position: 'sticky', bottom: '1.5rem', marginTop: '2rem' }}>
         <button
-          onClick={() => navigate(`/vote?question=${questionId}`)}
+          onClick={() => navigate(backDestination)}
           style={{
             width: '100%',
             padding: '13px',

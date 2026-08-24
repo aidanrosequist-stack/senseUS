@@ -181,7 +181,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
           onVote={handleVote}
           onSkip={handleSkip}
           onHideQuestion={handleHideQuestion}
-          onMakeUpMyMind={() => navigate(`/make-up-my-mind/${currentQuestion.id}`)}
+          onMakeUpMyMind={() => navigate(`/make-up-my-mind/${currentQuestion.id}`, { state: { from: 'vote' } })}
           onViewConversation={() => navigate(`/conversation/${currentQuestion.id}`)}
           showHint={currentIndex === 0}
           initialZone={currentInitialZone || userVote}
