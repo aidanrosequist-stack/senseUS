@@ -20,16 +20,34 @@ export function useNotifications() {
     }
 
     async function fetchNotifications() {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50)
+      // unreadCount used to be derived from data.filter(n => !n.read).length
+      // — i.e. only counted within the 50 most recent notifications. Fine
+      // for an account with a light history, but wrong in general: once
+      // someone has racked up more than 50 notifications total, anything
+      // unread older than the 50 most recent becomes invisible to both
+      // this count and the rendered list, even though it's still sitting
+      // there unread in the database (and Mark All As Read *does* still
+      // reach it, since that query isn't capped — it would just look like
+      // nothing happened, because nothing visible changed). Counting it
+      // with a separate head-only query gets the real total regardless of
+      // how many notifications exist beyond what's actually displayed.
+      const [{ data, error }, { count: realUnreadCount }] = await Promise.all([
+        supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('read', false),
+      ])
 
       if (!error && data) {
         setNotifications(data)
-        setUnreadCount(data.filter(n => !n.read).length)
+        setUnreadCount(realUnreadCount ?? data.filter(n => !n.read).length)
         const urgent = data.find(n => !n.read && n.priority === 'urgent')
         setUrgentNotification(urgent || null)
         const high = data.filter(n => !n.read && n.priority === 'high')
