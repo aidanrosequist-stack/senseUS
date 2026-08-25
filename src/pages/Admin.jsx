@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAdmin } from '../hooks/useAdmin'
 import AdminReports from './AdminReports'
 
-const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'tracking', 'sponsored']
+const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'tracking', 'sponsored', 'current events']
 const DOMAINS = ['society & culture', 'ethics & philosophy', 'health & wellbeing', 'relationships', 'technology', 'money & work', 'media & information', 'politics & policy', 'science & nature', 'sports & leisure']
 const STANCES = ['yes', 'ly', 'neutral', 'ln', 'no']
 
