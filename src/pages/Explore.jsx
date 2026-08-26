@@ -21,6 +21,11 @@ const DOMAINS = [
   'sports & leisure',
 ]
 
+// Same 7 values Admin.jsx uses when setting a question's category.
+// Filter chips below let a user narrow the browse view (and search
+// results) to just one of these instead of typing it into search.
+const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'tracking', 'sponsored', 'current events']
+
 const VOTE_COLORS = {
   yes: '#DAE9AF', ly: '#EEE5AA', ln: '#EBCDAD', no: '#EBADAD',
 }
@@ -31,6 +36,10 @@ const VOTE_LABELS = {
 
 function domainLabel(domain) {
   return domain.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+function categoryLabel(category) {
+  return category.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
 // Shared by the Current Events and Sponsored rows — both are the only
@@ -156,6 +165,7 @@ export default function Explore() {
   const [userVotes, setUserVotes] = useState({})
   const [loading, setLoading] = useState(true)
   const [unansweredOnly, setUnansweredOnly] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState(null)
   const scrollRefs = useRef({})
   const [userCountry, setUserCountry] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -288,6 +298,7 @@ export default function Explore() {
 
     for (const q of questions) {
       if (unansweredOnly && userVotes[q.id]) continue
+      if (selectedCategory && q.category !== selectedCategory) continue
 
       if (q.is_sponsored) {
         if (!q.archived_at) sponsored.push(q)
@@ -307,7 +318,14 @@ export default function Explore() {
 
     return { byDomain, myCountry, otherCountry, currentEvents, sponsored }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questions, unansweredOnly, userVotes, userCountry])
+  }, [questions, unansweredOnly, userVotes, userCountry, selectedCategory])
+
+  const hasBucketResults =
+    buckets.sponsored.length > 0 ||
+    buckets.currentEvents.length > 0 ||
+    buckets.myCountry.length > 0 ||
+    buckets.otherCountry.length > 0 ||
+    Object.values(buckets.byDomain).some(arr => arr.length > 0)
 
   // Search used to be a client-side .filter() over `questions` on every
   // keystroke — fine while that array was unbounded, but now that the
@@ -332,7 +350,10 @@ export default function Explore() {
     const timer = setTimeout(async () => {
       const { data } = await supabase.rpc('search_questions', { p_query: trimmed })
       if (ignore) return
-      setSearchResults((data || []).filter(q => !(unansweredOnly && userVotes[q.id])))
+      setSearchResults((data || []).filter(q =>
+        !(unansweredOnly && userVotes[q.id]) &&
+        (!selectedCategory || q.category === selectedCategory)
+      ))
       setSearching(false)
     }, 300)
 
@@ -340,7 +361,7 @@ export default function Explore() {
       ignore = true
       clearTimeout(timer)
     }
-  }, [searchQuery, unansweredOnly, userVotes])
+  }, [searchQuery, unansweredOnly, userVotes, selectedCategory])
 
   if (loading) {
     return (
@@ -404,6 +425,35 @@ export default function Explore() {
             Unanswered only
           </button>
         </div>
+      </div>
+
+      {/* Category filter chips */}
+      <div style={{ padding: '0 1.25rem', marginBottom: '1.25rem', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        <button
+          onClick={() => setSelectedCategory(null)}
+          style={{
+            padding: '5px 12px', borderRadius: '20px', border: selectedCategory === null ? 'none' : '1px solid #D1D5DB', cursor: 'pointer',
+            fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif',
+            background: selectedCategory === null ? '#2D3DCA' : 'white',
+            color: selectedCategory === null ? 'white' : '#6B7280',
+          }}
+        >
+          All categories
+        </button>
+        {CATEGORIES.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(prev => (prev === cat ? null : cat))}
+            style={{
+              padding: '5px 12px', borderRadius: '20px', border: selectedCategory === cat ? 'none' : '1px solid #D1D5DB', cursor: 'pointer',
+              fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif',
+              background: selectedCategory === cat ? '#2D3DCA' : 'white',
+              color: selectedCategory === cat ? 'white' : '#6B7280',
+            }}
+          >
+            {categoryLabel(cat)}
+          </button>
+        ))}
       </div>
 
       {/* Search */}
@@ -717,6 +767,12 @@ export default function Explore() {
       {questions.length === 0 && (
         <div style={{ textAlign: 'center', padding: '4rem 1.5rem', color: '#6B7280', fontSize: '14px' }}>
           No questions available yet.
+        </div>
+      )}
+
+      {!searchQuery.trim() && questions.length > 0 && !hasBucketResults && (
+        <div style={{ textAlign: 'center', padding: '4rem 1.5rem', color: '#6B7280', fontSize: '14px' }}>
+          {selectedCategory ? `No questions in "${categoryLabel(selectedCategory)}" right now.` : 'No questions match your current filters.'}
         </div>
       )}
 
