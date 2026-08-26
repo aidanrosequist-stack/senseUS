@@ -66,6 +66,16 @@ export default function Admin() {
   const navigate = useNavigate()
   const [tab, setTab] = useState('questions')
   const [questions, setQuestions] = useState([])
+  // Questions tab search (admin_search_questions RPC, migration 048).
+  // Kept entirely separate from `questions` above -- that array is capped
+  // at the 500 most-recently-created rows and is also read by the Add
+  // article tab's question picker, so search results live in their own
+  // state rather than filtering/replacing it. Mirrors the debounced
+  // search pattern already used in Explore.jsx, but against the
+  // admin-only RPC so drafts and archived questions are searchable too.
+  const [questionSearchQuery, setQuestionSearchQuery] = useState('')
+  const [questionSearchResults, setQuestionSearchResults] = useState([])
+  const [searchingQuestions, setSearchingQuestions] = useState(false)
   const [loadingData, setLoadingData] = useState(false)
   const [message, setMessage] = useState(null)
   const [flaggedComments, setFlaggedComments] = useState([])
@@ -339,6 +349,39 @@ async function toggleRegistration(open) {
     setLoadingData(false)
   }
 
+  // Debounced Questions-tab search against the admin-only RPC (migration
+  // 048) -- searches the full table (drafts, archived, everything) by
+  // text/category/domain, not just the 500-row window loadQuestions()
+  // keeps in `questions`. Empty query means "show the normal list";
+  // results here never touch `questions` itself.
+  useEffect(() => {
+    const trimmed = questionSearchQuery.trim()
+    if (!trimmed) {
+      setQuestionSearchResults([])
+      setSearchingQuestions(false)
+      return
+    }
+
+    let ignore = false
+    setSearchingQuestions(true)
+    const timer = setTimeout(async () => {
+      const { data, error } = await supabase.rpc('admin_search_questions', { p_query: trimmed })
+      if (ignore) return
+      if (error) {
+        showMessage('Search error: ' + error.message, true)
+        setQuestionSearchResults([])
+      } else {
+        setQuestionSearchResults(data || [])
+      }
+      setSearchingQuestions(false)
+    }, 300)
+
+    return () => {
+      ignore = true
+      clearTimeout(timer)
+    }
+  }, [questionSearchQuery])
+
   async function loadFlaggedQuestions() {
     setLoadingFlagged(true)
     const { data, error } = await supabase
@@ -566,12 +609,23 @@ async function toggleRegistration(open) {
       {/* Questions list */}
       {tab === 'questions' && (
         <div>
-          <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '1rem' }}>{questions.length} questions total</p>
+          <input
+            type="text"
+            value={questionSearchQuery}
+            onChange={(e) => setQuestionSearchQuery(e.target.value)}
+            placeholder="Search by text, category, or domain (e.g. &quot;hot take&quot;)..."
+            style={{ display: 'block', width: '100%', marginBottom: '10px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', fontFamily: 'Merriweather, serif', boxSizing: 'border-box' }}
+          />
+          <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '1rem' }}>
+            {questionSearchQuery.trim()
+              ? (searchingQuestions ? 'Searching...' : `${questionSearchResults.length} result${questionSearchResults.length === 1 ? '' : 's'} for "${questionSearchQuery.trim()}" (searches all questions, including drafts and archived)`)
+              : `${questions.length} questions total (most recent 500 — use search above to find older, draft, or archived questions)`}
+          </p>
           {loadingData ? (
             <p style={{ color: '#6B7280', fontSize: '13px' }}>Loading...</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {questions.map(q => (
+              {(questionSearchQuery.trim() ? questionSearchResults : questions).map(q => (
                 <div key={q.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
                   {editingQuestion?.id === q.id ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
