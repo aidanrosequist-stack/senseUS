@@ -27,6 +27,7 @@ const QuestionPreview = lazy(() => import('./pages/QuestionPreview'))
 const Transparency = lazy(() => import('./pages/Transparency'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Ethos = lazy(() => import('./pages/Ethos'))
+const SponsorWithUs = lazy(() => import('./pages/SponsorWithUs'))
 
 function PageLoading() {
   return (
@@ -101,6 +102,8 @@ function AppRoutes() {
         <Route path="/how-it-works" element={<HowItWorks />} />
         <Route path="/transparency" element={<Transparency />} />
         <Route path="/ethos" element={<Ethos />} />
+        {/* Not linked from navigation yet — build now, launch visibly alongside Phase 2 (user-suggested questions). Reachable directly at /sponsor. */}
+        <Route path="/sponsor" element={<SponsorWithUs />} />
         <Route path="/q/:number" element={<QuestionPreview />} />
 
         {/* Every route below shares one AppShell (Header + BottomNav),

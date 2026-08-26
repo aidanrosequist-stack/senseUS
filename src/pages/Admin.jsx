@@ -111,6 +111,7 @@ export default function Admin() {
   })
   const [broadcasting, setBroadcasting] = useState(false)
   const [sponsoredQueue, setSponsoredQueue] = useState([])
+  const [sponsorshipInquiries, setSponsorshipInquiries] = useState([])
   const [newSponsor, setNewSponsor] = useState({
     question_number: '',
     sponsor_name: '',
@@ -134,6 +135,35 @@ export default function Admin() {
     setSponsoredQueue(data || [])
   }
 
+  // Inquiries from the (unlinked, pre-Phase-2) /sponsor pricing page's
+  // "get in touch" form. This is intentionally the low-commitment path
+  // -- no deposit, no card, no contract yet -- so this is a review/status
+  // list, not an approve/reject flow like the sponsored questions queue
+  // above. See migration 046.
+  async function loadSponsorshipInquiries() {
+    const { data, error } = await supabase
+      .from('sponsorship_inquiries')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) {
+      showMessage('Error loading sponsorship inquiries: ' + error.message, true)
+      return
+    }
+    setSponsorshipInquiries(data || [])
+  }
+
+  async function updateInquiryStatus(id, status) {
+    const { error } = await supabase
+      .from('sponsorship_inquiries')
+      .update({ status })
+      .eq('id', id)
+    if (error) {
+      showMessage('Error updating inquiry: ' + error.message, true)
+      return
+    }
+    loadSponsorshipInquiries()
+  }
+
   useEffect(() => {
     if (loading) return
     if (!isAdmin) {
@@ -147,6 +177,7 @@ export default function Admin() {
       loadFlaggedQuestions()
       loadFlaggedComments()
       loadSponsoredQueue()
+      loadSponsorshipInquiries()
     }
   }, [isAdmin])
 
@@ -1105,6 +1136,67 @@ async function toggleRegistration(open) {
                         Activate
                       </button>
                     )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', marginTop: '2rem', marginBottom: '0.75rem' }}>
+            Pricing page inquiries ({sponsorshipInquiries.filter(i => i.status === 'new').length} new)
+          </p>
+          <p style={{ fontSize: '11px', color: '#6B7280', marginBottom: '0.75rem' }}>
+            Submitted from the (unlinked) /sponsor pricing page. No deposit or card is collected at this stage — these are just "get in touch" leads for manual follow-up.
+          </p>
+          {sponsorshipInquiries.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '1rem', color: '#6B7280', fontSize: '13px' }}>
+              No inquiries yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {sponsorshipInquiries.map(inq => {
+                const statusLabels = {
+                  new: { text: 'New', color: '#0C447C', bg: '#E6F1FB' },
+                  contacted: { text: 'Contacted', color: '#856404', bg: '#FFF3CD' },
+                  archived: { text: 'Archived', color: '#6B7280', bg: '#F3F4F6' },
+                }
+                const label = statusLabels[inq.status] || statusLabels.new
+                const scope = inq.tier === 'region' ? inq.region : inq.tier === 'country' ? inq.country_code : 'Global'
+                return (
+                  <div key={inq.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+                        {inq.name}{inq.company ? ` — ${inq.company}` : ''}
+                      </div>
+                      <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: label.bg, color: label.color, fontWeight: 500 }}>
+                        {label.text}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>{inq.email}</div>
+                    <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '10px' }}>
+                      {inq.tier} · {scope} · {inq.category}{inq.wants_custom_content ? ' · custom content' : ''} · {new Date(inq.created_at).toLocaleDateString()}
+                    </div>
+                    {inq.message && (
+                      <div style={{ fontSize: '12px', color: '#374151', marginBottom: '10px', fontStyle: 'italic' }}>"{inq.message}"</div>
+                    )}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {inq.status !== 'contacted' && (
+                        <button
+                          onClick={() => updateInquiryStatus(inq.id, 'contacted')}
+                          style={{ padding: '6px 14px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                        >
+                          Mark contacted
+                        </button>
+                      )}
+                      {inq.status !== 'archived' && (
+                        <button
+                          onClick={() => updateInquiryStatus(inq.id, 'archived')}
+                          style={{ padding: '6px 14px', background: 'white', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                        >
+                          Archive
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )
               })}

@@ -14,16 +14,18 @@ export function useQuestions(userId) {
 
     async function fetchQuestions() {
       try {
-        // Country is needed before calling get_candidate_questions (it
-        // uses it to prioritize matching questions), so this one fetch
-        // has to happen first rather than in parallel with the rest.
+        // Country and region are needed before calling
+        // get_candidate_questions (it uses them to prioritize matching
+        // questions), so this one fetch has to happen first rather than
+        // in parallel with the rest.
         const { data: profile } = await supabase
           .from('profiles')
-          .select('country_code')
+          .select('country_code, region')
           .eq('id', userId)
           .single()
 
         const userCountry = profile?.country_code || null
+        const userRegion = profile?.region || null
 
         // The database now does the heavy lifting that used to happen
         // here in JS: excluding every question this user has already
@@ -38,6 +40,7 @@ export function useQuestions(userId) {
             p_user_id: userId,
             p_country_code: userCountry,
             p_limit: CANDIDATE_BATCH_SIZE,
+            p_region: userRegion,
           })
 
         if (candidatesError) throw candidatesError
@@ -62,8 +65,16 @@ export function useQuestions(userId) {
         // already happened in the database.
         const matchesUser = q => {
           if (q.geo_scope === 'global' || q.geo_scope === 'country_own') return true
-          if (q.geo_scope === 'country' || q.geo_scope === 'regional') {
+          if (q.geo_scope === 'country') {
             return userCountry ? q.country_code === userCountry : true
+          }
+          if (q.geo_scope === 'regional') {
+            // Regional questions are matched on region_code, not
+            // country_code — those are separate columns (see migration
+            // 045). A 'regional' question with no region set is treated
+            // as non-matching rather than silently falling through to
+            // the country check above.
+            return userRegion ? q.region_code === userRegion : true
           }
           return true
         }
