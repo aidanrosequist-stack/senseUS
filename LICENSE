@@ -1,0 +1,77 @@
+senseUS Source-Available License
+Copyright (c) 2026 Gudboi Enterprises, LLC. All rights reserved.
+
+This repository's source code is made publicly viewable so that anyone —
+users, security researchers, journalists, or the merely curious — can
+read it and verify for themselves how senseUS actually works, in
+particular its claims around identity verification, vote anonymity, and
+data handling. Public visibility of this code does not, by itself, grant
+any license to use it. Except for the limited permissions explicitly
+granted below, all rights are reserved.
+
+1. Permitted uses
+
+   You are permitted, without needing to ask first, to:
+
+   a. Read, study, and audit this source code for any lawful purpose,
+      including verifying the platform's security, privacy, and
+      anonymity claims.
+
+   b. Clone or download the code and run it locally or in a private,
+      non-production environment solely to evaluate, test, or verify
+      its behavior — not to operate it as a live service for any users
+      other than yourself.
+
+   c. Submit patches, bug fixes, or vulnerability reports back to this
+      project (e.g., via pull request or via the process described in
+      SECURITY.md). Contributions you submit for inclusion in this
+      project are provided under this same license and may be
+      incorporated at the project's discretion.
+
+2. Prohibited without a separate written agreement
+
+   Unless you have a separate written agreement with Gudboi Enterprises,
+   LLC granting broader rights, you may not:
+
+   a. Deploy, host, or operate this software, in whole or in
+      substantial part, as a live service accessible to anyone other
+      than yourself — whether or not you charge for it, and whether or
+      not you modify it first.
+
+   b. Use this source code, in whole or in substantial part, to build,
+      launch, or operate a product or service that performs the same or
+      a substantially similar function as senseUS.
+
+   c. Remove or alter this license notice from any copy of the source
+      code you retain or share.
+
+   d. Sublicense, sell, or otherwise grant any other party rights to
+      this software beyond what this license grants you.
+
+   This license does not grant any rights to the "senseUS" or "Gudboi"
+   names, logos, or branding, which are governed separately and are not
+   included in anything above. Licensing this source code and licensing
+   the senseUS brand are two different things — a written agreement
+   under this section can cover either, both, or neither, depending on
+   its terms.
+
+3. No warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+   NONINFRINGEMENT. IN NO EVENT SHALL GUDBOI ENTERPRISES, LLC BE LIABLE
+   FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF
+   THE SOFTWARE.
+
+4. Licensing inquiries
+
+   If you're interested in a broader license — to deploy your own
+   instance, build on this codebase commercially, or anything not
+   covered by the permitted uses above — contact legal@senseus.app.
+
+This is not a license approved by the Open Source Initiative, and this
+project should not be described as "open source" in the formal sense of
+that term — it's source-available, published for transparency rather
+than reuse. See the project's SECURITY.md for how to report a
+vulnerability.
