@@ -16,7 +16,12 @@ import { supabase } from '../lib/supabase'
 // spreadsheet-equivalent, reviewed by an admin) — no card is collected,
 // nothing here charges anyone.
 
-const REGIONS = ['Northeast', 'Midwest', 'South', 'West']
+// Regions are a sub-selection within a country, not a parallel tier —
+// only US has any defined today. A country with no entry here just
+// doesn't offer a region narrowing option on the page.
+const REGIONS_BY_COUNTRY = {
+  US: ['Northeast', 'Midwest', 'South', 'West'],
+}
 const COUNTRIES = [
   { code: 'US', name: 'United States' },
   { code: 'CA', name: 'Canada' },
@@ -44,17 +49,18 @@ const SPONSOR_CATEGORIES = [
 const FLOOR_PRICE = { region: 1500, country: 5000, global: 10000 }
 const CUSTOM_CONTENT_FEE = 500
 const DEPOSIT = 150
-const WEEK2_DISCOUNT = 0.20
-const WEEK3_PLUS_DISCOUNT = 0.35
+const MAX_WEEKS = 4
+const EXTENSION_DISCOUNT = 0.35
 
-// Flat weekly blocks, not a per-day rate. Week 1 is the base price.
-// Week 2 is a full extra week at 20% off the base weekly price. Week 3
-// and every week after that is a full extra week at 35% off the base
-// weekly price.
+// Flat weekly blocks, not a per-day rate. The first 7 days is always
+// the base price, full stop. Every week after that — 2, 3, or 4 — is a
+// full extra week at a flat 35% off the base weekly price; 35% is a
+// cap, not a starting point that grows for longer runs, which is also
+// why run length is capped at 4 weeks for now.
 function totalPriceForWeeks(basePrice, weeks) {
   let total = basePrice
   for (let w = 2; w <= weeks; w++) {
-    total += basePrice * (1 - (w === 2 ? WEEK2_DISCOUNT : WEEK3_PLUS_DISCOUNT))
+    total += basePrice * (1 - EXTENSION_DISCOUNT)
   }
   return total
 }
@@ -93,8 +99,8 @@ export default function SponsorWithUs() {
   const [counts, setCounts] = useState(null)
   const [countsError, setCountsError] = useState(null)
 
-  const [tier, setTier] = useState('region')
-  const [region, setRegion] = useState('Northeast')
+  const [tier, setTier] = useState('global')
+  const [region, setRegion] = useState(null)
   const [countryCode, setCountryCode] = useState('US')
   const [weeks, setWeeks] = useState(1)
   const [wantsCustomContent, setWantsCustomContent] = useState(false)
@@ -186,6 +192,21 @@ export default function SponsorWithUs() {
         </p>
       </Section>
 
+      <Section title="Rules of engagement">
+        <p style={{ fontSize: '15px', lineHeight: 1.8, color: '#374151', marginBottom: '1rem' }}>
+          A sponsored question is a question first — it goes through the same content standards every question on senseUS does. Debate about ideas, culture, and public affairs is welcome, including sharp or provocative framing. What isn't permitted:
+        </p>
+        <ul style={{ fontSize: '15px', lineHeight: 1.9, color: '#374151', marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+          <li>Hate speech, harassment, or discriminatory content, regardless of the viewpoint expressed</li>
+          <li>Content targeting a person's identity — race, ethnicity, gender, religion, sexual orientation, or disability</li>
+          <li>Content that violates any applicable law</li>
+          <li>Anything designed to manipulate vote outcomes rather than ask a genuine question</li>
+        </ul>
+        <p style={{ fontSize: '15px', lineHeight: 1.8, color: '#374151' }}>
+          This is the standard a rejection falls under when it costs the deposit rather than refunds it (see Deposit &amp; process below). Full legal terms are in our <Link to="/terms" style={{ color: '#2D3DCA', textDecoration: 'none' }}>Terms of Service</Link>.
+        </p>
+      </Section>
+
       <Section title="Live reach">
         {countsError && (
           <p style={{ fontSize: '13px', color: '#B91C1C' }}>Couldn't load live counts right now ({countsError}).</p>
@@ -196,7 +217,7 @@ export default function SponsorWithUs() {
         {counts && (
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <StatTile label="Registered globally" value={counts.global?.toLocaleString() ?? '—'} />
-            <StatTile label="US, region-tagged" value={REGIONS.reduce((sum, r) => sum + (counts.by_region?.[r] || 0), 0).toLocaleString()} />
+            <StatTile label="US, region-tagged" value={(REGIONS_BY_COUNTRY.US || []).reduce((sum, r) => sum + (counts.by_region?.[r] || 0), 0).toLocaleString()} />
             <StatTile label="United States" value={(counts.by_country?.US || 0).toLocaleString()} />
           </div>
         )}
@@ -210,55 +231,85 @@ export default function SponsorWithUs() {
           Three reach tiers, each with a flat starting price for a 7-day run. Pick a tier below to see the live headcount it currently reaches and the total price for your run length.
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '1.25rem' }}>
-          {[
-            { key: 'region', label: 'Region', price: FLOOR_PRICE.region },
-            { key: 'country', label: 'Country', price: FLOOR_PRICE.country },
-            { key: 'global', label: 'Global', price: FLOOR_PRICE.global },
-          ].map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTier(t.key)}
-              style={{
-                textAlign: 'left', cursor: 'pointer', borderRadius: '10px', padding: '14px 16px',
-                border: tier === t.key ? '1.5px solid #2D3DCA' : '0.5px solid #E5E7EB',
-                background: tier === t.key ? '#EEF0FD' : 'white',
-              }}
-            >
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>{t.label}</div>
-              <div style={{ fontSize: '12px', color: '#6B7280' }}>from {formatUSD(t.price)}</div>
-            </button>
-          ))}
+        {/* Global — full width, top-level, its own tier */}
+        <button
+          onClick={() => setTier('global')}
+          style={{
+            display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer', borderRadius: '10px',
+            padding: '14px 16px', marginBottom: '10px', boxSizing: 'border-box',
+            border: tier === 'global' ? '1.5px solid #2D3DCA' : '0.5px solid #E5E7EB',
+            background: tier === 'global' ? '#EEF0FD' : 'white',
+          }}
+        >
+          <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>Global</div>
+          <div style={{ fontSize: '12px', color: '#6B7280' }}>{formatUSD(FLOOR_PRICE.global)}</div>
+        </button>
+
+        {/* Country — always-visible dropdown; picking one selects that
+            country's tier. Regions (if any exist for that country)
+            populate underneath as a further narrowing, not a separate
+            top-level tier. */}
+        <div
+          style={{
+            borderRadius: '10px', padding: '14px 16px', marginBottom: '1rem', boxSizing: 'border-box',
+            border: (tier === 'country' || tier === 'region') ? '1.5px solid #2D3DCA' : '0.5px solid #E5E7EB',
+            background: (tier === 'country' || tier === 'region') ? '#EEF0FD' : 'white',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>Country</div>
+            <div style={{ fontSize: '12px', color: '#6B7280' }}>{formatUSD(FLOOR_PRICE.country)}</div>
+          </div>
+          <select
+            style={selectStyle}
+            value={countryCode}
+            onChange={e => { setCountryCode(e.target.value); setTier('country'); setRegion(null) }}
+          >
+            {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+          </select>
+
+          {REGIONS_BY_COUNTRY[countryCode] && (
+            <div style={{ marginTop: '12px' }}>
+              <label style={labelStyle}>Narrow to a region (optional) — {formatUSD(FLOOR_PRICE.region)}</label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => { setTier('country'); setRegion(null) }}
+                  style={{
+                    padding: '6px 12px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer',
+                    border: tier === 'country' ? '1.5px solid #2D3DCA' : '1px solid #D1D5DB',
+                    background: tier === 'country' ? '#2D3DCA' : 'white',
+                    color: tier === 'country' ? 'white' : '#374151',
+                  }}
+                >
+                  All of {COUNTRIES.find(c => c.code === countryCode)?.name}
+                </button>
+                {REGIONS_BY_COUNTRY[countryCode].map(r => (
+                  <button
+                    key={r}
+                    onClick={() => { setTier('region'); setRegion(r) }}
+                    style={{
+                      padding: '6px 12px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer',
+                      border: (tier === 'region' && region === r) ? '1.5px solid #2D3DCA' : '1px solid #D1D5DB',
+                      background: (tier === 'region' && region === r) ? '#2D3DCA' : 'white',
+                      color: (tier === 'region' && region === r) ? 'white' : '#374151',
+                    }}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1rem' }}>
-          {tier === 'region' && (
-            <div>
-              <label style={labelStyle}>Region</label>
-              <select style={selectStyle} value={region} onChange={e => setRegion(e.target.value)}>
-                {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-          )}
-          {tier === 'country' && (
-            <div>
-              <label style={labelStyle}>Country</label>
-              <select style={selectStyle} value={countryCode} onChange={e => setCountryCode(e.target.value)}>
-                {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
-              </select>
-            </div>
-          )}
-          <div>
-            <label style={labelStyle}>Run length</label>
-            <select style={selectStyle} value={weeks} onChange={e => setWeeks(parseInt(e.target.value, 10))}>
-              <option value={1}>1 week (7 days) — base price</option>
-              <option value={2}>2 weeks (14 days) — week 2 at 20% off</option>
-              <option value={3}>3 weeks (21 days) — week 3 at 35% off</option>
-              <option value={4}>4 weeks (28 days)</option>
-              <option value={5}>5 weeks (35 days)</option>
-              <option value={6}>6 weeks (42 days)</option>
-            </select>
-          </div>
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={labelStyle}>Run length (4-week maximum for now)</label>
+          <select style={selectStyle} value={weeks} onChange={e => setWeeks(parseInt(e.target.value, 10))}>
+            <option value={1}>1 week (7 days) — base price</option>
+            <option value={2}>2 weeks (14 days) — week 2 at 35% off</option>
+            <option value={3}>3 weeks (21 days) — weeks 2–3 at 35% off</option>
+            <option value={4}>4 weeks (28 days) — weeks 2–4 at 35% off</option>
+          </select>
         </div>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#374151', marginBottom: '1rem', cursor: 'pointer' }}>
