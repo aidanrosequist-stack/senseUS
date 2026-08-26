@@ -40,6 +40,26 @@ function Tab({ label, active, onClick, badge }) {
   )
 }
 
+// A sponsorship progression milestone (migration 047) is just a
+// timestamp — set means it happened, null means it hasn't. Clicking an
+// unset pill stamps now(); clicking a set one clears it, in case it was
+// marked by mistake.
+function MilestonePill({ label, value, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '4px 10px', borderRadius: '20px', fontSize: '11px', cursor: 'pointer', fontFamily: 'Merriweather, serif',
+        border: value ? '1px solid #4d621d' : '1px solid #D1D5DB',
+        background: value ? '#eef3e0' : 'white',
+        color: value ? '#4d621d' : '#6B7280',
+      }}
+    >
+      {value ? `${label} · ${new Date(value).toLocaleDateString()}` : `Mark ${label.toLowerCase()}`}
+    </button>
+  )
+}
+
 export default function Admin() {
   usePageTitle('Admin')
   const { isAdmin, loading } = useAdmin()
@@ -237,6 +257,51 @@ async function createSponsorship() {
       return
     }
     showMessage('Sponsorship activated — question is now live.')
+    loadSponsoredQueue()
+  }
+
+  // Generic toggle for the plain progression timestamps (migration 047)
+  // — each one just means "this happened at this time", so a click sets
+  // it to now() and a second click on an already-set milestone clears
+  // it back to null, in case it was marked by mistake.
+  async function toggleMilestone(row, field) {
+    const { error } = await supabase
+      .from('sponsored_questions')
+      .update({ [field]: row[field] ? null : new Date().toISOString() })
+      .eq('id', row.id)
+    if (error) {
+      showMessage('Error updating: ' + error.message, true)
+      return
+    }
+    loadSponsoredQueue()
+  }
+
+  // Two distinct reasons, not one — matches the deposit refund/forfeit
+  // split. Forfeiture needs no further action, so it's stamped
+  // immediately; a refund is a real payment action that still has to
+  // happen, so that stays a separate milestone (toggleMilestone above)
+  // marked once it's actually been sent.
+  async function rejectSponsorship(id, reason) {
+    let rejection_rule_detail = null
+    if (reason === 'rule_violation') {
+      rejection_rule_detail = window.prompt('Which rule was violated? (required — this is recorded with the rejection)')
+      if (!rejection_rule_detail || !rejection_rule_detail.trim()) {
+        showMessage('A rule-violation rejection requires stating which rule was broken.', true)
+        return
+      }
+    }
+    const updates = {
+      status: 'rejected',
+      rejection_reason: reason,
+      rejection_rule_detail,
+      deposit_forfeited_at: reason === 'rule_violation' ? new Date().toISOString() : null,
+    }
+    const { error } = await supabase.from('sponsored_questions').update(updates).eq('id', id)
+    if (error) {
+      showMessage('Error rejecting: ' + error.message, true)
+      return
+    }
+    showMessage(reason === 'doesnt_fit' ? "Rejected — deposit refund still needs to be sent, then marked below." : 'Rejected — deposit forfeited.')
     loadSponsoredQueue()
   }
 
@@ -1128,13 +1193,56 @@ async function toggleRegistration(open) {
                     <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '10px' }}>
                       {row.domain} · {row.sponsor_category} · requested {new Date(row.created_at).toLocaleDateString()}
                     </div>
-                    {canActivate && (
-                      <button
-                        onClick={() => activateSponsorship(row.id)}
-                        style={{ padding: '6px 14px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-                      >
-                        Activate
-                      </button>
+
+                    {row.status === 'rejected' ? (
+                      <div style={{ fontSize: '12px', color: '#374151' }}>
+                        <div style={{ marginBottom: '8px' }}>
+                          {row.rejection_reason === 'rule_violation'
+                            ? <><strong>Rejected — rule violation:</strong> {row.rejection_rule_detail}. Deposit forfeited{row.deposit_forfeited_at ? ` ${new Date(row.deposit_forfeited_at).toLocaleDateString()}` : ''}.</>
+                            : <strong>Rejected — doesn't fit. Deposit is refundable.</strong>}
+                        </div>
+                        {row.rejection_reason === 'doesnt_fit' && (
+                          <MilestonePill label="Deposit refunded" value={row.deposit_refunded_at} onClick={() => toggleMilestone(row, 'deposit_refunded_at')} />
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                          <MilestonePill label="Deposit paid" value={row.deposit_paid_at} onClick={() => toggleMilestone(row, 'deposit_paid_at')} />
+                          <MilestonePill label="Contract sent" value={row.contract_sent_at} onClick={() => toggleMilestone(row, 'contract_sent_at')} />
+                          <MilestonePill label="Contract signed" value={row.contract_signed_at} onClick={() => toggleMilestone(row, 'contract_signed_at')} />
+                          <MilestonePill label="Half balance paid" value={row.half_balance_paid_at} onClick={() => toggleMilestone(row, 'half_balance_paid_at')} />
+                          <MilestonePill label="Results delivered" value={row.results_delivered_at} onClick={() => toggleMilestone(row, 'results_delivered_at')} />
+                          <MilestonePill label="Final balance requested" value={row.final_balance_requested_at} onClick={() => toggleMilestone(row, 'final_balance_requested_at')} />
+                          <MilestonePill label="Final balance paid" value={row.final_balance_paid_at} onClick={() => toggleMilestone(row, 'final_balance_paid_at')} />
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {canActivate && (
+                            <button
+                              onClick={() => activateSponsorship(row.id)}
+                              style={{ padding: '6px 14px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                            >
+                              Activate
+                            </button>
+                          )}
+                          {row.status === 'waitlisted' && (
+                            <>
+                              <button
+                                onClick={() => rejectSponsorship(row.id, 'doesnt_fit')}
+                                style={{ padding: '6px 14px', background: 'white', color: '#856404', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                              >
+                                Reject — doesn't fit (refund)
+                              </button>
+                              <button
+                                onClick={() => rejectSponsorship(row.id, 'rule_violation')}
+                                style={{ padding: '6px 14px', background: 'white', color: '#7a1313', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+                              >
+                                Reject — rule violation (forfeit)
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
                 )

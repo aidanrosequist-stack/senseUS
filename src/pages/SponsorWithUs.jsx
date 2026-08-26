@@ -102,6 +102,11 @@ export default function SponsorWithUs() {
   const [tier, setTier] = useState('global')
   const [region, setRegion] = useState(null)
   const [countryCode, setCountryCode] = useState('US')
+
+  // Independent from the pricing calculator's own tier/region/country
+  // state above — this is just for browsing reach numbers, so picking a
+  // country here doesn't also change what you're pricing out below.
+  const [reachCountry, setReachCountry] = useState('US')
   const [weeks, setWeeks] = useState(1)
   const [wantsCustomContent, setWantsCustomContent] = useState(false)
 
@@ -215,11 +220,32 @@ export default function SponsorWithUs() {
           <p style={{ fontSize: '13px', color: '#6B7280' }}>Loading live counts…</p>
         )}
         {counts && (
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <StatTile label="Registered globally" value={counts.global?.toLocaleString() ?? '—'} />
-            <StatTile label="US, region-tagged" value={(REGIONS_BY_COUNTRY.US || []).reduce((sum, r) => sum + (counts.by_region?.[r] || 0), 0).toLocaleString()} />
-            <StatTile label="United States" value={(counts.by_country?.US || 0).toLocaleString()} />
-          </div>
+          <>
+            {/* Global — full width, top-level, matches the Pricing layout below */}
+            <div style={{ borderRadius: '10px', padding: '14px 16px', marginBottom: '10px', boxSizing: 'border-box', border: '0.5px solid #E5E7EB', background: '#FAFAFA' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Global</div>
+              <div style={{ fontSize: '22px', fontWeight: 700, color: '#1A1A1A' }}>{(counts.global || 0).toLocaleString()} registered users</div>
+            </div>
+
+            {/* Country — dropdown; regions (if any exist for that country) populate underneath */}
+            <div style={{ borderRadius: '10px', padding: '14px 16px', boxSizing: 'border-box', border: '0.5px solid #E5E7EB', background: '#FAFAFA' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Country</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A' }}>{(counts.by_country?.[reachCountry] || 0).toLocaleString()}</div>
+              </div>
+              <select style={selectStyle} value={reachCountry} onChange={e => setReachCountry(e.target.value)}>
+                {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+              </select>
+
+              {REGIONS_BY_COUNTRY[reachCountry] && (
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+                  {REGIONS_BY_COUNTRY[reachCountry].map(r => (
+                    <StatTile key={r} label={r} value={(counts.by_region?.[r] || 0).toLocaleString()} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         )}
         <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '10px', lineHeight: 1.6 }}>
           Region counts reflect users who've set a region in their profile — region is optional, so this understates true regional reach rather than overstating it.
