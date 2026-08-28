@@ -444,12 +444,15 @@ export default function Conversation() {
         // linked only by matching user_id + question_id), so we look up
         // each commenter's own choice separately — this is what colors
         // each comment by how that person actually voted. Previously this
-        // fetched EVERY vote ever cast on the question (via public_votes,
-        // since the real votes table is locked to "own row only") just to
-        // look up a handful of commenters — on a popular question that's
-        // the entire votes table downloaded to color a few dozen avatars.
-        // Scoping to just the commenter ids keeps this bounded by comment
-        // count, not by total vote count. Both queries only depend on
+        // queried public_votes directly (scoped to just commenterIds in
+        // the query itself, but the underlying grant was NOT scoped —
+        // any authenticated user could open devtools and read the whole
+        // table's user_id/choice pairs directly, no matter what this
+        // page asked for). As of migration 051, public_votes has no
+        // remaining grant at all — get_commenter_vote_choices() does the
+        // scoping server-side instead, so the only thing callable from
+        // the client is "these specific people's choice on this specific
+        // question," never a broader read. Both queries only depend on
         // commenterIds, so they run together. This is still fetched once
         // per page load, so a vote change elsewhere won't recolor a
         // comment until the next visit to this page.
@@ -460,10 +463,7 @@ export default function Conversation() {
                 .select('id, first_name, last_initial, display_preference, anon_name')
                 .in('id', commenterIds),
               supabase
-                .from('public_votes')
-                .select('user_id, choice')
-                .eq('question_id', questionId)
-                .in('user_id', commenterIds),
+                .rpc('get_commenter_vote_choices', { p_question_id: questionId, p_user_ids: commenterIds }),
             ])
           : [{ data: [] }, { data: [] }]
         const profileById = new Map((commenterProfiles || []).map(p => [p.id, p]))

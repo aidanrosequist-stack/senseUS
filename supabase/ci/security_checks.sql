@@ -37,12 +37,24 @@ begin
   end if;
 end $$;
 
--- 2. No non-trigger function may have anon/authenticated EXECUTE
--- unless it's on the intentionally_public_functions allowlist.
--- Trigger functions (data_type = 'trigger') are excluded structurally
--- — Postgres refuses to invoke them outside a real trigger context no
--- matter what's granted, so a grant on one is never itself a problem
--- (migration 014).
+-- 2. No non-trigger, non-extension-owned function may have
+-- anon/authenticated/PUBLIC EXECUTE unless it's on the
+-- intentionally_public_functions allowlist. Trigger functions
+-- (data_type = 'trigger') are excluded structurally — Postgres refuses
+-- to invoke them outside a real trigger context no matter what's
+-- granted (migration 014). Extension-owned functions (pgcrypto's
+-- armor/crypt/digest/gen_random_uuid/pgp_* family, installed into the
+-- public schema) are also excluded structurally, via pg_depend —
+-- third-party utility functions this project doesn't control the
+-- grants of. UPDATED migration 052 (2026-08-28): PUBLIC added to the
+-- watched grantees — Postgres grants EXECUTE to PUBLIC on every new
+-- function unconditionally (a separate mechanism from the
+-- anon/authenticated default-privileges rule, and one that
+-- ALTER DEFAULT PRIVILEGES cannot suppress — see migration 052's own
+-- header comment), so a function relying only on that default (because
+-- an explicit `revoke ... from public` was forgotten) is just as
+-- reachable by anon as an explicit anon grant, and the old version of
+-- this check could not see it.
 do $$
 declare
   unexpected_grants text[];
@@ -52,12 +64,19 @@ begin
   join information_schema.routines r
     on r.routine_schema = rp.routine_schema and r.routine_name = rp.routine_name
   where rp.routine_schema = 'public'
-    and rp.grantee in ('anon', 'authenticated')
+    and rp.grantee in ('anon', 'authenticated', 'PUBLIC')
     and r.data_type != 'trigger'
-    and rp.routine_name not in (select function_name from public.intentionally_public_functions);
+    and rp.routine_name not in (select function_name from public.intentionally_public_functions)
+    and not exists (
+      select 1
+      from pg_proc p
+      join pg_depend d on d.objid = p.oid and d.deptype = 'e'
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = rp.routine_schema and p.proname = rp.routine_name
+    );
 
   if unexpected_grants is not null and array_length(unexpected_grants, 1) > 0 then
-    raise exception 'Functions callable by anon/authenticated but not on the allowlist (add to intentionally_public_functions in a migration if intentional): %', array_to_string(unexpected_grants, ', ');
+    raise exception 'Functions callable by anon/authenticated/PUBLIC but not on the allowlist (add to intentionally_public_functions in a migration if intentional): %', array_to_string(unexpected_grants, ', ');
   end if;
 end $$;
 
