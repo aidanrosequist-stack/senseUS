@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase CLI local cache (gotrue-version, storage-version, etc.) --
+# written by `supabase link`/`start`, not meant to be committed.
+# Flagged in the security hardening handoff (2026-08-18); ungitignored
+# until now.
+supabase/.temp/

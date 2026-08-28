@@ -59,3 +59,19 @@ entrypoint = "./functions/process-pending-exports/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/check-line-type/index.ts"
+
+[functions.process-account-deletions]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/process-account-deletions/index.ts"
+# Was missing entirely (deep security review, 2026-08-21) -- meant it
+# silently fell back to Supabase's verify_jwt=true default instead of an
+# explicit, deliberate choice. Set to false here to match
+# process-pending-exports, the other cron-only function with the exact
+# same shape: the function's own isAuthorized() check (comparing the
+# bearer token against SUPABASE_SERVICE_ROLE_KEY) is what actually gates
+# it, not the platform-level JWT check, so this doesn't change who can
+# successfully call it -- it just makes the config explicit instead of
+# implicit. Worth confirming in the Supabase dashboard (Settings -> Edge
+# Functions) that this matches what's actually deployed, since config.toml
+# only takes effect on the next `supabase functions deploy`.

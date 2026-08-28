@@ -32,7 +32,7 @@ const PRINCIPLES = [
   },
   {
     title: "We're playing a long game.",
-    body: "senseUS isn't built to be sold. It's built to outlast us. The legal structure, the charitable trust estate plan, the open source code — all of it is designed so that this platform continues to serve its mission regardless of what happens to the people who built it.",
+    body: "senseUS isn't built to be sold. It's built to outlast us. The legal structure, the charitable trust estate plan, the source-available code — all of it is designed so that this platform continues to serve its mission regardless of what happens to the people who built it.",
   },
 ]
 
