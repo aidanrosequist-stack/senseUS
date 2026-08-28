@@ -17,7 +17,7 @@
 -- right now), which is meaningless against a fresh, unseeded CI
 -- database.
 --
--- If you change one of the three checks in run_security_checks(),
+-- If you change one of the four checks in run_security_checks(),
 -- change it here too. Not auto-synced — that's a known trade-off for
 -- keeping this script dependency-free.
 
@@ -83,6 +83,36 @@ begin
 
   if array_length(unprotected_columns, 1) > 0 then
     raise exception 'profiles column(s) neither client-writable nor locked by protect_admin_columns(): %', array_to_string(unprotected_columns, ', ');
+  end if;
+end $$;
+
+-- 4. NEW (migration 050). Any view granted to anon/authenticated must
+-- either be security_invoker=true (so granting it is exactly as safe
+-- as granting the underlying tables) or be on the
+-- intentionally_public_views allowlist. security_invoker=false, the
+-- Postgres default, makes a view run as ITS OWNER, bypassing RLS on
+-- the underlying tables entirely for whichever role it's granted to --
+-- this is exactly the mechanism that let public_votes/public_profiles
+-- grant anon complete read access to every user's votes and profile
+-- before migration 049 caught it. This check exists so the next one
+-- like it fails CI instead of reaching production.
+do $$
+declare
+  unexpected_view_grants text[];
+begin
+  select array_agg(distinct c.relname order by c.relname) into unexpected_view_grants
+  from information_schema.table_privileges tp
+  join pg_class c
+    on c.relname = tp.table_name
+   and c.relnamespace = 'public'::regnamespace
+  where tp.table_schema = 'public'
+    and tp.grantee in ('anon', 'authenticated')
+    and c.relkind = 'v'
+    and not ('security_invoker=true' = any(coalesce(c.reloptions, array[]::text[])))
+    and c.relname not in (select view_name from public.intentionally_public_views);
+
+  if unexpected_view_grants is not null and array_length(unexpected_view_grants, 1) > 0 then
+    raise exception 'View(s) are security_invoker=false and callable by anon/authenticated but not on the allowlist (add to intentionally_public_views in a migration if intentional): %', array_to_string(unexpected_view_grants, ', ');
   end if;
 end $$;
 
