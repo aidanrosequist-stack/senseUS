@@ -74,6 +74,35 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Atomically claim the one-time line-type check for this account
+    // before spending anything with Twilio. This is meant to run once,
+    // right after phone verification -- without this guard, a repeated
+    // call would re-bill a Twilio Lookup, insert a duplicate
+    // integrity_events row, and re-set voip_flagged_at to now() each
+    // time, extending the 30-day probation window rather than being a
+    // harmless no-op. See migration 058_check_line_type_guard.sql: the
+    // underlying UPDATE ... WHERE checked_line_type_at IS NULL is
+    // race-safe, same pattern as claim_welcome_sms_send. Unlike
+    // send-welcome-sms, an already-checked account isn't an error here --
+    // this function's whole contract is "never block registration," so
+    // it comes back exactly like the other skip paths below.
+    const { data: claimed, error: claimError } = await callerClient.rpc("claim_line_type_check")
+
+    if (claimError) {
+      console.error("claim_line_type_check error:", claimError)
+      return new Response(JSON.stringify({ success: true, flagged: false, skipped: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
+    if (!claimed) {
+      return new Response(JSON.stringify({ success: true, flagged: false, skipped: true, reason: "already_checked" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
     const lookupUrl = `https://lookups.twilio.com/v2/PhoneNumbers/${encodeURIComponent(phone)}?Fields=line_type_intelligence`
     const twilioAuth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`)
 
