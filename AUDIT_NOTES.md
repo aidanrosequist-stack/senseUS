@@ -1,7 +1,7 @@
 # senseUS Audit Notes
 
 This document records intentional design decisions in the voting and integrity systems
-for transparency and auditability purposes. Last updated: 2026-08-15.
+for transparency and auditability purposes. Last updated: 2026-08-29.
 
 ---
 
@@ -187,21 +187,26 @@ from pg_trigger where tgname = 'update_streak_on_vote';
 select * from vote_changes order by changed_at desc limit 5;
 ```
 
-### Full trigger inventory
+### Full trigger inventory (as of migration 057, 2026-08-29)
 | Table | Trigger | Event | Function |
 |-------|---------|-------|----------|
 | votes | update_streak_on_vote | INSERT | update_streak() |
 | votes | on_vote_change_log | UPDATE (choice change only) | log_vote_change() |
 | votes | secure_vote_fields_trigger | INSERT, UPDATE | secure_vote_fields() |
+| votes | block_archived_votes | INSERT, UPDATE | block_archived_question_votes() |
 | vote_changes | on_vote_manipulation_check | INSERT | check_vote_manipulation() |
 | profiles | on_coordinated_signup_check | INSERT | check_coordinated_signup() |
 | profiles | on_registration_spike_check | INSERT | check_registration_spike() |
-| profiles | protect_admin_columns_trigger | UPDATE | protect_admin_columns() |
+| profiles | on_admin_grant_check | INSERT, UPDATE | check_unauthorized_admin_grant() |
+| profiles | protect_admin_columns_insert_update | INSERT, UPDATE | protect_admin_columns() |
 | questions | on_flagged_question_check | UPDATE | check_flagged_question() |
 | comments | moderate_comment_trigger | INSERT, UPDATE | moderate_comment() |
+| comments | protect_comment_computed_columns_trigger | INSERT, UPDATE | protect_comment_computed_columns() |
 | comments | set_updated_at | UPDATE | handle_updated_at() |
 | question_articles | set_updated_at | UPDATE | handle_updated_at() |
 | transparency_events | on_new_transparency_event | INSERT | check_new_transparency_event() |
+| admin_actions | on_admin_action_volume_check | INSERT | check_admin_action_volume() |
+| exports | require_recovery_email_for_export_trigger | INSERT | require_recovery_email_for_export() |
 
 Corrected 2026-07-27: the `vote_changes` trigger is actually named
 `on_vote_manipulation_check`, not `on_vote_change_check` as earlier
@@ -210,6 +215,37 @@ query. Also added rows for `secure_vote_fields_trigger`,
 `protect_admin_columns_trigger`, `moderate_comment_trigger`, and both
 `set_updated_at` triggers, none of which had a `CREATE TRIGGER`
 statement anywhere in git — see "Schema/RLS Not Fully in Git" below.
+
+**Updated 2026-08-29** — this table was stale (last refreshed
+2026-07-27, predating migrations 013/029/053/056 and several others
+that changed the actual trigger set). Refreshed against a full
+`pg_trigger` query against production. Notable changes since the last
+version of this table:
+
+- `profiles.protect_admin_columns_trigger` (UPDATE-only) is **gone** —
+  it was a redundant duplicate of `protect_admin_columns_insert_update`
+  (added by migration 029 to close an admin-escalation-via-INSERT bug;
+  see migration 053/056 below), dropped for good in migration 056.
+- `votes.block_archived_votes`, `comments.set_updated_at`,
+  `question_articles.set_updated_at`, and `comments.moderate_comment_trigger`
+  itself were all live in production but had no `CREATE TRIGGER`
+  anywhere in git until migration 053 (2026-08-28) captured them —
+  same "set up by hand, never committed" gap this document has flagged
+  before, just never previously found for *triggers* specifically. See
+  the migration 053 writeup below for how this was finally caught.
+- `profiles.on_admin_grant_check`, `admin_actions.on_admin_action_volume_check`,
+  and `exports.require_recovery_email_for_export_trigger` were added
+  by migrations 013 and 012 respectively and are documented in their
+  own sections further down, but were never reflected in this table
+  until now.
+
+**Verification** (confirm this table still matches production):
+```sql
+select event_object_table, trigger_name, action_timing, event_manipulation
+from information_schema.triggers
+where trigger_schema = 'public'
+order by event_object_table, trigger_name;
+```
 
 ---
 
@@ -729,3 +765,300 @@ but it must stay callable by `authenticated`: it's used inside the
 it would break profile lookups for every logged-in user, not just
 non-admins. This was confirmed by checking `pg_policies` before
 touching it, not assumed.
+
+---
+
+## Note: migrations 015–048 not individually documented here
+
+This document jumps from migration 014 (2026-08-15) to the
+2026-08-18 CI fix and migration 049 (2026-08-28) below. Migrations
+015–048 shipped real work in that gap — the 2026-08-21 deep security
+review (026–031), badge/sponsorship features, and others — but most of
+it isn't about the voting/integrity authorization model this document
+specifically tracks, and some of it (the deep security review) is
+already written up in full elsewhere in this repo/project. Not
+backfilled here; flagged so a reader doesn't assume nothing happened
+in between.
+
+---
+
+## CI Schema-Capture Blocker Resolved (2026-08-18)
+
+`db-security-checks.yml` (see "Automated Security Config Checks" above)
+couldn't run from an empty database until this date — `supabase start`
+replays every migration file from scratch, and 20 core tables
+(`votes`, `profiles`, `questions`, and others) had only ever been
+created by hand in the Supabase dashboard, with no `CREATE TABLE`
+anywhere in git.
+
+**Fix**: captured those 20 tables' structure (columns, constraints,
+indexes, the `questions_question_number_seq` sequence) via a one-off
+schema dump and merged them into the top of `000_functions.sql` —
+same migration version (`000`) production already has recorded as
+applied, so `db push` continues to skip it there (no re-execution, no
+drift risk) while `supabase start`/CI now build tables-then-functions
+from empty. A first attempt shipped this as a separate `0000_core_tables.sql`
+file instead and hit a real Supabase CLI bug
+([supabase/cli#6036](https://github.com/supabase/cli/issues/6036)) —
+local migration ordering and remote-tracked ordering disagree on
+`"000"` vs `"0000"` — reverted before it could do any actual schema
+damage (only the CLI's own tracking table was affected).
+
+**Result**: `db-security-checks.yml` passed end-to-end for the first
+time. Two smaller things fixed along the way: `015_add_deletion_requested_at_to_writable_columns.sql`
+had been applied to production via `db push` but never committed to
+git (caught by CI itself failing on exactly this gap); and
+`supabase/.temp/*` (the CLI's own local cache from `link`/`start`) was
+added to `.gitignore` and untracked.
+
+**Still open from this pass**: `supabase/functions/send-daily-report/index.ts`
+showed as locally modified partway through this work, after it had
+earlier been confirmed finished and pushed. Never investigated — not
+touched by any commit since. Worth checking what actually changed
+before it gets committed either way.
+
+---
+
+## `public_votes` / `public_profiles` Exposure, and the Full View/Function/Trigger Lockdown (migrations 049–053, 2026-08-28)
+
+The most severe authorization bug found in this project's history,
+surfaced by a secondhand report that "any signed-in user can see any
+other signed-in user's votes and profile." The actual live grants were
+worse than reported: `anon` — no login, no account, just the public
+API key — had full `SELECT`/`INSERT`/`UPDATE`/`DELETE`/`TRUNCATE` on
+both `public_votes` and `public_profiles`. Any unauthenticated request
+could read every user's name/avatar/bio and every vote ever cast, and
+write to either view directly.
+
+**Root cause**: both views had `security_invoker = false` (the
+Postgres default), meaning each runs as its *owner* — bypassing RLS on
+the underlying `votes`/`profiles` tables entirely for whatever role
+the view is granted to. Both had also been created by hand at some
+point and never captured in any migration — the same "set up in
+Supabase Studio, invisible to every file-based review" pattern this
+document has now hit for views, and (see migration 053 below)
+triggers.
+
+**Fix — migration 049**: recreated both views explicitly (first time
+either existed in git), revoked all `anon` access, left `authenticated`
+with `SELECT` only (that "any signed-in user can see this curated
+slice" tradeoff itself was a separate, already-accepted design
+decision — not what this fix touched; see migration 054 below for
+where that was later revisited).
+
+**Fix — migration 050**: a systematic re-audit (all views +
+`security_invoker`; all `anon` grants on tables/views; all `anon`
+grants on functions) turned up one more hand-created, uncommitted
+view — `public_sponsors` (lower severity: 2 non-sensitive columns,
+already `SELECT`-only for `anon`, and its only two call sites both sit
+behind login anyway) — and confirmed `anon` had `EXECUTE` on ~35
+functions via Supabase's default per-function grant, including
+sensitive-sounding ones (`cast_vote`, `admin_search_questions`,
+`broadcast_admin_notification`). Every one of those ~35 was read
+before concluding anything: all had their own internal guard
+(`is_admin_user()`, an `auth.uid() is null` check, or a query that
+silently returns nothing for a null caller), so actual live risk was
+low — a clean denial, not a data leak, unlike the views case. Fixed by
+locking `public_sponsors` (same pattern as 049), explicitly revoking
+the default `anon` grant on 15 authenticated/admin-only functions, and
+adding **check #6** to `run_security_checks()`: any view granted to
+`anon`/`authenticated` with `security_invoker = false` and not on a
+new `intentionally_public_views` allowlist now fires the same alert
+check #2 fires for functions — the mechanism that would have caught
+the original bug automatically instead of needing a secondhand report.
+
+**Fix — migration 051**: a related but distinct privacy question —
+"comments color-coded by the commenter's vote, without exposing anyone's
+full vote history" — turned out to have the same root cause as 049:
+`Conversation.jsx` only ever asked for the current page's commenters on
+the current question, but the underlying `public_votes` grant let
+anyone bypass the app and pull every vote by every user directly.
+Added `get_commenter_vote_choices(p_question_id, p_user_ids)`, a
+`SECURITY DEFINER` RPC that can only ever return "these people's choice
+on this question" — never a broader read — and revoked `authenticated`'s
+direct `SELECT` on `public_votes` entirely (0 grants remain on that
+view for any client role). Honest caveat: this closes the
+"one query, dump everything" exposure, not a determined actor scripting
+repeated single-question calls to reconstruct one target's history over
+time — the same already-accepted risk `get_comparison`'s "theirs" side
+carries.
+
+**Fix — migration 052**: while testing 051,
+`has_function_privilege('anon', 'cast_vote(uuid,text)', 'EXECUTE')`
+returned `true` despite migration 050 supposedly revoking it. Root
+cause: Postgres grants `EXECUTE` to the `PUBLIC` pseudo-role on every
+`CREATE FUNCTION` unconditionally, entirely separate from the
+`anon`/`authenticated`-specific default-privileges rule Supabase's
+bootstrap sets up — and `anon` (like every role) automatically has
+whatever `PUBLIC` has, regardless of `anon`'s own grant being revoked.
+Migration 050's revoke was real on paper but had zero actual effect,
+because its own test suite checked `information_schema.routine_privileges`
+filtered to `grantee = 'anon'` — a distinct row from the `PUBLIC` row —
+rather than actual effective access. **Lesson, worth repeating**:
+`has_function_privilege(role, function, 'EXECUTE')` reflects real
+access; a filtered `information_schema` row check does not, since
+Postgres has more than one path to the same effective privilege.
+Fixed with an explicit `revoke ... from public` on the same 16
+functions (plus 051's new one), and check #2 in `run_security_checks()`
+updated to also watch the `PUBLIC` grantee, with a structural exclusion
+for extension-owned functions (pgcrypto) so it doesn't false-alarm on
+those.
+
+**Fix — migration 053**: with `db dump --linked --schema public`
+finally working (see the CI section above for the earlier `db pull`
+blocker), this was the first time the *entire* live schema could be
+diffed structurally against a from-scratch replay of every migration
+file — not just the targeted view/grant queries that caught 049–052.
+Result: zero drift on tables, columns, indexes, constraints, function
+signatures/security/search_path, and all RLS policies. The only gap
+was 5 live triggers with no `CREATE TRIGGER` anywhere in git — four
+real, load-bearing protections (`moderate_comment_trigger`, both
+`set_updated_at` triggers, and `block_archived_votes`, which is the
+actual database-level enforcement of "voting closes once a question is
+archived") and one harmless redundant duplicate
+(`protect_admin_columns_trigger`, a strict subset of
+`protect_admin_columns_insert_update` from migration 029 — see
+migration 056 below for where this was finally dropped). Captured
+as-is rather than silently dropped, matching this project's "don't
+remove a live behavior without an explicit decision" pattern.
+
+**Verification, all of the above** (re-run any time to spot the same
+bug class again):
+```sql
+-- Views granted to anon/authenticated with security_invoker off and
+-- not allowlisted -- should return zero rows
+select c.relname
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public' and c.relkind = 'v'
+  and coalesce((select option_value from pg_options_to_table(c.reloptions)
+                where option_name = 'security_invoker'), 'false') = 'false'
+  and c.relname not in (select view_name from public.intentionally_public_views)
+  and exists (
+    select 1 from information_schema.table_privileges tp
+    where tp.table_schema = 'public' and tp.table_name = c.relname
+      and tp.grantee in ('anon', 'authenticated')
+  );
+
+-- Effective EXECUTE access (not row-existence!) for a specific function
+select has_function_privilege('anon', 'public.cast_vote(uuid,text)', 'EXECUTE'),
+       has_function_privilege('authenticated', 'public.cast_vote(uuid,text)', 'EXECUTE');
+
+-- Full trigger inventory, to compare against the table above
+select event_object_table, trigger_name, action_timing, event_manipulation
+from information_schema.triggers where trigger_schema = 'public'
+order by event_object_table, trigger_name;
+```
+
+---
+
+## `public_profiles` Narrowed, Vote-Speed Cooldown, Redundant Trigger Dropped, Welcome-SMS Guard (migrations 054–057, 2026-08-29)
+
+Four follow-on decisions, closing out items the 049–053 work above had
+left open.
+
+**Migration 054 — `public_profiles` narrowed.** Same shape as
+`public_votes` (051): any signed-in user could bulk-read every other
+user's name/avatar/bio/badges via a direct, unscoped
+`public_profiles` query — `Conversation.jsx` and `Compare.jsx` (the
+only two call sites in the app) always scoped to specific user ids,
+but the GRANT never did. Added `get_public_profiles(p_user_ids uuid[])`,
+same `SECURITY DEFINER`-scoped-RPC pattern as 051, and revoked
+`authenticated`'s `SELECT` on `public_profiles` entirely.
+
+**Migration 055 — a 1-second minimum gap between votes, same account,
+any question.** Registration is gated by real phone OTP verification
+and VOIP-registered numbers already get down-weighted (see "VOIP
+Detection" above), so bulk fake-account creation isn't the easy
+attack. The real soft spot: nothing stopped a script holding one
+genuinely-verified session from calling `cast_vote()` across every open
+question at machine speed — something no human tapping through the
+real UI could do. `check_vote_manipulation()` (see "Anomaly Detection
+Thresholds" above) doesn't cover this either — it watches for 50+
+*changes on one question* within an hour, a different signature from
+one account voting fast across *many different* questions.
+
+Added `profiles.last_vote_at` (protected the same way `answers_count`
+is — a client can't reset it directly and defeat the cooldown) and a
+check in `cast_vote()`: a vote less than 1 second after the same
+user's last one is rejected. Every rejection is logged to
+`anomaly_log` (`alert_type = 'vote_cooldown_blocked'`, silent — no
+email, same low-signal path the cron integrity checks use) so a report
+like this can distinguish a rare misclick from a script tripping it
+repeatedly:
+```sql
+select user_id, count(*)
+from anomaly_log
+where alert_type = 'vote_cooldown_blocked'
+  and triggered_at > now() - interval '7 days'
+group by user_id
+order by 2 desc;
+```
+
+**Design note worth keeping**: a cooldown-blocked vote does **not**
+raise a Postgres exception. An unhandled `raise exception` rolls back
+the *entire* enclosing transaction, including any table write earlier
+in that same function call — so logging the block and then raising
+would have silently discarded the very `anomaly_log` row the report
+above depends on, every single time the cooldown actually fired.
+Instead, `cast_vote()`'s `RETURNS TABLE` carries a `rejected_reason`
+column (`null` normally, `'cooldown'` when blocked); the transaction —
+log insert included — commits either way. The two guards that already
+existed (unauthenticated caller, invalid choice value) are unaffected
+and still raise normally, since neither needs a durable trail.
+
+**Migration 056 — dropped the redundant `protect_admin_columns_trigger`**
+captured as-is by migration 053 (see above) — a pure, harmless
+duplicate of `protect_admin_columns_insert_update` (migration 029).
+`profiles` keeps the identical protection either way; this just stops
+running the same trigger function twice per `UPDATE`.
+
+**Migration 057 — welcome SMS "already sent" guard.**
+`send-welcome-sms/index.ts` sends the welcome text via Twilio with no
+check at all for whether the account already received one, and
+`useRegistration.js` calls it fire-and-forget with only a silent
+`.catch()` — a retried or duplicated client call would trigger a
+second billed send. Added `profiles.welcome_sms_sent_at` (protected
+the same way) and `claim_welcome_sms_send()`, a `SECURITY DEFINER` RPC
+using an atomic `update ... where welcome_sms_sent_at is null
+returning true` — genuinely race-safe (two concurrent calls for the
+same user serialize on the row; the second sees a committed non-null
+value and matches nothing), not a check-then-act that merely usually
+works. The edge function now calls this before contacting Twilio and
+fails closed on either an RPC error or a `false` result.
+
+**Verification, all four**:
+```sql
+-- get_public_profiles is properly scoped, and public_profiles has no
+-- remaining client grant
+select grantee, privilege_type from information_schema.table_privileges
+where table_schema = 'public' and table_name = 'public_profiles';
+-- -> zero rows for anon/authenticated
+
+-- cast_vote cooldown: two calls under 1s apart as the same user, then
+-- confirm the block was logged and the vote wasn't changed
+-- (see the migration 055 file header for the full sequence)
+
+-- exactly one trigger left running protect_admin_columns()
+select tgname from pg_trigger
+where tgrelid = 'public.profiles'::regclass and not tgisinternal
+  and tgfoid = 'public.protect_admin_columns()'::regprocedure;
+-- -> protect_admin_columns_insert_update only
+
+-- welcome-SMS claim is one-shot
+select public.claim_welcome_sms_send(); -- true the first time, false after
+```
+
+**Full audit close-out (2026-08-29)**: all four migrations were tested
+against a full local Postgres 16 replay before being applied, then
+production was re-dumped and diffed against the replay one more time
+after `supabase db push` — zero drift on tables, columns, indexes,
+constraints, views, function signatures/security/search_path/grants
+(via `has_function_privilege`, not row-existence), triggers, and all
+53 RLS policies. The only difference found was the same
+already-accepted one this document has noted before: the local test
+harness only simulates 4 of Supabase's real 7 default per-table
+grants to `anon`/`authenticated` (`TRUNCATE`/`REFERENCES`/`TRIGGER`
+are also part of Supabase's real bootstrap grant) — not a real gap,
+since RLS is the actual enforcement layer and PostgREST doesn't expose
+`TRUNCATE` as an operation anyway.
