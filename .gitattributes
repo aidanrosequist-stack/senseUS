@@ -1,0 +1,23 @@
+# Normalize all text files to LF in the repository and on checkout,
+# regardless of platform or local core.autocrlf setting. Fixes the
+# repo-wide CRLF drift on Windows checkouts (nearly every tracked file
+# showed as "modified" purely from line-ending differences, with no
+# real content change -- see AUDIT_NOTES.md, 2026-08-29).
+* text=auto eol=lf
+
+# Windows batch files conventionally want CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Explicit binary declarations (belt-and-suspenders on top of
+# text=auto's content-based detection) so these are never
+# line-ending-normalized or diffed as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.jar binary
+*.keystore binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
