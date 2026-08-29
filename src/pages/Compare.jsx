@@ -53,10 +53,16 @@ export default function Compare() {
     // both sides. get_comparison computes the intersection server-side
     // via a self-join on votes, so only the shared rows ever cross the
     // wire.
+    //
+    // The two profile lookups went through get_public_profiles() as of
+    // migration 054, replacing a direct public_profiles SELECT that had
+    // no scoping at the grant level (same fix shape as public_votes in
+    // migration 051). The RPC always returns the view's full column set,
+    // so this just keeps destructuring the same fields as before.
     const [{ data: sharedRows }, { data: otherProfile }, { data: myProfile }] = await Promise.all([
       supabase.rpc('get_comparison', { p_other_id: otherId }),
-      supabase.from('public_profiles').select('first_name, last_initial, display_preference, anon_name, badges').eq('id', otherId).single(),
-      supabase.from('public_profiles').select('badges').eq('id', user.id).single(),
+      supabase.rpc('get_public_profiles', { p_user_ids: [otherId] }).single(),
+      supabase.rpc('get_public_profiles', { p_user_ids: [user.id] }).single(),
     ])
 
     const enriched = (sharedRows || []).map(r => ({
@@ -115,10 +121,10 @@ export default function Compare() {
 
       setTokenRow(tr)
 
+      // As of migration 054, via get_public_profiles() -- see the note
+      // in loadComparison() above.
       const { data: sp } = await supabase
-        .from('public_profiles')
-        .select('first_name, last_initial, display_preference, anon_name, badges')
-        .eq('id', tr.sender_id)
+        .rpc('get_public_profiles', { p_user_ids: [tr.sender_id] })
         .single()
       setSenderProfile(sp)
 

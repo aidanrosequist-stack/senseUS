@@ -68,6 +68,29 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Atomically claim the one-time welcome SMS send for this account
+    // before spending anything with Twilio. Fails closed on either an
+    // RPC error or a `false` result (already claimed) -- no claim, no
+    // send. See migration 057_welcome_sms_already_sent_guard.sql: the
+    // underlying UPDATE ... WHERE welcome_sms_sent_at IS NULL is
+    // race-safe, so a retried/duplicated call for the same account can't
+    // slip through and trigger a second billed send.
+    const { data: claimed, error: claimError } = await userClient.rpc("claim_welcome_sms_send")
+
+    if (claimError) {
+      return new Response(
+        JSON.stringify({ error: "Could not verify welcome message status" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      )
+    }
+
+    if (!claimed) {
+      return new Response(
+        JSON.stringify({ error: "Welcome message already sent" }),
+        { status: 409, headers: { "Content-Type": "application/json" } }
+      )
+    }
+
     const message = `Welcome to senseUS! We're excited to hear what you have to say. Your phone number is stored only for login purposes and never used for anything else. One human, one voice. Reply STOP to opt out.`
 
     // Send the SMS

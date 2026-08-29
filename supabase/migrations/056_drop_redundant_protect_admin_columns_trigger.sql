@@ -1,0 +1,33 @@
+-- senseUS: drop the redundant profiles.protect_admin_columns_trigger.
+--
+-- CONTEXT (Aidan, 2026-08-29): migration 053 captured this trigger as-is
+-- because it was live in production and undocumented, but flagged it as
+-- a pure subset of profiles.protect_admin_columns_insert_update (added
+-- by migration 029) -- both run the exact same protect_admin_columns()
+-- function, this one just on UPDATE only, the other on INSERT OR UPDATE.
+-- Its only live effect was running protect_admin_columns() twice on
+-- every UPDATE to profiles: harmless (the function is idempotent), but
+-- pure waste, and one more hand-created object for a future engineer to
+-- puzzle over. Decision: drop it.
+--
+-- protect_admin_columns_insert_update (029) is untouched by this
+-- migration and keeps covering both INSERT and UPDATE exactly as it has
+-- since 029 -- profiles keeps exactly the protection it has today, just
+-- via one trigger firing once per UPDATE instead of two.
+-- ============================================================
+
+DROP TRIGGER IF EXISTS protect_admin_columns_trigger ON public.profiles;
+
+-- ============================================================
+-- One-time verification (SQL Editor, after applying):
+--
+-- 1. Only one trigger left on profiles running protect_admin_columns():
+--    select tgname, pg_get_triggerdef(oid) from pg_trigger
+--    where tgrelid = 'public.profiles'::regclass and not tgisinternal
+--      and tgfoid = 'public.protect_admin_columns()'::regprocedure;
+--    -> exactly 1 row: protect_admin_columns_insert_update.
+--
+-- 2. protect_admin_columns() still works exactly as before -- attempt a
+--    direct client update of profiles.is_admin or .answers_count as a
+--    normal signed-in user; both should still be silently reverted.
+-- ============================================================

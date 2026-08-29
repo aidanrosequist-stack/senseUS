@@ -456,12 +456,15 @@ export default function Conversation() {
         // commenterIds, so they run together. This is still fetched once
         // per page load, so a vote change elsewhere won't recolor a
         // comment until the next visit to this page.
+        //
+        // As of migration 054, the commenter-profile lookup went through
+        // the same fix as the vote lookup above: get_public_profiles()
+        // replaces a direct public_profiles SELECT, which had the exact
+        // same unscoped-grant shape as the pre-051 public_votes issue.
         const [{ data: commenterProfiles }, { data: commenterVotes }] = commenterIds.length
           ? await Promise.all([
               supabase
-                .from('public_profiles')
-                .select('id, first_name, last_initial, display_preference, anon_name')
-                .in('id', commenterIds),
+                .rpc('get_public_profiles', { p_user_ids: commenterIds }),
               supabase
                 .rpc('get_commenter_vote_choices', { p_question_id: questionId, p_user_ids: commenterIds }),
             ])

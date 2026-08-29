@@ -93,6 +93,16 @@ export default function Vote() {
       throw new Error('Your vote could not be saved. Please check your connection and try again.')
     }
 
+    // cast_vote() rejects a vote fired under 1 second after the same
+    // user's last one (any question) by returning normally with
+    // rejected_reason set, rather than raising — see migration
+    // 055_cast_vote_cooldown.sql for why it's a return value here and
+    // not a thrown Postgres exception. Surface it as a distinct message
+    // rather than lumping it in with an actual save failure.
+    if (freshTally?.rejected_reason === 'cooldown') {
+      throw new Error("You're voting a little too fast — give it a second and try again.")
+    }
+
     return freshTally
       ? { yes: freshTally.yes, ly: freshTally.ly, ln: freshTally.ln, no: freshTally.no }
       : { yes: 0, ly: 0, ln: 0, no: 0 }
