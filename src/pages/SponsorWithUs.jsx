@@ -157,7 +157,12 @@ export default function SponsorWithUs() {
       company: form.company.trim() || null,
       tier,
       region: tier === 'region' ? region : null,
-      country_code: tier === 'country' ? countryCode : null,
+      // A region is always a sub-selection within a country (see
+      // REGIONS_BY_COUNTRY above), so a region-tier inquiry should carry
+      // its country too, not just the region name — otherwise a future
+      // country with its own regions would make a stored "Northeast"
+      // ambiguous about which country it belongs to.
+      country_code: (tier === 'country' || tier === 'region') ? countryCode : null,
       category: form.category,
       wants_custom_content: wantsCustomContent,
       message: form.message.trim() || null,
