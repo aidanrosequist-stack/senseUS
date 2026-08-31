@@ -24,13 +24,90 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+// Every alert_type call_alert_function() has ever been called with, across
+// migrations 000-052 and the process-account-deletions edge function.
+// (Found missing 9 of these — everything from function_heartbeat_stale
+// onward — while fixing the Anomaly Log's "wall of raw JSON" bug below:
+// they were falling through to the bare alert_type string instead of a
+// readable label, same root cause as the details column dumping raw
+// JSON. Keep this in sync with any new call_alert_function() call site.)
 const ALERT_LABELS = {
   registration_spike: "Registration Spike",
   vote_manipulation: "Vote Manipulation",
   coordinated_signup: "Coordinated Signup",
   flagged_question: "Flagged Question",
   transparency_event: "Transparency Event",
+  security_check_failed: "Security Check Failed",
+  unauthorized_admin_grant: "Unauthorized Admin Grant",
+  function_heartbeat_stale: "Function Heartbeat Stale",
+  policy_drift_detected: "Policy Drift Detected",
+  admin_action_volume_spike: "Admin Action Volume Spike",
+  account_deletions_processed: "Account Deletions Processed",
 };
+
+// security_check_failed's `details.check` values, each carrying a
+// different array key (tables/functions/columns/profiles/issues/views) —
+// see migrations 013/014/033/034/036/050/052.
+const SECURITY_CHECK_LABELS = {
+  rls_disabled: "RLS disabled",
+  unexpected_function_grants: "unexpected function grants",
+  unprotected_profile_columns: "unprotected profile columns",
+  unauthorized_admin: "unauthorized admin",
+  protective_trigger_coverage: "protective trigger coverage",
+  unexpected_view_grants: "unexpected view grants",
+};
+
+// Builds a short, human-readable summary for the Anomaly Log's Details
+// column. Deliberately never touches policy_drift_detected's `previous`/
+// `current` snapshot payloads (that's the full weekly RLS/policy state
+// for every table — real data, not something to dump in a table cell)
+// — `changed_tables`/`rls_disabled_flips` alone say what actually
+// changed, which is the same information the alert email itself leads
+// with. Anything genuinely unrecognized falls back to a length-capped
+// JSON.stringify rather than an unbounded one, so a future alert type
+// added without updating this function degrades gracefully instead of
+// reproducing the original bug.
+function summarizeAnomalyDetails(alertType, details) {
+  if (!details) return "—";
+  switch (alertType) {
+    case "policy_drift_detected": {
+      const tables = details.changed_tables?.join(", ") || "—";
+      const flipped = details.rls_disabled_flips?.length
+        ? ` (RLS disabled on: ${details.rls_disabled_flips.join(", ")})`
+        : "";
+      return `Changed: ${tables}${flipped}`;
+    }
+    case "security_check_failed": {
+      const label = SECURITY_CHECK_LABELS[details.check] || details.check || "unknown check";
+      const items = Object.entries(details)
+        .find(([k, v]) => k !== "check" && Array.isArray(v));
+      return items ? `${label}: ${items[1].join(", ")}` : label;
+    }
+    case "function_heartbeat_stale":
+      return `${details.function || "unknown function"} — last success ${details.last_success_at || "never"}`;
+    case "unauthorized_admin_grant":
+      return `Profile ${details.profileId}${details.anonName ? ` (${details.anonName})` : ""}`;
+    case "vote_manipulation":
+      return details.question ? `"${details.question}" — ${details.count ?? details.changeCount} changes` : JSON.stringify(details);
+    case "coordinated_signup":
+      return `${details.country || "unknown country"} — ${details.count} signups`;
+    case "registration_spike":
+    case "admin_action_volume_spike":
+      return `${details.count} in ${details.window || "the window"}`;
+    case "account_deletions_processed":
+      return `${details.count} deleted${details.errors?.length ? `, ${details.errors.length} error(s)` : ""}`;
+    case "flagged_question":
+      return details.questionId ? `Question ${details.questionId}` : "—";
+    case "transparency_event":
+      return details.eventType || "—";
+    default: {
+      if (details.question) return details.question;
+      if (details.country) return details.country;
+      const json = JSON.stringify(details);
+      return json.length > 200 ? json.slice(0, 200) + "…" : json;
+    }
+  }
+}
 
 const SEVERITY_COLORS = {
   warning: "#c2731f",
@@ -229,9 +306,8 @@ async function resolveAnomaly(id) {
               {anomalies.map((a) => (
                 <tr key={a.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
                   <td style={{ padding: "6px 8px" }}>{ALERT_LABELS[a.alert_type] || a.alert_type}</td>
-                  <td style={{ padding: "6px 8px", maxWidth: 280, color: "#444" }}>
-                    {a.details?.question || a.details?.country ||
-                      (a.details ? JSON.stringify(a.details) : "—")}
+                  <td style={{ padding: "6px 8px", maxWidth: 280, wordBreak: "break-word", color: "#444" }}>
+                    {summarizeAnomalyDetails(a.alert_type, a.details)}
                   </td>
                   <td style={{ padding: "6px 8px" }}>
                     <span style={{ color: SEVERITY_COLORS[a.severity] || "#666", fontWeight: 600 }}>

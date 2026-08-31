@@ -69,7 +69,7 @@ export default function HowItWorks() {
           To join senseUS, you verify a real phone number. We send a one-time code via SMS — you enter it, and you're in. One phone number, one account, one voice.
         </p>
         <p style={{ fontSize: '15px', lineHeight: 1.8, color: '#374151' }}>
-          We don't store your phone number after verification. We don't ask for your email, your full name, or your date of birth (only your birth year, to confirm you're 18 or older). The less we know about you, the better — by design.
+          Your phone number is never stored in our own application database — it's held only by our authentication provider, Supabase, solely so you can log back in. We don't ask for your email, your full name, or your date of birth (only your birth year, to confirm you're 18 or older). The less we know about you, the better — by design.
         </p>
       </Section>
 

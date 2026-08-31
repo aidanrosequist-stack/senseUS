@@ -288,7 +288,7 @@ export default function Transparency() {
       {/* Section 10 — Live stats */}
       <Section title="10. Platform Statistics">
         <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '1rem' }}>
-          These numbers are updated in real time from our database.
+          These numbers come directly from our database and are refreshed daily.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '1rem' }}>
           <StatCard
