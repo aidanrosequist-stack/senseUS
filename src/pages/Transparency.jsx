@@ -230,6 +230,13 @@ export default function Transparency() {
           <li>Phone number discarded immediately after verification — not stored in the database</li>
           <li>No IP addresses logged</li>
         </ul>
+        <p style={{ fontSize: '14px', lineHeight: 1.8, color: '#374151', marginBottom: '0.75rem' }}>
+          Our full source code is published publicly at{' '}
+          <a href="https://github.com/aidanrosequist-stack/senseUS" target="_blank" rel="noopener noreferrer" style={{ color: '#2D3DCA' }}>
+            github.com/aidanrosequist-stack/senseUS
+          </a>{' '}
+          so anyone can verify the claims on this page for themselves. It's source-available rather than open source — you're welcome to read, audit, and run it locally, but not to deploy your own copy of the service. See the repo's LICENSE for details.
+        </p>
         {p("We plan to conduct our first third-party security audit within 12 months of launch. Results will be summarized in our next transparency report.")}
         {p("Our authentication provider, Supabase, retains phone numbers solely to enable user login. In the event of a legal demand directed at either Gudboi Enterprises LLC or Supabase, both our application data and authentication data (including phone numbers) may be subject to disclosure. We are evaluating additional architectural separations in a future platform version to further protect user privacy.")}
         {p("To report a security vulnerability: security@senseus.app")}
