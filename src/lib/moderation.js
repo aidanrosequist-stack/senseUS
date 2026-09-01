@@ -5,6 +5,11 @@ const BANNED_WORDS = [
   'wetback', 'towelhead', 'raghead', 'tranny', 'retard', 'retarded',
   // Severe profanity
   'cunt', 'motherfucker', 'motherfucking',
+  // Sexual exploitation of minors — must stay in sync with moderate_comment()'s
+  // banned_words array (supabase/migrations/000_functions.sql). The DB is the
+  // authoritative check either way, but without these here a blocked comment
+  // hits a raw Postgres error instead of this file's friendly message.
+  'pedophile', 'pedo', 'pedofile',
 ]
 
 // Words that get flagged for human review but not blocked outright
