@@ -151,7 +151,10 @@ function CommentCard({
   // map lookup per card.
   const replies = childrenByParent.get(comment.id) || []
   const avatarColor = getVoteColor(comment)
-  const isOwn = comment.user_id === user?.id
+  // As of migration 061, another user's raw id is never sent to the
+  // client at all — get_conversation_comments() computes this
+  // server-side via auth.uid() instead of the client comparing ids.
+  const isOwn = !!comment.is_own
   const isEditing = editingId === comment.id
 
   // Shared props every recursive reply needs — same list every time,
@@ -400,29 +403,23 @@ export default function Conversation() {
           supabase
             .rpc('get_vote_tally', { p_question_id: questionId })
             .single(),
-          // Comments — no embedded profile join here. The real profiles
-          // table only allows reading your own row, so an embedded join
-          // silently returned null for everyone but yourself. Public
-          // display fields are fetched separately below via public_profiles.
-          //
-          // Capped at 500 — this was previously unbounded, and paired with
-          // the recursive CommentCard tree rendering every comment with no
-          // windowing, a heavily-discussed question could mean thousands of
-          // DOM nodes and array entries per page view. Ordering by
-          // resonance_count means the cap drops the least-engaged threads
-          // first, not arbitrary ones. A true "top N threads, load more"
-          // pagination UI would handle this more gracefully at very high
-          // comment counts, but that's a UX change beyond this pass — this
-          // at least puts a ceiling on the unbounded growth.
+          // Comments — as of migration 061, a single SECURITY DEFINER RPC
+          // joins comments + profiles + votes server-side and returns a
+          // server-computed is_own boolean plus pre-joined display-name /
+          // vote-choice fields, so another commenter's raw user_id is
+          // never sent to the client at all (see that migration's own
+          // comment for the vote-history-reconstruction finding this
+          // closes). The 500-row cap and resonance_count ordering live
+          // inside the function itself now, not at the call site — this
+          // was previously unbounded, and paired with the recursive
+          // CommentCard tree rendering every comment with no windowing, a
+          // heavily-discussed question could mean thousands of DOM nodes
+          // and array entries per page view. A true "top N threads, load
+          // more" pagination UI would handle this more gracefully at very
+          // high comment counts, but that's a UX change beyond this pass —
+          // this at least puts a ceiling on the unbounded growth.
           supabase
-            .from('comments')
-            .select(`
-              id, body, resonance_count, created_at, parent_id, user_id, edited_at, is_removed
-            `)
-            .eq('question_id', questionId)
-            .eq('is_deleted', false)
-            .order('resonance_count', { ascending: false })
-            .limit(500),
+            .rpc('get_conversation_comments', { p_question_id: questionId }),
           user
             ? supabase
                 .from('comment_resonances')
@@ -438,44 +435,27 @@ export default function Conversation() {
           setTally({ yes: tallyRow.yes, ly: tallyRow.ly, ln: tallyRow.ln, no: tallyRow.no })
         }
 
-        const commenterIds = [...new Set((commentsData || []).map(c => c.user_id))]
-
-        // Comments don't have a direct DB relationship to votes (they're
-        // linked only by matching user_id + question_id), so we look up
-        // each commenter's own choice separately — this is what colors
-        // each comment by how that person actually voted. Previously this
-        // queried public_votes directly (scoped to just commenterIds in
-        // the query itself, but the underlying grant was NOT scoped —
-        // any authenticated user could open devtools and read the whole
-        // table's user_id/choice pairs directly, no matter what this
-        // page asked for). As of migration 051, public_votes has no
-        // remaining grant at all — get_commenter_vote_choices() does the
-        // scoping server-side instead, so the only thing callable from
-        // the client is "these specific people's choice on this specific
-        // question," never a broader read. Both queries only depend on
-        // commenterIds, so they run together. This is still fetched once
-        // per page load, so a vote change elsewhere won't recolor a
-        // comment until the next visit to this page.
-        //
-        // As of migration 054, the commenter-profile lookup went through
-        // the same fix as the vote lookup above: get_public_profiles()
-        // replaces a direct public_profiles SELECT, which had the exact
-        // same unscoped-grant shape as the pre-051 public_votes issue.
-        const [{ data: commenterProfiles }, { data: commenterVotes }] = commenterIds.length
-          ? await Promise.all([
-              supabase
-                .rpc('get_public_profiles', { p_user_ids: commenterIds }),
-              supabase
-                .rpc('get_commenter_vote_choices', { p_question_id: questionId, p_user_ids: commenterIds }),
-            ])
-          : [{ data: [] }, { data: [] }]
-        const profileById = new Map((commenterProfiles || []).map(p => [p.id, p]))
-        const voteByUser = new Map((commenterVotes || []).map(v => [v.user_id, v.choice]))
-
+        // get_conversation_comments() already returns display name and
+        // vote-choice fields joined in — just reshape its flat row into
+        // the { profiles, votes } shape the rest of this file (and
+        // CommentCard) already expects, so nothing downstream needs to
+        // know the fetch itself changed shape.
         const commentsWithVotes = (commentsData || []).map(c => ({
-          ...c,
-          profiles: profileById.get(c.user_id) || null,
-          votes: [{ choice: voteByUser.get(c.user_id) }],
+          id: c.id,
+          body: c.body,
+          resonance_count: c.resonance_count,
+          created_at: c.created_at,
+          parent_id: c.parent_id,
+          edited_at: c.edited_at,
+          is_removed: c.is_removed,
+          is_own: c.is_own,
+          profiles: {
+            first_name: c.first_name,
+            last_initial: c.last_initial,
+            display_preference: c.display_preference,
+            anon_name: c.anon_name,
+          },
+          votes: [{ choice: c.vote_choice }],
         }))
 
         setComments(commentsWithVotes)
@@ -539,7 +519,8 @@ export default function Conversation() {
     }
 
     if (data) {
-      const newCommentWithVote = { ...data, votes: [{ choice: userVote }] }
+      // Always true — this is the comment you yourself just posted.
+      const newCommentWithVote = { ...data, is_own: true, votes: [{ choice: userVote }] }
       setComments(prev => parentId
         ? [...prev, newCommentWithVote]
         : [newCommentWithVote, ...prev]
@@ -701,7 +682,7 @@ export default function Conversation() {
   // never shown again inside the regular ranked list below.
   const myComment = useMemo(() => {
     if (!user) return null
-    return comments.find(c => c.user_id === user.id && !c.parent_id) || null
+    return comments.find(c => c.is_own && !c.parent_id) || null
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user?.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern).
   }, [comments, user?.id])
 
