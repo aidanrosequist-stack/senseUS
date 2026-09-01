@@ -521,7 +521,16 @@ export default function Conversation() {
 
     if (error) {
       if (error.code === '23505') {
-        alert('You\'ve already shared your top-level comment on this question. You can edit it instead.')
+        // Two distinct unique constraints can produce a 23505 here, and
+        // which one fired is fully determined by whether this was a
+        // top-level comment or a reply — one_top_level_comment_per_user
+        // only applies when parent_id is null, one_reply_per_user_per_parent
+        // (migration 060) only applies when it isn't, so they can never
+        // both be the cause of the same insert.
+        alert(parentId
+          ? 'You\'ve already replied to this comment. If you have more to add, reply to your own reply instead, or edit your existing one.'
+          : 'You\'ve already shared your top-level comment on this question. You can edit it instead.'
+        )
       } else {
         alert('Something went wrong posting your comment.')
       }
