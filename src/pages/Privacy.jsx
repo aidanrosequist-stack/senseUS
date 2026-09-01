@@ -124,11 +124,11 @@ export default function Privacy() {
         {
           title: '6. Data Retention',
           bullets: [
-            'Votes are retained permanently — this is a deliberate integrity decision fundamental to the trustworthiness of our data.',
+            'Votes are retained for as long as your account is active — this is a deliberate integrity decision fundamental to the trustworthiness of our data.',
             'Profile information is retained for as long as your account is active.',
             'Phone number is retained by our authentication provider (Supabase) for login purposes only, and is not stored in our application database. Full date of birth is discarded immediately after age verification.',
             'Server logs are retained for 90 days for security and fraud prevention.',
-            'If you delete your account, your profile information and display name are removed. Your votes are retained in anonymized form as part of our aggregate dataset.',
+            'If you delete your account, your profile information, display name, votes, and comments are permanently deleted. Nothing you contributed is retained in any form after deletion.',
           ]
         },
         {
@@ -145,7 +145,7 @@ export default function Privacy() {
             },
             {
               title: '7.3 Deletion',
-              content: 'You may delete your account at any time. Deletion removes your profile and personally identifiable information. Your votes are retained in anonymized form as part of the historical record of verified human opinion.'
+              content: 'You may delete your account at any time. Deletion permanently removes your profile, personally identifiable information, votes, and comments. If you want your voice removed from senseUS, it is removed entirely — nothing is retained in any form after deletion.'
             },
             {
               title: '7.4 Rights Under Applicable Law',

@@ -142,7 +142,7 @@ export default function Terms() {
         },
         {
           title: '15. Termination',
-          content: 'You may delete your account at any time from within the app. We may suspend or terminate your account at any time for violation of these Terms or suspected fraud. Upon termination, your profile will be removed. Your votes will be retained in anonymized form as described in our Privacy Policy.'
+          content: 'You may delete your account at any time from within the app. We may suspend or terminate your account at any time for violation of these Terms or suspected fraud. Upon termination, your profile, votes, and comments will be permanently deleted, as described in our Privacy Policy.'
         },
         {
           title: '16. Governing Law and Dispute Resolution',

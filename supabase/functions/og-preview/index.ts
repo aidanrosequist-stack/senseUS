@@ -70,14 +70,16 @@ Deno.serve(async (req) => {
   <!-- Open Graph -->
   <meta property="og:title" content="${safeText}" />
   <meta property="og:description" content="${safeDescription}" />
+  <meta property="og:image" content="https://senseus.app/og-image.png" />
   <meta property="og:url" content="https://senseus.app/q/${question.question_number}" />
   <meta property="og:site_name" content="senseUS" />
   <meta property="og:type" content="website" />
 
   <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${safeText}" />
   <meta name="twitter:description" content="${safeDescription}" />
+  <meta name="twitter:image" content="https://senseus.app/og-image.png" />
   <meta name="twitter:site" content="@senseus" />
 
   ${!isCrawler ? `<meta http-equiv="refresh" content="0;url=https://senseus.app/q/${question.question_number}" />` : ''}

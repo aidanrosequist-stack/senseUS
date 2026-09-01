@@ -147,7 +147,7 @@ export default function HowItWorks() {
 
       <Detail title="Your data and your rights">
         <p>You can request a full export of your personal data at any time from your profile page. Exports are delivered within 48 hours — this delay is intentional, as a protection against real-time coercion.</p>
-        <p style={{ marginTop: '0.75rem' }}>You can delete your account at any time. Deletion removes your profile and all personally identifiable information. Your votes are retained in anonymized form as part of the historical dataset — they are permanently disconnected from your identity.</p>
+        <p style={{ marginTop: '0.75rem' }}>You can delete your account at any time. Deletion permanently removes your profile, all personally identifiable information, your votes, and your comments — nothing is retained. If you want your voice gone, it's gone entirely, not just disconnected from your name.</p>
         <p style={{ marginTop: '0.75rem' }}>For full details, see our <Link to="/privacy" style={{ color: '#2D3DCA', textDecoration: 'none' }}>Privacy Policy</Link>.</p>
       </Detail>
 
