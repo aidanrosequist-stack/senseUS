@@ -534,6 +534,13 @@ async function toggleRegistration(open) {
   async function addArticle() {
     if (!selectedQuestionId) return showMessage('Select a question first.', true)
     if (!newArticle.url.trim() || !newArticle.outlet_name.trim()) return showMessage('URL and outlet name are required.', true)
+    // This is UX only, not the real enforcement — the DB has its own
+    // CHECK constraint (migration 059) rejecting anything but http(s).
+    // Without this, a non-http(s) url (javascript:, data:, etc.) would
+    // render as a real link to every reader on Make Up My Mind.
+    if (!/^https?:\/\//i.test(newArticle.url.trim())) {
+      return showMessage('Article URL must start with http:// or https://', true)
+    }
     const { error } = await supabase.from('question_articles').insert({
       ...newArticle,
       question_id: selectedQuestionId,
