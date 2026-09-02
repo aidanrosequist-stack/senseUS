@@ -115,15 +115,18 @@ export function useQuestions(userId) {
           replyCount: 0,
         }))
 
-        // Separate priority and tracking anchors — they always go first.
+        // Separate priority questions — they always go first. (Tracking
+        // anchors used to get their own bucket here too, pinned right
+        // after priority; is_tracking_anchor was retired 2026-09-02 as
+        // part of removing the whole "tracking" concept — see migration
+        // 064 — so anchor-marked questions now just flow into the
+        // regular, category-stratified pool below like everything else.)
         const now = new Date()
         const priorityQuestions = []
-        const trackingQuestions = []
         const regularQuestions = []
         for (const q of questionsWithTallies) {
           const isPriority = q.is_priority && (!q.priority_expires_at || new Date(q.priority_expires_at) > now)
           if (isPriority) priorityQuestions.push(q)
-          else if (q.is_tracking_anchor) trackingQuestions.push(q)
           else regularQuestions.push(q)
         }
 
@@ -163,7 +166,7 @@ export function useQuestions(userId) {
         }
 
         setUsingFallbackPool(usingFallbackPool)
-        setQuestions([...priorityQuestions, ...trackingQuestions, ...result])
+        setQuestions([...priorityQuestions, ...result])
       } catch (err) {
         setError(err.message)
       } finally {

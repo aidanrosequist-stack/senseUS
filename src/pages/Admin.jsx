@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAdmin } from '../hooks/useAdmin'
 import AdminReports from './AdminReports'
 
-const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'tracking', 'sponsored', 'current events']
+const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'sponsored', 'current events']
 const DOMAINS = ['society & culture', 'ethics & philosophy', 'health & wellbeing', 'relationships', 'technology', 'money & work', 'media & information', 'politics & policy', 'science & nature', 'sports & leisure']
 const STANCES = ['yes', 'ly', 'neutral', 'ln', 'no']
 
@@ -100,7 +100,6 @@ export default function Admin() {
     domain: 'ethics & philosophy',
     geo_scope: 'global',
     country_code: '',
-    is_tracking_anchor: false,
     human_moderation_required: false,
     ai_question: false,
     is_current_event: false,
@@ -342,7 +341,7 @@ async function toggleRegistration(open) {
     // for now and still bounds the worst case.
     const { data, error } = await supabase
       .from('questions')
-      .select('id, text, category, domain, published_at, is_tracking_anchor')
+      .select('id, text, category, domain, published_at')
       .order('created_at', { ascending: false })
       .limit(500)
     if (!error) setQuestions(data || [])
@@ -431,7 +430,7 @@ async function toggleRegistration(open) {
       showMessage('Error adding question: ' + error.message, true)
     } else {
       showMessage('Question added!')
-      setNewQuestion({ text: '', category: 'deep', domain: 'ethics & philosophy', geo_scope: 'global', country_code: '', is_tracking_anchor: false, human_moderation_required: false, ai_question: false, is_current_event: false, archive_at: '' })
+      setNewQuestion({ text: '', category: 'deep', domain: 'ethics & philosophy', geo_scope: 'global', country_code: '', human_moderation_required: false, ai_question: false, is_current_event: false, archive_at: '' })
       loadQuestions()
     }
   }
@@ -447,23 +446,6 @@ async function toggleRegistration(open) {
       loadQuestions()
       supabase.rpc('log_admin_action', {
         p_action_type: wasPublished ? 'unpublish_question' : 'publish_question',
-        p_target_type: 'question',
-        p_target_id: question.id,
-      }).then(({ error }) => { if (error) console.error('log_admin_action failed', error) })
-    }
-  }
-
-  async function toggleTrackingAnchor(question) {
-    const wasAnchor = question.is_tracking_anchor
-    const { error } = await supabase
-      .from('questions')
-      .update({ is_tracking_anchor: !wasAnchor })
-      .eq('id', question.id)
-    if (!error) {
-      showMessage(wasAnchor ? 'Removed tracking anchor.' : 'Set as tracking anchor!')
-      loadQuestions()
-      supabase.rpc('log_admin_action', {
-        p_action_type: wasAnchor ? 'remove_tracking_anchor' : 'set_tracking_anchor',
         p_target_type: 'question',
         p_target_id: question.id,
       }).then(({ error }) => { if (error) console.error('log_admin_action failed', error) })
@@ -695,7 +677,6 @@ async function toggleRegistration(open) {
                         <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '4px' }}>{q.text}</div>
                         <div style={{ fontSize: '11px', color: '#6B7280' }}>
                           #{q.question_number} · {q.category} · {q.domain}
-                          {q.is_tracking_anchor && ' · 📍 tracking'}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
@@ -704,13 +685,6 @@ async function toggleRegistration(open) {
                           style={{ padding: '5px 10px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', background: '#E6F1FB', color: '#0C447C' }}
                         >
                           Edit
-                        </button>
-                        <button
-                          onClick={() => toggleTrackingAnchor(q)}
-                          style={{ padding: '5px 10px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', background: q.is_tracking_anchor ? '#FFF3CD' : '#F3F4F6', color: q.is_tracking_anchor ? '#856404' : '#6B7280' }}
-                          title="Toggle tracking anchor"
-                        >
-                          📍
                         </button>
                         <button
                           onClick={() => pushAsBreakingNews(q)}
@@ -823,10 +797,6 @@ async function toggleRegistration(open) {
             )}
           </div>
           <div style={{ display: 'flex', gap: '1.5rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={newQuestion.is_tracking_anchor} onChange={(e) => setNewQuestion(p => ({ ...p, is_tracking_anchor: e.target.checked }))} />
-              Tracking anchor
-            </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
               <input type="checkbox" checked={newQuestion.human_moderation_required} onChange={(e) => setNewQuestion(p => ({ ...p, human_moderation_required: e.target.checked }))} />
               Human moderation

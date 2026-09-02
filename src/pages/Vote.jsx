@@ -36,7 +36,7 @@ export default function Vote() {
     async function fetchTargetQuestion() {
       const { data } = await supabase
         .from('questions')
-        .select('id, text, category, domain, is_tracking_anchor, geo_scope, question_number, is_sponsored')
+        .select('id, text, category, domain, geo_scope, question_number, is_sponsored')
         .eq('id', targetQuestionId)
         .single()
 

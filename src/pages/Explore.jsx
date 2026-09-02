@@ -21,10 +21,10 @@ const DOMAINS = [
   'sports & leisure',
 ]
 
-// Same 7 values Admin.jsx uses when setting a question's category.
+// Same 6 values Admin.jsx uses when setting a question's category.
 // Filter chips below let a user narrow the browse view (and search
 // results) to just one of these instead of typing it into search.
-const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'tracking', 'sponsored', 'current events']
+const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'sponsored', 'current events']
 
 const VOTE_COLORS = {
   yes: '#DAE9AF', ly: '#EEE5AA', ln: '#EBCDAD', no: '#EBADAD',
