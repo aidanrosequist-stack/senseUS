@@ -9,6 +9,7 @@
 //   questions(id, text, category, domain, human_moderation_required)
 //   comments(id, created_at, is_deleted)
 //   anomaly_log(id, alert_type, severity, details, triggered_at, resolved)
+//   integrity_events(id, user_id, event_type, details, reviewed, action_taken, created_at)
 //
 // Usage: import into Admin.jsx and render as a new tab, e.g.
 //   <AdminReports supabase={supabase} />
@@ -114,6 +115,60 @@ const SEVERITY_COLORS = {
   critical: "#c21f1f",
 };
 
+// integrity_events.event_type — see migration 000_functions.sql for the
+// full check-constraint list (7 values) and migration 069 for context on
+// why only 5 of them are actually detected. geo_mismatch and
+// device_cluster are kept here so a raw value never renders unlabeled if
+// they're ever manually inserted, but nothing in this codebase logs them
+// today — no IP or device-fingerprint data is captured anywhere to
+// detect either one.
+const INTEGRITY_EVENT_LABELS = {
+  voip_detected: "VOIP Number Detected",
+  velocity_spike: "Voting Velocity Spike",
+  coordinated_voting: "Coordinated Voting",
+  new_account_surge: "New Account Surge",
+  single_question_account: "Single-Question Account",
+  geo_mismatch: "Geo Mismatch (not yet detected)",
+  device_cluster: "Device Cluster (not yet detected)",
+};
+
+// Builds a short, human-readable summary for the Integrity Events panel's
+// Details column — same idea as summarizeAnomalyDetails above, but for
+// integrity_events.details instead of anomaly_log.details (different
+// shape per event_type — see migration 069).
+function summarizeIntegrityDetails(eventType, details) {
+  if (!details) return "—";
+  switch (eventType) {
+    case "voip_detected":
+      return details.line_type ? `Line type: ${details.line_type}` : "Non-fixed VOIP number";
+    case "velocity_spike":
+      return `${details.peak_votes_in_window} votes in ${details.window || "window"}`;
+    case "coordinated_voting":
+      return `Question ${details.question_id} — cluster of ${details.cluster_size}`;
+    case "new_account_surge":
+      return `Cluster of ${details.cluster_size} signups within ${details.window || "window"}`;
+    case "single_question_account":
+      return `Account age: ${details.account_age_days} day${details.account_age_days === 1 ? "" : "s"}, 1 lifetime vote`;
+    default: {
+      const json = JSON.stringify(details);
+      return json.length > 200 ? json.slice(0, 200) + "…" : json;
+    }
+  }
+}
+
+// integrity_events has no display_preference/anon_name convention to
+// respect the way public-facing name display does — this panel is
+// admin-only, so it always shows the real first name + last initial for
+// clarity during review, falling back to anon_name if first_name is
+// somehow missing.
+function integrityEventSubjectName(profile) {
+  if (!profile) return "Unknown user";
+  if (profile.first_name) {
+    return `${profile.first_name}${profile.last_initial ? ` ${profile.last_initial}.` : ""}`;
+  }
+  return profile.anon_name || "Unknown user";
+}
+
 function StatCard({ label, value }) {
   return (
     <div style={{ background: "#fff", borderRadius: 8, padding: "16px 20px", border: "1px solid #eee" }}>
@@ -129,6 +184,7 @@ export default function AdminReports({ supabase }) {
   const [registrationSeries, setRegistrationSeries] = useState([]);
   const [voteSeries, setVoteSeries] = useState([]);
   const [anomalies, setAnomalies] = useState([]);
+  const [integrityEvents, setIntegrityEvents] = useState([]);
   const [questionSort, setQuestionSort] = useState({ field: "votes", dir: "desc" });
   const [questions, setQuestions] = useState([]);
   const [error, setError] = useState(null);
@@ -157,6 +213,7 @@ export default function AdminReports({ supabase }) {
         { count: totalVotesAll },
         { data: dailyActivity },
         { data: anomalyRows },
+        { data: integrityEventRows },
         { data: topQuestions },
       ] = await Promise.all([
         supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", since24h),
@@ -168,6 +225,15 @@ export default function AdminReports({ supabase }) {
           .from("anomaly_log")
           .select("*")
           .order("triggered_at", { ascending: false })
+          .limit(25),
+        // Admins have full SELECT on profiles (see "Admins can view all
+        // profiles" policy) so this embedded join resolves for admin
+        // sessions the same way flaggedComments' profiles join does
+        // elsewhere in Admin.jsx.
+        supabase
+          .from("integrity_events")
+          .select("id, user_id, event_type, details, reviewed, action_taken, created_at, profiles (first_name, last_initial, anon_name)")
+          .order("created_at", { ascending: false })
           .limit(25),
         supabase.rpc("get_top_questions_by_votes", { p_limit: 20 }),
       ]);
@@ -182,6 +248,7 @@ export default function AdminReports({ supabase }) {
       setRegistrationSeries((dailyActivity || []).map((d) => ({ date: d.day, count: Number(d.registrations) })));
       setVoteSeries((dailyActivity || []).map((d) => ({ date: d.day, count: Number(d.votes) })));
       setAnomalies(anomalyRows || []);
+      setIntegrityEvents(integrityEventRows || []);
       // Now genuinely the top 20 by vote count platform-wide, not the top
       // 20 (by whichever column is sorted) within a 400-most-recent pool —
       // the column-header sort below re-orders within this same set of 20.
@@ -217,6 +284,18 @@ async function resolveAnomaly(id) {
     return
   }
   setAnomalies((prev) => prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)))
+}
+
+async function reviewIntegrityEvent(id) {
+  const { error } = await supabase
+    .from('integrity_events')
+    .update({ reviewed: true })
+    .eq('id', id)
+  if (error) {
+    alert('Something went wrong: ' + error.message)
+    return
+  }
+  setIntegrityEvents((prev) => prev.map((e) => (e.id === id ? { ...e, reviewed: true } : e)))
 }
 
   function sortedQuestions() {
@@ -327,6 +406,56 @@ async function resolveAnomaly(id) {
     </button>
   )}
 </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Integrity events — see migration 069_fraud_signal_detection.sql.
+          Separate from the Anomaly Log above: anomaly_log is platform/
+          config-level ("RLS just got disabled"), integrity_events is
+          per-user fraud signals ("this account's voting pattern looks
+          off"), each with its own review workflow. */}
+      <div style={{ background: "#fff", borderRadius: 8, padding: 20, border: "1px solid #eee", marginBottom: 32 }}>
+        <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>Integrity Events (most recent 25)</div>
+        {integrityEvents.length === 0 ? (
+          <div style={{ color: "#999", fontSize: 13 }}>No integrity events logged.</div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ textAlign: "left", color: "#888", borderBottom: "1px solid #eee" }}>
+                <th style={{ padding: "6px 8px" }}>User</th>
+                <th style={{ padding: "6px 8px" }}>Signal</th>
+                <th style={{ padding: "6px 8px" }}>Details</th>
+                <th style={{ padding: "6px 8px" }}>Action Taken</th>
+                <th style={{ padding: "6px 8px" }}>Logged</th>
+                <th style={{ padding: "6px 8px" }}>Reviewed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {integrityEvents.map((e) => (
+                <tr key={e.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
+                  <td style={{ padding: "6px 8px" }}>{integrityEventSubjectName(e.profiles)}</td>
+                  <td style={{ padding: "6px 8px" }}>{INTEGRITY_EVENT_LABELS[e.event_type] || e.event_type}</td>
+                  <td style={{ padding: "6px 8px", maxWidth: 280, wordBreak: "break-word", color: "#444" }}>
+                    {summarizeIntegrityDetails(e.event_type, e.details)}
+                  </td>
+                  <td style={{ padding: "6px 8px", color: "#666" }}>{e.action_taken || "—"}</td>
+                  <td style={{ padding: "6px 8px", color: "#666" }}>
+                    {new Date(e.created_at).toLocaleString()}
+                  </td>
+                  <td style={{ padding: "6px 8px" }}>
+                    {e.reviewed ? "Yes" : (
+                      <button
+                        onClick={() => reviewIntegrityEvent(e.id)}
+                        style={{ fontSize: "11px", padding: "3px 8px", borderRadius: "6px", border: "1px solid #2D3DCA", background: "white", color: "#2D3DCA", cursor: "pointer" }}
+                      >
+                        Mark reviewed
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
