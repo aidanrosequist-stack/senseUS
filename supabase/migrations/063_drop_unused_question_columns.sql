@@ -1,0 +1,44 @@
+-- migration: 063_drop_unused_question_columns.sql
+--
+-- CONTEXT (Aidan, 2026-09-02): while auditing the questions table for
+-- cleanup, an anomaly scan confirmed two columns are genuinely dead --
+-- zero non-null/non-empty values across all 364 questions, and a
+-- full-repo search turns up each name in exactly one place: the
+-- original CREATE TABLE statement itself (migration 000). Nothing ever
+-- reads or writes either one -- no Admin.jsx field, no RPC, no trigger,
+-- no edge function. No index or foreign key references either, so
+-- dropping them is a clean, low-risk operation.
+--
+-- tracking_anchor_id (uuid) -- looks related to is_tracking_anchor at a
+-- glance, but it isn't. is_tracking_anchor is a live, actively-used
+-- boolean (Admin.jsx has a toggle for it; useQuestions.js buckets
+-- anchor questions near the top of every feed) and is NOT touched by
+-- this migration. tracking_anchor_id appears to have been scaffolded
+-- for a different, never-built feature -- a question pointing back to
+-- an earlier "anchor" version of itself for trend comparison. That
+-- comparison already exists today, just built a different way: the
+-- question_snapshots table + take_question_snapshots() (a daily pg_cron
+-- job, migration 000/005/033) snapshots every published question's
+-- tally once a day, and Activity.jsx already uses that to show a
+-- 7-day trend on any question a user voted on. tracking_anchor_id was
+-- never part of that and never got wired up.
+--
+-- educational_potential (text, default '') -- same story, no feature
+-- ever consumed it.
+--
+-- Pre-push verification re-run (SQL Editor) -- confirm still zero
+-- before applying, since this drops data if anything changed since the
+-- audit:
+--
+--   select count(*) filter (where tracking_anchor_id is not null) as anchor_id_set,
+--          count(*) filter (where educational_potential is not null and educational_potential <> '') as edu_set
+--   from questions;
+--
+-- Both should read 0. If either doesn't, stop and find out why before
+-- pushing this migration -- something started using a column this
+-- migration assumes is dead.
+-- ============================================================
+
+ALTER TABLE public.questions
+  DROP COLUMN tracking_anchor_id,
+  DROP COLUMN educational_potential;
