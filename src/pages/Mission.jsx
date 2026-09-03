@@ -51,8 +51,8 @@ export default function Mission() {
       </div>
 
       <div style={{ borderTop: '0.5px solid #E5E7EB', marginTop: '3rem', paddingTop: '1.5rem', display: 'flex', gap: '1.5rem' }}>
-        <a href="/privacy" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none', fontFamily: 'Arial, sans-serif' }}>Privacy Policy</a>
-        <a href="/terms" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none', fontFamily: 'Arial, sans-serif' }}>Terms of Service</a>
+        <a href="/privacy" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none', fontFamily: 'Merriweather, serif' }}>Privacy Policy</a>
+        <a href="/terms" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none', fontFamily: 'Merriweather, serif' }}>Terms of Service</a>
       </div>
 
     </div>

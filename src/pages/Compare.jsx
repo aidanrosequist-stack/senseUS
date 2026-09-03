@@ -311,7 +311,7 @@ export default function Compare() {
                   </div>
 
                   <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                    <div style={{ fontSize: '40px', fontWeight: 700, color: '#2D3DCA', fontFamily: 'Georgia, serif', lineHeight: 1 }}>
+                    <div style={{ fontSize: '40px', fontWeight: 700, color: '#2D3DCA', fontFamily: 'Merriweather, serif', lineHeight: 1 }}>
                       {agreementPct}%
                     </div>
                     <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px' }}>

@@ -196,7 +196,7 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
           fontSize: '15px',
           fontWeight: 500,
           lineHeight: 1.4,
-          fontFamily: 'Georgia, serif',
+          fontFamily: 'Merriweather, serif',
           color: '#1A1A1A',
           marginBottom: '1rem',
           width: '100%',
@@ -245,7 +245,7 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
       {/* Head-to-head hero — both percentages ticking live, side by side */}
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '2rem', marginBottom: '0.75rem' }}>
         <div>
-          <div style={{ fontSize: '36px', fontWeight: 700, fontFamily: 'Georgia, serif', color: '#4d6214', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontSize: '36px', fontWeight: 700, fontFamily: 'Merriweather, serif', color: '#4d6214', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
             {total > 0 ? `${pctYesLive}%` : '—'}
           </div>
           <div style={{ fontSize: '11px', fontWeight: 500, color: '#4d6214', letterSpacing: '0.04em', textTransform: 'uppercase', marginTop: '2px' }}>
@@ -254,7 +254,7 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
         </div>
         <div style={{ width: '1px', background: 'rgba(0,0,0,0.1)', alignSelf: 'stretch', marginTop: '4px' }} />
         <div>
-          <div style={{ fontSize: '36px', fontWeight: 700, fontFamily: 'Georgia, serif', color: '#8a1616', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontSize: '36px', fontWeight: 700, fontFamily: 'Merriweather, serif', color: '#8a1616', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
             {total > 0 ? `${pctNoLive}%` : '—'}
           </div>
           <div style={{ fontSize: '11px', fontWeight: 500, color: '#8a1616', letterSpacing: '0.04em', textTransform: 'uppercase', marginTop: '2px' }}>

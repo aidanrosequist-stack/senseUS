@@ -503,7 +503,7 @@ useEffect(() => {
             fontSize: '19px',
             fontWeight: 500,
             lineHeight: 1.4,
-            fontFamily: 'Georgia, serif',
+            fontFamily: 'Merriweather, serif',
             color: '#1A1A1A',
             textShadow: zone ? ZONE_TEXT_SHADOW : 'none',
           }}
