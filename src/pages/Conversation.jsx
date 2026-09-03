@@ -15,11 +15,16 @@ const VOTE_LABELS = {
   yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no', dec: 'undecided'
 }
 
+// Deepened 2026-09-03, same tier-2 palette shared with Explore.jsx and
+// Activity.jsx's VOTE_WASH — see Explore.jsx's comment for why. Used here
+// as a highlight behind dark (#1A1A1A) comment text, which already had
+// plenty of contrast against the old, lighter wash — pure hex swap, no
+// text-color/shadow change needed on this file's side.
 const VOTE_WASH = {
-  yes: '#DAE9AF',
-  ly: '#EEE5AA',
-  ln: '#EBCDAD',
-  no: '#EBADAD',
+  yes: '#BFD18A',
+  ly: '#E9DC86',
+  ln: '#E1B68A',
+  no: '#E18A8A',
 }
 
 // Comments are color-coded by how the commenter voted rather than a

@@ -13,11 +13,16 @@ const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
 }
 
+// Deepened 2026-09-03, same tier-2 palette shared with Explore.jsx and
+// Conversation.jsx's VOTE_WASH — see Explore.jsx's comment for why. Used
+// here as a highlight behind dark (#1A1A1A) comment text, which already
+// had plenty of contrast against the old, lighter wash — this change is a
+// pure hex swap, no text-color/shadow change needed on this file's side.
 const VOTE_WASH = {
-  yes: '#DAE9AF',
-  ly: '#EEE5AA',
-  ln: '#EBCDAD',
-  no: '#EBADAD',
+  yes: '#BFD18A',
+  ly: '#E9DC86',
+  ln: '#E1B68A',
+  no: '#E18A8A',
 }
 
 const VOTE_PILL_STYLES = {
