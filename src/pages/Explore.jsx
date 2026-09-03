@@ -41,6 +41,30 @@ const VOTE_COLORS = {
   yes: '#eef3e0', ly: '#faf6d0', ln: '#f9ead8', no: '#f9d8d8',
 }
 
+// Styling for the small "voted" badge at the bottom of a voted card.
+// A plain white/translucent pill blended into the equally-pale VOTE_COLORS
+// background above and read as washed-out, so this is now a solid white
+// pill (matching the category badge above it) with a bold tier-1 border
+// (#6d8a1c/#d9c01a/#c2731f/#c21f1f — same accent color used for icons/
+// borders elsewhere) and darker text. True tier 1 as the TEXT color was
+// tried and rejected: no single tier-1 hue clears 4.5:1 against white for
+// all four (yellow is 1.83:1). The border doesn't carry that same bar —
+// it's a decorative accent on a badge whose value is already spelled out
+// in the word itself ("leaning yes" etc.), not the sole means of conveying
+// it, so WCAG's stricter 4.5:1 text-contrast rule doesn't apply to it (the
+// more lenient 3:1 non-text threshold would, and 3 of 4 hues clear even
+// that — yellow's border is a bit soft at 1.83:1, acceptable here since
+// it's redundant with the text). Text uses the palette's darker member
+// (same hex values VOTE_PILL_STYLES uses for `color` in Activity.jsx/
+// ResultsCard.jsx) instead, which passes 5.3-10.9:1 against white for all
+// four.
+const VOTE_BOLD = {
+  yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f',
+}
+const VOTE_BADGE_TEXT = {
+  yes: '#4d621d', ly: '#7a6b0e', ln: '#7a4513', no: '#7a1313',
+}
+
 const VOTE_LABELS = {
   yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no',
 }
@@ -97,7 +121,7 @@ function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
       <div>
         <div style={{
           fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '8px',
-          background: '#E6F1FB',
+          background: voted ? '#FFFFFF' : '#E6F1FB',
           color: '#0C447C',
         }}>
           {question.category}
@@ -116,7 +140,7 @@ function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
       </div>
       <div>
         {voted ? (
-          <div style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,255,255,0.6)', color: '#1A1A1A', display: 'inline-block', fontWeight: 500 }}>
+          <div style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: '#FFFFFF', border: `1.5px solid ${VOTE_BOLD[userVote]}`, color: VOTE_BADGE_TEXT[userVote], display: 'inline-block', fontWeight: 700 }}>
             {VOTE_LABELS[userVote]}
           </div>
         ) : (
@@ -150,7 +174,7 @@ function SearchResultCard({ question, userVote, onClick, onLongPress }) {
     >
       <div style={{
         fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '8px',
-        background: '#E6F1FB',
+        background: voted ? '#FFFFFF' : '#E6F1FB',
         color: '#0C447C',
       }}>
         {question.category}
@@ -159,7 +183,7 @@ function SearchResultCard({ question, userVote, onClick, onLongPress }) {
         {question.text}
       </div>
       {voted && (
-        <div style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,255,255,0.6)', color: '#1A1A1A', display: 'inline-block', fontWeight: 500 }}>
+        <div style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: '#FFFFFF', border: `1.5px solid ${VOTE_BOLD[userVote]}`, color: VOTE_BADGE_TEXT[userVote], display: 'inline-block', fontWeight: 700 }}>
           {VOTE_LABELS[userVote]}
         </div>
       )}
