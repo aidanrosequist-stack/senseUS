@@ -1,22 +1,25 @@
 import { useState, useRef, useEffect } from 'react'
 import { IconThumbUp, IconThumbDown, IconBulb, IconMessageCircle, IconShare } from '@tabler/icons-react'
 
-// Tier 2 ("wash") — deepened 2026-09-03 from #DAE9AF/#EEE5AA/#EBCDAD/#EBADAD,
-// same palette now shared with Explore.jsx/Activity.jsx/Conversation.jsx.
-// This full-card background used to be tier 1 (the small-accent bold
-// colors used for buttons/borders/icons elsewhere in this file) — that
-// read as too saturated for a screen-filling background, so it's been
-// switched to the same muted tier everywhere else in the app uses for
-// full-area color. Overlay text below switched from white to #1A1A1A to
-// match (white doesn't reliably pass contrast on any of these 4 hues —
-// see Explore.jsx's comment on the same palette), plus a soft drop-shadow
-// for a little depth now that it's not relying on the light backgrounds'
-// black-text contrast (already 6.8-12.5:1) but reads a bit flatter without it.
+// Tier 2 ("wash") — updated 2026-09-03 (second pass) to reuse the vote
+// buttons' own backfill colors below (see `bg` in the button styles further
+// down this file, also Activity.jsx/ResultsCard.jsx's VOTE_PILL_STYLES
+// background) instead of a bespoke shade, so this is the same 4 hex values
+// as those rather than a 5th slightly-different set — one fewer color
+// variant in the app. This full-card background used to be tier 1 (the
+// small-accent bold colors used for the swipe-hint glow/borders/icons
+// elsewhere in this file) — that read as too saturated for a screen-filling
+// background, so it's switched to this much lighter tier instead. Overlay
+// text below is #1A1A1A (not white — white doesn't reliably pass contrast
+// on any of these 4 hues, see Explore.jsx's comment on the same palette),
+// plus a soft drop-shadow for a little depth now that it's not relying on
+// the light backgrounds' black-text contrast (already 14-17:1 at this
+// lighter tier) but reads a bit flatter without it.
 const COLORS = {
-  yes: '#BFD18A',
-  ly: '#E9DC86',
-  ln: '#E1B68A',
-  no: '#E18A8A',
+  yes: '#eef3e0',
+  ly: '#faf6d0',
+  ln: '#f9ead8',
+  no: '#f9d8d8',
 }
 
 const ZONE_TEXT_SHADOW = '0 1px 2px rgba(0,0,0,0.18)'

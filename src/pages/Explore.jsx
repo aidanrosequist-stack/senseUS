@@ -26,22 +26,20 @@ const DOMAINS = [
 // results) to just one of these instead of typing it into search.
 const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'sponsored', 'current events']
 
-// Tier 2 ("wash") — deepened 2026-09-03 from #DAE9AF/#EEE5AA/#EBCDAD/#EBADAD.
-// The old values left white overlay text (below) at 1.3-1.9:1 contrast,
-// well under WCAG AA. This set is about a quarter of the way from the old
-// wash toward the bold accent tier (VOTE_COLORS in Activity.jsx/etc.) —
-// still clearly pastel, not the bold tier. White text still isn't AA-safe
-// on its own even at this depth (yellow especially can't get there without
-// turning into a dark mustard, so we didn't chase it) — the text-shadow
-// below is what actually carries contrast now, not the background alone.
+// Tier 2 ("wash") — updated 2026-09-03 (second pass) to reuse the vote
+// buttons' own backfill colors (VoteCard.jsx's button `bg`, also
+// Activity.jsx/ResultsCard.jsx's VOTE_PILL_STYLES background) instead of a
+// bespoke shade, so this is now the same 4 hex values as those rather than
+// a 5th slightly-different set. Paired with black (#1A1A1A) text everywhere
+// below — an earlier version of this file used white text + a text-shadow,
+// but that only ever reached "reads okay to the eye," not real WCAG
+// contrast (text-shadow isn't recognized by the 1.4.3 contrast formula at
+// all), and yellow specifically can never get there with white text no
+// matter how dark the shadow. Black text sidesteps the problem entirely —
+// 13-16:1 contrast against all four colors, no per-hue tuning needed.
 const VOTE_COLORS = {
-  yes: '#BFD18A', ly: '#E9DC86', ln: '#E1B68A', no: '#E18A8A',
+  yes: '#eef3e0', ly: '#faf6d0', ln: '#f9ead8', no: '#f9d8d8',
 }
-
-// Style #2 from the vote-color mockups: a soft dark glow directly behind
-// the white text, no visible box/scrim. Applied everywhere white text
-// sits on a tier-2 background below.
-const WASH_TEXT_SHADOW = '0 1px 3px rgba(0,0,0,0.55), 0 1px 8px rgba(0,0,0,0.35)'
 
 const VOTE_LABELS = {
   yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no',
@@ -74,7 +72,6 @@ function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
   const voted = !!userVote
   const longPress = useLongPress(() => onLongPress(question))
   const bgColor = voted ? VOTE_COLORS[userVote] : '#FFFFFF'
-  const textColor = voted ? 'white' : '#1A1A1A'
   const timeLeft = timeLeftLabel(question.archive_at)
 
   return (
@@ -100,28 +97,26 @@ function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
       <div>
         <div style={{
           fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '8px',
-          background: voted ? 'rgba(255,255,255,0.25)' : '#E6F1FB',
-          color: voted ? 'white' : '#0C447C',
-          textShadow: voted ? WASH_TEXT_SHADOW : 'none',
+          background: '#E6F1FB',
+          color: '#0C447C',
         }}>
           {question.category}
         </div>
         {timeLeft && (
           <div style={{
-            fontSize: '9px', fontWeight: 500, color: voted ? 'rgba(255,255,255,0.85)' : '#856404',
+            fontSize: '9px', fontWeight: 500, color: '#856404',
             marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '3px',
-            textShadow: voted ? WASH_TEXT_SHADOW : 'none',
           }}>
             <span aria-hidden="true">⏱️</span> {timeLeft}
           </div>
         )}
-        <div style={{ fontSize: '12px', fontWeight: 500, color: textColor, lineHeight: 1.4, fontFamily: 'Merriweather, serif', textShadow: voted ? WASH_TEXT_SHADOW : 'none' }}>
+        <div style={{ fontSize: '12px', fontWeight: 500, color: '#1A1A1A', lineHeight: 1.4, fontFamily: 'Merriweather, serif' }}>
           {question.text.length > 70 ? question.text.substring(0, 70) + '...' : question.text}
         </div>
       </div>
       <div>
         {voted ? (
-          <div style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: VOTE_COLORS[userVote] + '30', color: VOTE_COLORS[userVote], display: 'inline-block', fontWeight: 500 }}>
+          <div style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,255,255,0.6)', color: '#1A1A1A', display: 'inline-block', fontWeight: 500 }}>
             {VOTE_LABELS[userVote]}
           </div>
         ) : (
@@ -155,17 +150,16 @@ function SearchResultCard({ question, userVote, onClick, onLongPress }) {
     >
       <div style={{
         fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '8px',
-        background: voted ? 'rgba(255,255,255,0.25)' : '#E6F1FB',
-        color: voted ? 'white' : '#0C447C',
-        textShadow: voted ? WASH_TEXT_SHADOW : 'none',
+        background: '#E6F1FB',
+        color: '#0C447C',
       }}>
         {question.category}
       </div>
-      <div style={{ fontSize: '13px', color: voted ? 'white' : '#1A1A1A', lineHeight: 1.5, marginBottom: voted ? '8px' : 0, fontFamily: 'Merriweather, serif', textShadow: voted ? WASH_TEXT_SHADOW : 'none' }}>
+      <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, marginBottom: voted ? '8px' : 0, fontFamily: 'Merriweather, serif' }}>
         {question.text}
       </div>
       {voted && (
-        <div style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,255,255,0.25)', color: 'white', display: 'inline-block', fontWeight: 500, textShadow: WASH_TEXT_SHADOW }}>
+        <div style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,255,255,0.6)', color: '#1A1A1A', display: 'inline-block', fontWeight: 500 }}>
           {VOTE_LABELS[userVote]}
         </div>
       )}

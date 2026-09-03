@@ -377,7 +377,7 @@ export default function Compare() {
                     {comparison.shared.map(s => {
                       const isAgree = agrees(s.mine, s.theirs, matchMode)
                       return (
-                        <div key={s.questionId} style={{ background: '#FFFFFF', border: isAgree ? '1px solid #DAE9AF' : '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                        <div key={s.questionId} style={{ background: '#FFFFFF', border: isAgree ? '1px solid #eef3e0' : '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
                           <div style={{ fontSize: '13px', color: '#1A1A1A', marginBottom: '8px', lineHeight: 1.4 }}>
                             {s.question.text}
                           </div>
