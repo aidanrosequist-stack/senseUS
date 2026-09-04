@@ -5,6 +5,7 @@ import QuestionFlow from '../components/vote/QuestionFlow'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
+import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
 import VisuallyHidden from '../components/ui/VisuallyHidden'
 import { usePageTitle } from '../hooks/usePageTitle'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -130,7 +131,7 @@ export default function Vote() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
         <LoadingSpinner label="Loading questions..." />
       </div>
     )
@@ -138,7 +139,7 @@ export default function Vote() {
 
   if (error) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
         Error loading questions. Please try again.
       </div>
     )
@@ -152,7 +153,7 @@ export default function Vote() {
         // Header was rendered inside this same div (its old first child).
         // Now Header lives above this in AppShell, so this div only gets
         // the rest of the viewport underneath it — hence the subtraction.
-        height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`,
+        height: `calc(100dvh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`,
         background: '#C7C7CC',
         display: 'flex',
         flexDirection: 'column',

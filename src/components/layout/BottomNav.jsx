@@ -2,6 +2,16 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { IconThumbUp, IconBell, IconUser, IconCompass } from '@tabler/icons-react'
 import { useNotificationsContext } from '../../context/NotificationsContext'
 
+// Exported for the same reason Header exports HEADER_HEIGHT_PX: this nav is
+// `position: sticky`, so — like the header — it occupies real space in the
+// normal document flow, not just visually. A page that only subtracts
+// HEADER_HEIGHT_PX from its own 100dvh sizing (or doesn't subtract anything
+// at all) ends up that much taller than the actual viewport regardless,
+// which is exactly what let the page scroll a little past where it should
+// stop: a few pixels to a few dozen, hiding its own top edge behind the
+// sticky header above. If you resize this nav, update this constant too.
+export const BOTTOM_NAV_HEIGHT_PX = 60
+
 export default function BottomNav() {
   const { unreadCount } = useNotificationsContext()
   const navigate = useNavigate()
@@ -48,7 +58,7 @@ export default function BottomNav() {
         style={{
           width: '100%',
           maxWidth: '480px',
-          height: '60px',
+          height: `${BOTTOM_NAV_HEIGHT_PX}px`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-around',

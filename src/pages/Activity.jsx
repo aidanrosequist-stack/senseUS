@@ -8,6 +8,8 @@ import CardActionSheet from '../components/ui/CardActionSheet'
 import { IconThumbUp, IconThumbDown } from '@tabler/icons-react'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useModalFocus } from '../hooks/useModalFocus'
+import { HEADER_HEIGHT_PX } from '../components/layout/Header'
+import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
@@ -584,7 +586,7 @@ export default function Activity() {
   }, [tab, user?.id])
 
   return (
-    <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
+    <div style={{ minHeight: `calc(100dvh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
     <div style={{ padding: '14px', boxSizing: 'border-box' }}>
     <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)' }}>
 
