@@ -193,7 +193,7 @@ function HistoryCard({ vote, snapshotMap, navigate, onLongPress }) {
       <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5 }}>
         {vote.questions?.text}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '3px' }}>
         <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: 300 }}>
           {vote.questions?.category} · {timeAgo(vote.created_at)}
         </div>
