@@ -190,17 +190,27 @@ function HistoryCard({ vote, snapshotMap, navigate, onLongPress }) {
 
   return (
     <div {...longPress} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '12px 14px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-        <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, flex: 1 }}>
-          {vote.questions?.text}
-        </div>
-        <div style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 400, whiteSpace: 'nowrap', flexShrink: 0, ...VOTE_PILL_STYLES[vote.choice] }}>
-          {VOTE_LABELS[vote.choice]}
-        </div>
+      <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5 }}>
+        {vote.questions?.text}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
         <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: 300 }}>
           {vote.questions?.category} · {timeAgo(vote.created_at)}
+        </div>
+      </div>
+      {/* Moved down from the top-right corner of the card, and restyled to
+          match Explore's voted-state badge (white background, darker
+          border in the vote's own color) instead of the old flat-color
+          pill — same VOTE_COLORS/VOTE_PILL_STYLES hex values Explore's
+          VOTE_BOLD/VOTE_BADGE_TEXT already reuse, so this isn't a new
+          palette, just the same one applied the same way. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+        <span style={{ fontSize: '11px', color: '#6B7280' }}>You voted:</span>
+        <div style={{
+          padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap',
+          background: '#FFFFFF', border: `1.5px solid ${VOTE_COLORS[vote.choice]}`, color: VOTE_PILL_STYLES[vote.choice]?.color,
+        }}>
+          {VOTE_LABELS[vote.choice]}
         </div>
       </div>
       {todaySnap && (
