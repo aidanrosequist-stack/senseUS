@@ -122,9 +122,14 @@ function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
     >
       <div>
         <div style={{
-          fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '14px',
+          // Square-ish (not a full pill) and, once voted, black text
+          // instead of the same blue used for the unvoted state — matches
+          // how the "Vote now" rectangle below reads distinctly from the
+          // voted-state badge instead of the two states looking like
+          // variations on the same shape.
+          fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '4px', display: 'inline-block', marginBottom: '14px',
           background: voted ? '#FFFFFF' : '#E6F1FB',
-          color: '#0C447C',
+          color: voted ? '#1A1A1A' : '#0C447C',
         }}>
           {question.category}
         </div>
@@ -175,9 +180,9 @@ function SearchResultCard({ question, userVote, onClick, onLongPress }) {
       }}
     >
       <div style={{
-        fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '14px',
+        fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '4px', display: 'inline-block', marginBottom: '14px',
         background: voted ? '#FFFFFF' : '#E6F1FB',
-        color: '#0C447C',
+        color: voted ? '#1A1A1A' : '#0C447C',
       }}>
         {question.category}
       </div>
