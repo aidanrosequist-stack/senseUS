@@ -694,9 +694,19 @@ export default function Activity() {
           {/* Shifts tab */}
           {tab === 'shifts' && (
             <div>
-              <p style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.6, marginBottom: '1rem' }}>
-                See how public opinion is trending on questions you've answered. On the left is a timestamp of when you voted and how. On the right is the current total vote count, current yes/no percentage, and how the percentage has shifted since you voted.
-              </p>
+              {/* This explanation isn't new — it was already here as plain
+                  gray text, which is exactly the problem: "Shifts" isn't a
+                  self-explanatory label the way History/Comments/Revisit
+                  are, so the one sentence explaining it needs to actually
+                  get read, not blend into body copy competing with the
+                  real content below it. Same colored-callout treatment as
+                  the other contextual tips in the app (Explore's long-press
+                  tip, Profile's settings pointer) — no dismiss button,
+                  since this is standing context for the tab, not a
+                  one-time thing to clear out of the way. */}
+              <div style={{ fontSize: '12px', color: '#0C447C', lineHeight: 1.6, marginBottom: '1rem', background: '#E6F1FB', border: '1px solid #0C447C', borderRadius: '10px', padding: '10px 14px' }}>
+                <strong>See how public opinion is trending</strong> on questions you've answered. On the left is a timestamp of when you voted and how. On the right is the current total vote count, current yes/no percentage, and how the percentage has shifted since you voted.
+              </div>
               {shifts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
                   <div style={{ fontSize: '32px', marginBottom: '0.5rem' }}>📈</div>

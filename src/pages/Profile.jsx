@@ -46,6 +46,18 @@ export default function Profile() {
   const [integrityStatus, setIntegrityStatus] = useState(null)
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotificationsContext()
   const [notifError, setNotifError] = useState(null)
+  // "Where do badges go?" explainer, same tap-to-read pattern as the
+  // Resonance/Integrity stat cards above — always available, not a
+  // one-time thing, so it's still there whenever someone actually
+  // wonders about it, not just on their first visit.
+  const [showBadgesInfo, setShowBadgesInfo] = useState(false)
+  // One-time dismissible pointer at the settings gear, same lightweight
+  // pattern as Explore's long-press tip (senseus_seen_longpress_hint_explore)
+  // — the gear is a small unlabeled icon tucked into the identity row with
+  // nothing else calling it out, easy to miss on a first visit.
+  const [showSettingsHint, setShowSettingsHint] = useState(
+    localStorage.getItem('senseus_seen_settings_hint_profile') !== 'true'
+  )
 
   function handleNotificationClick(notification) {
     if (!notification.read) markAsRead(notification.id)
@@ -67,6 +79,7 @@ export default function Profile() {
   }
   const resonancePanelRef = useModalFocus(showResonanceInfo, () => setShowResonanceInfo(false))
   const integrityPanelRef = useModalFocus(showIntegrityInfo, () => setShowIntegrityInfo(false))
+  const badgesPanelRef = useModalFocus(showBadgesInfo, () => setShowBadgesInfo(false))
 
 async function openIntegrityInfo() {
     setShowIntegrityInfo(true)
@@ -184,6 +197,26 @@ async function openIntegrityInfo() {
         </Link>
       </div>
 
+      {/* One-time pointer at the gear above — same dismissible-banner
+          pattern as Explore's long-press tip. Placed right below the
+          identity row it's pointing at, not up top with the page title,
+          so the "here" of "tap the ⚙ up here" is unambiguous. */}
+      {showSettingsHint && (
+        <div style={{ marginBottom: '1.5rem', background: '#E6F1FB', border: '1px solid #0C447C', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#0C447C', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+          <span>Tip: tap ⚙ above for your display name, avatar, phone, and notification settings.</span>
+          <button
+            onClick={() => {
+              localStorage.setItem('senseus_seen_settings_hint_profile', 'true')
+              setShowSettingsHint(false)
+            }}
+            aria-label="Dismiss tip"
+            style={{ background: 'none', border: 'none', color: '#0C447C', fontSize: '16px', cursor: 'pointer', flexShrink: 0, lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
 {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', marginBottom: '1.5rem' }}>
         <button
@@ -231,9 +264,14 @@ async function openIntegrityInfo() {
 
 {/* Badges widget */}
 <div style={{ marginBottom: '1.5rem' }}>
-  <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
-    Badges
-  </div>
+  <button
+    type="button"
+    onClick={() => setShowBadgesInfo(true)}
+    style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', padding: 0, marginBottom: '0.75rem', cursor: 'pointer', fontFamily: 'inherit' }}
+  >
+    <span style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A' }}>Badges</span>
+    <span style={{ fontSize: '12px', color: '#6B7280' }} aria-hidden="true">ⓘ</span>
+  </button>
   {(profile?.badges || []).length === 0 ? (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '1.25rem 1rem', border: '1.5px dashed #D1D5DB', borderRadius: '10px' }}>
       <span style={{ fontSize: '26px' }} aria-hidden="true">🏅</span>
@@ -450,6 +488,57 @@ async function openIntegrityInfo() {
             <button
               onClick={() => setShowIntegrityInfo(false)}
               style={{ width: '100%', padding: '9px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+      {showBadgesInfo && (
+        <div
+          onClick={() => setShowBadgesInfo(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: '1.5rem', boxSizing: 'border-box',
+          }}
+        >
+          <div
+            ref={badgesPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Badges"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#FFFFFF', borderRadius: '16px', padding: '1.5rem',
+              maxWidth: '360px', width: '100%', fontFamily: 'Merriweather, serif',
+              outline: 'none',
+            }}
+          >
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
+              Badges
+            </div>
+            <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.7, marginBottom: '1rem' }}>
+              Badges are earned automatically as you vote, comment, and engage — there's nothing to sign up for or claim. The moment you qualify for one, it shows up in the row above.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '1rem', maxHeight: '260px', overflowY: 'auto' }}>
+              {Object.entries(BADGE_INFO).map(([key, info]) => {
+                const earned = (profile?.badges || []).includes(key)
+                return (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0', borderBottom: '0.5px solid #F3F4F6', opacity: earned ? 1 : 0.6 }}>
+                    <span style={{ fontSize: '18px', flexShrink: 0 }} aria-hidden="true">{info.emoji}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A' }}>{info.label}{earned ? ' ✓' : ''}</div>
+                      <div style={{ fontSize: '11px', color: '#6B7280' }}>{info.description}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <button
+              onClick={() => setShowBadgesInfo(false)}
+              style={{ width: '100%', padding: '10px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
             >
               Got it
             </button>
