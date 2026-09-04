@@ -16,6 +16,13 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
   const [submittingLabel, setSubmittingLabel] = useState('Saving your vote...')
   const skipHistory = useRef([])
   const swipeStart = useRef(null)
+  // One-shot flag telling the next VoteCard mount to play its quiet
+  // "settle in" entrance (see enterFromAbove in VoteCard.jsx) — set only
+  // by a successful swipe-down recover, and cleared right after the
+  // resulting question change commits so it doesn't leak into whatever
+  // question comes after (a normal forward skip/advance shouldn't play
+  // this animation).
+  const [enterFromAbove, setEnterFromAbove] = useState(false)
 
   useEffect(() => {
     if (!targetQuestionId) return
@@ -102,9 +109,20 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
     if (view !== 'voting') return // can't recover once viewing results
     const last = skipHistory.current.pop()
     if (last !== undefined) {
+      setEnterFromAbove(true)
       setCurrentIndex(last)
     }
   }
+
+  // Consumes the one-shot flag right after the question it was set for
+  // has actually rendered (VoteCard reads enterFromAbove only at its own
+  // mount, which happens before this effect runs, so it still sees
+  // `true` for that one card) — this just prevents it from staying true
+  // for whatever question comes after.
+  useEffect(() => {
+    if (enterFromAbove) setEnterFromAbove(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately keyed on currentQuestion, not enterFromAbove itself
+  }, [currentQuestion])
 
   // Memoized so ResultsCard (which re-binds its touch-swipe listener
   // whenever its onNext prop changes identity) doesn't tear down and
@@ -185,6 +203,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
           onViewConversation={() => navigate(`/conversation/${currentQuestion.id}`)}
           showHint={currentIndex === 0}
           initialZone={currentInitialZone || userVote}
+          enterFromAbove={enterFromAbove}
           changingVote={changingVote}
           submitting={submitting}
           submittingLabel={submittingLabel}

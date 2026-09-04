@@ -113,8 +113,23 @@ function ProgressRing({ progress }) {
   )
 }
 
-export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, submittingLabel = 'Saving your vote...', voteError = null, onDismissError }) {
+export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, submittingLabel = 'Saving your vote...', voteError = null, onDismissError, enterFromAbove = false }) {
   const [zone, setZone] = useState(initialZone)
+
+  // One-shot "settle in" entrance for the swipe-down-to-recover gesture
+  // (QuestionFlow.jsx passes enterFromAbove=true only for the single
+  // remount a recover causes — see its skipHistory/handleSwipeDownRecover).
+  // Starts slightly up + faded, then flips to its resting position on the
+  // next frame so the existing transition line further down (already used
+  // for the skip snap-back) animates it into place — a quieter counterpart
+  // to the skip-up exit rather than another live-tracked gesture.
+  const [settled, setSettled] = useState(() => !enterFromAbove)
+  useEffect(() => {
+    if (!enterFromAbove) return
+    const raf = requestAnimationFrame(() => setSettled(true))
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot, driven only by this instance's mount-time enterFromAbove value
+  }, [])
 
   // The native touchmove listener below is bound in an effect with an
   // empty dependency array (it only needs to attach once), so the
@@ -428,12 +443,21 @@ useEffect(() => {
   // same motion to carry the card the rest of the way off-screen once
   // handleEnd commits to the skip (exiting). Percent-based translateY so
   // it clears the card regardless of its actual rendered height.
-  const skipTransform = exiting
-    ? 'translateY(-130%) scale(0.92)'
-    : liftProgress > 0
-      ? `translateY(${-(liftProgress * 18)}%) scale(${1 - liftProgress * 0.05})`
-      : 'translateY(0) scale(1)'
-  const skipOpacity = exiting ? 0 : 1 - liftProgress * 0.45
+  const liftTranslateY = exiting ? -130 : -(liftProgress * 18)
+  const liftScale = exiting ? 0.92 : 1 - liftProgress * 0.05
+  const liftOpacity = exiting ? 0 : 1 - liftProgress * 0.45
+
+  // The quieter counterpart above: while not yet settled, offset upward a
+  // little less than the skip's own lift and start partially faded. In
+  // practice these two never overlap in time (entrance only applies right
+  // after mount, before any drag has happened), so combining them
+  // additively/by minimum is just future-proofing, not real simultaneous
+  // motion.
+  const entranceTranslateY = settled ? 0 : -14
+  const entranceOpacity = settled ? 1 : 0.5
+
+  const skipTransform = `translateY(${liftTranslateY + entranceTranslateY}%) scale(${liftScale})`
+  const skipOpacity = Math.min(liftOpacity, entranceOpacity)
 
   return (
 <div
