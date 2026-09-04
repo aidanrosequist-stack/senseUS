@@ -122,7 +122,7 @@ function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
     >
       <div>
         <div style={{
-          fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '8px',
+          fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '14px',
           background: voted ? '#FFFFFF' : '#E6F1FB',
           color: '#0C447C',
         }}>
@@ -175,7 +175,7 @@ function SearchResultCard({ question, userVote, onClick, onLongPress }) {
       }}
     >
       <div style={{
-        fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '8px',
+        fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '14px',
         background: voted ? '#FFFFFF' : '#E6F1FB',
         color: '#0C447C',
       }}>
