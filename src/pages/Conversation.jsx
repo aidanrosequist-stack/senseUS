@@ -169,12 +169,20 @@ function CommentCard({
   // parent Conversation component via useMemo, so this is now an O(1)
   // map lookup per card.
   const replies = childrenByParent.get(comment.id) || []
+  // Collapsing replies — local to this card, not lifted to Conversation's
+  // own state, since it's purely a per-comment display toggle with no
+  // effect on data. Defaults open so nothing looks hidden on first load.
+  const [repliesVisible, setRepliesVisible] = useState(true)
   const avatarColor = getVoteColor(comment)
   // As of migration 061, another user's raw id is never sent to the
   // client at all — get_conversation_comments() computes this
   // server-side via auth.uid() instead of the client comparing ids.
   const isOwn = !!comment.is_own
   const isEditing = editingId === comment.id
+  // Matches the 2-edit cap snapshot_comment_edit_history() enforces
+  // server-side (migration 072) — this just surfaces it before someone
+  // writes an edit only to have it rejected.
+  const canEdit = (comment.edit_count || 0) < 2
 
   // Shared props every recursive reply needs — same list every time,
   // just the comment/depth changing per call.
@@ -256,19 +264,45 @@ function CommentCard({
             </div>
           </div>
         ) : (
-          <p
-            style={{
-              fontSize: '14px',
-              color: '#1A1A1A',
-              lineHeight: 1.6,
-              margin: '0 0 10px',
-              padding: '8px 10px',
-              borderRadius: '6px',
-              background: VOTE_WASH[voteChoice] || '#F9FAFB',
-            }}
-          >
-            {comment.body}
-          </p>
+          // A comment that's been edited at least once (original_body set
+          // by snapshot_comment_edit_history(), migration 072) shows the
+          // ORIGINAL text struck through — colored in whatever vote stance
+          // it was posted under — with the current text below it, colored
+          // in whatever the vote stance is as of the most recent edit.
+          // Never touched for an unedited comment, which just renders its
+          // one body exactly as before.
+          <div style={{ margin: '0 0 10px' }}>
+            {comment.original_body && (
+              <p
+                style={{
+                  fontSize: '13px',
+                  color: '#6B7280',
+                  lineHeight: 1.6,
+                  margin: '0 0 4px',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  background: VOTE_WASH[comment.original_vote_choice] || '#F9FAFB',
+                  textDecoration: 'line-through',
+                  textDecorationColor: '#9CA3AF',
+                }}
+              >
+                {comment.original_body}
+              </p>
+            )}
+            <p
+              style={{
+                fontSize: '14px',
+                color: '#1A1A1A',
+                lineHeight: 1.6,
+                margin: 0,
+                padding: '8px 10px',
+                borderRadius: '6px',
+                background: VOTE_WASH[voteChoice] || '#F9FAFB',
+              }}
+            >
+              {comment.body}
+            </p>
+          </div>
         )}
 
         {!comment.is_removed && !isEditing && (
@@ -314,10 +348,19 @@ function CommentCard({
 
             {isOwn && (
               <>
+                {/* Capped at 2 edits (snapshot_comment_edit_history(),
+                    migration 072) — disabled here once used up so this is
+                    the first thing that tells someone, not a failed save
+                    after they've already written the edit. */}
                 <button
-                  onClick={() => { setEditingId(comment.id); setEditText(comment.body) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}
-                  title="Edit this comment"
+                  onClick={() => {
+                    if (!canEdit) return
+                    setEditingId(comment.id)
+                    setEditText(comment.body)
+                  }}
+                  disabled={!canEdit}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: canEdit ? 'pointer' : 'default', color: '#6B7280', opacity: canEdit ? 1 : 0.4 }}
+                  title={canEdit ? 'Edit this comment' : "You've already edited this comment twice"}
                 >
                   <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Edit</span>
                 </button>
@@ -361,7 +404,25 @@ function CommentCard({
         </div>
       )}
 
-      {replies.length > 0 && replies.map(reply => (
+      {replies.length > 0 && (
+        <button
+          onClick={() => setRepliesVisible(v => !v)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none',
+            cursor: 'pointer', color: '#6B7280', fontSize: '11px', fontFamily: 'Merriweather, serif',
+            marginTop: '6px', marginBottom: repliesVisible ? '2px' : 0, padding: '2px 0',
+          }}
+        >
+          <span style={{ display: 'inline-block', transition: 'transform 0.15s ease', transform: repliesVisible ? 'rotate(90deg)' : 'none' }}>
+            ▸
+          </span>
+          {repliesVisible
+            ? `Hide ${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}`
+            : `Show ${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}`}
+        </button>
+      )}
+
+      {repliesVisible && replies.length > 0 && replies.map(reply => (
         <CommentCard key={reply.id} comment={reply} depth={depth + 1} {...sharedProps} />
       ))}
     </div>
@@ -459,6 +520,13 @@ export default function Conversation() {
         // the { profiles, votes } shape the rest of this file (and
         // CommentCard) already expects, so nothing downstream needs to
         // know the fetch itself changed shape.
+        //
+        // As of migration 072, vote_choice is a frozen snapshot
+        // (vote_choice_at_comment) rather than a live join against
+        // votes — it no longer silently changes if the commenter later
+        // changes their vote. original_body/original_vote_choice/
+        // edit_count carry the edit-history CommentCard now renders as
+        // a struck-through "original" above the current text.
         const commentsWithVotes = (commentsData || []).map(c => ({
           id: c.id,
           body: c.body,
@@ -468,6 +536,9 @@ export default function Conversation() {
           edited_at: c.edited_at,
           is_removed: c.is_removed,
           is_own: c.is_own,
+          original_body: c.original_body,
+          original_vote_choice: c.original_vote_choice,
+          edit_count: c.edit_count,
           profiles: {
             first_name: c.first_name,
             last_initial: c.last_initial,
@@ -538,8 +609,15 @@ export default function Conversation() {
     }
 
     if (data) {
-      // Always true — this is the comment you yourself just posted.
-      const newCommentWithVote = { ...data, is_own: true, votes: [{ choice: userVote }] }
+      // Always true — this is the comment you yourself just posted. A
+      // brand-new comment has no edit history yet — original_body/
+      // original_vote_choice/edit_count match exactly what the new
+      // snapshot_comment_edit_history() trigger (migration 072) sets on
+      // INSERT, so local state stays shaped the same as a fetched row.
+      const newCommentWithVote = {
+        ...data, is_own: true, votes: [{ choice: userVote }],
+        original_body: null, original_vote_choice: null, edit_count: 0,
+      }
       setComments(prev => parentId
         ? [...prev, newCommentWithVote]
         : [newCommentWithVote, ...prev]
@@ -563,7 +641,13 @@ export default function Conversation() {
       return
     }
 
-    const { error } = await supabase
+    // original_body/original_vote_choice/edit_count/vote_choice_at_comment
+    // are all computed server-side by snapshot_comment_edit_history()
+    // (migration 072) — freezing the pre-edit text+vote stance on the
+    // FIRST edit only, re-snapshotting the current vote stance on every
+    // edit, and enforcing the 2-edit cap — so this reads them back from
+    // the update itself rather than guessing them client-side.
+    const { data, error } = await supabase
       .from('comments')
       .update({
         body: editText.trim(),
@@ -572,14 +656,31 @@ export default function Conversation() {
       })
       .eq('id', commentId)
       .eq('user_id', user.id)
+      .select('body, edited_at, original_body, original_vote_choice, edit_count, vote_choice_at_comment')
+      .single()
 
     if (error) {
-      alert('Something went wrong saving your edit.')
+      // The trigger raises a plain, user-readable message once
+      // edit_count is already at the cap — the Edit button is already
+      // hidden/disabled at that point (see CommentCard), so this is a
+      // backstop, not the primary way someone finds out about the cap.
+      alert(error.message?.includes('already been edited twice')
+        ? error.message
+        : 'Something went wrong saving your edit.'
+      )
       return
     }
 
     setComments(prev => prev.map(c => c.id === commentId
-      ? { ...c, body: editText.trim(), edited_at: new Date().toISOString() }
+      ? {
+          ...c,
+          body: data.body,
+          edited_at: data.edited_at,
+          original_body: data.original_body,
+          original_vote_choice: data.original_vote_choice,
+          edit_count: data.edit_count,
+          votes: [{ choice: data.vote_choice_at_comment }],
+        }
       : c
     ))
     setEditingId(null)
