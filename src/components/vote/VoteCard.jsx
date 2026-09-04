@@ -146,6 +146,18 @@ useEffect(() => {
   const [dragging, setDragging] = useState(false)
   const [hintSide, setHintSide] = useState(null) // 'left' | 'right' | null
   const [hintOffset, setHintOffset] = useState(-100)
+  // Live visual feedback for the upward skip-swipe gesture only — 0 while
+  // idle, ramping to 1 as the drag approaches THRESH_SWIPE_UP (see
+  // handleMove), driving a lift/fade/scale on the card itself while
+  // dragging. `exiting` takes over once a release actually clears the
+  // threshold, animating the card the rest of the way off-screen before
+  // onSkip() is called — previously onSkip() fired the instant the
+  // threshold was crossed with zero animation, which was the actual "hard
+  // to tell if it worked" gap being fixed here. Left/right swipe feedback
+  // (the `zone`-driven background fill above) is untouched by either of
+  // these.
+  const [liftProgress, setLiftProgress] = useState(0)
+  const [exiting, setExiting] = useState(false)
   const cardRef = useRef(null)
   const startPos = useRef({ x: 0, y: 0 })
   const delta = useRef({ x: 0, y: 0 })
@@ -314,6 +326,12 @@ useEffect(() => {
 
     applyZone(newZone)
 
+    // Mirrors handleEnd's own skip condition (more vertical than
+    // horizontal, upward, no horizontal zone active) so the live lift
+    // feedback never fights with the left/right zone-fill feedback above.
+    const verticalIntent = newDelta.y < 0 && Math.abs(newDelta.y) > Math.abs(newDelta.x) && !newZone
+    setLiftProgress(verticalIntent ? Math.min(-newDelta.y / THRESH_SWIPE_UP, 1) : 0)
+
     // Only reset the hold timer when the user actually crosses into a
     // different zone (or out of any zone) — natural hand tremor while
     // holding still inside the same zone should never cancel progress.
@@ -335,10 +353,20 @@ useEffect(() => {
     // Cancel any hold timer
     cancelHold()
 
-    // Swipe up with no horizontal selection = skip
+    // Swipe up with no horizontal selection = skip. Let the card actually
+    // finish flying off-screen before calling onSkip() — the parent
+    // typically swaps in the next question the instant onSkip() fires, so
+    // calling it immediately (the old behavior) removed this card from
+    // under the gesture with no animation at all.
     if (dy < -THRESH_SWIPE_UP && Math.abs(dy) > Math.abs(dx) && !zone) {
-      onSkip()
-      resetVisual()
+      vibrate(15)
+      setLiftProgress(1)
+      setExiting(true)
+      setTimeout(() => {
+        onSkip()
+        resetVisual()
+        setExiting(false)
+      }, 220)
       return
     }
 
@@ -351,6 +379,7 @@ useEffect(() => {
     delta.current = { x: 0, y: 0 }
     lastZone.current = null
     setZone(null)
+    setLiftProgress(0)
   }
 
   function handleButtonVote(value) {
@@ -394,6 +423,18 @@ useEffect(() => {
 
   const backgroundColor = zone ? COLORS[zone] : 'var(--bg, #FFFFFF)'
 
+  // Swipe-up-to-skip visual: a live lift/fade/scale while dragging
+  // (liftProgress, 0-1 — see handleMove), then a bigger version of the
+  // same motion to carry the card the rest of the way off-screen once
+  // handleEnd commits to the skip (exiting). Percent-based translateY so
+  // it clears the card regardless of its actual rendered height.
+  const skipTransform = exiting
+    ? 'translateY(-130%) scale(0.92)'
+    : liftProgress > 0
+      ? `translateY(${-(liftProgress * 18)}%) scale(${1 - liftProgress * 0.05})`
+      : 'translateY(0) scale(1)'
+  const skipOpacity = exiting ? 0 : 1 - liftProgress * 0.45
+
   return (
 <div
       ref={cardRef}
@@ -404,7 +445,14 @@ useEffect(() => {
         display: 'flex',
         flexDirection: 'column',
         backgroundColor,
-        transition: dragging ? 'none' : 'background-color 0.18s ease',
+        transform: skipTransform,
+        opacity: skipOpacity,
+        // Instant 1:1 tracking while actively dragging (matches the
+        // existing background-color behavior above); everything animates
+        // smoothly once the finger lifts — whether that's snapping back
+        // from an aborted upward drag or flying the rest of the way off
+        // for a committed skip.
+        transition: dragging ? 'none' : 'background-color 0.18s ease, transform 0.22s ease, opacity 0.22s ease',
         touchAction: 'none',
         userSelect: 'none',
         overflow: 'hidden',
