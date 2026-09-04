@@ -350,7 +350,7 @@ export default function Activity() {
   // user's own comments plus the reply-count/vote-choice enrichment that
   // used to happen once for the whole (unbounded) list.
   async function fetchCommentsPage(offset) {
-    const { data: pageComments, error: commentsError } = await supabase
+    const { data: rawPageComments, error: commentsError } = await supabase
       .from('comments')
       .select(`
         id, body, created_at, resonance_count,
@@ -369,7 +369,15 @@ export default function Activity() {
       console.error('fetchComments: comments query failed', commentsError)
       return []
     }
-    if (!pageComments?.length) return []
+    if (!rawPageComments?.length) return []
+
+    // Same RLS-null-on-join situation as fetchRevisit below — a comment
+    // the user posted on a since-pulled question still belongs to them,
+    // but `questions` comes back null. Drop those rather than showing a
+    // comment card for a question that's no longer visible to anyone but
+    // admins (migration 071_pull_question_moderation.sql).
+    const pageComments = rawPageComments.filter(c => c.questions)
+    if (!pageComments.length) return []
 
     // Used to fetch every non-deleted comment on the entire platform just
     // to build a reply-count map for these few dozen comments — scales
@@ -436,8 +444,13 @@ export default function Activity() {
       .order('created_at', { ascending: false })
       .limit(20)
 
-    if (userVotes?.length > 0) {
-      const questionIds = userVotes.map(v => v.questions.id)
+    // `questions` comes back null for a vote on a since-pulled question
+    // (RLS — migration 071_pull_question_moderation.sql) — filter those out
+    // before `.questions.id` below, which would otherwise throw.
+    const userVotesWithQuestion = (userVotes || []).filter(v => v.questions)
+
+    if (userVotesWithQuestion.length > 0) {
+      const questionIds = userVotesWithQuestion.map(v => v.questions.id)
       const { data: tallyRows } = await supabase.rpc('get_vote_tallies_batch', {
         p_question_ids: questionIds,
       })
@@ -449,7 +462,7 @@ export default function Activity() {
           total: Number(row.total),
         }
       }
-      const shiftsWithCurrent = userVotes.map(vote => {
+      const shiftsWithCurrent = userVotesWithQuestion.map(vote => {
         const t = totalsById[vote.questions.id] || { pctYes: 0, total: 0 }
         const hasBaseline = vote.pct_yes_at_vote !== null && vote.pct_yes_at_vote !== undefined
         const delta = hasBaseline ? t.pctYes - vote.pct_yes_at_vote : null
@@ -480,7 +493,14 @@ export default function Activity() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50)
-    setSkipped(skipsData || [])
+    // The embedded `questions` join respects that table's RLS — a
+    // question_skips row survives (it's the user's own), but `questions`
+    // comes back null if the question it points to is no longer visible to
+    // them (pulled for moderation — see migration
+    // 071_pull_question_moderation.sql — or otherwise unpublished). Drop
+    // those here rather than rendering a blank/broken card for a question
+    // that no longer exists from this user's point of view.
+    setSkipped((skipsData || []).filter(skip => skip.questions))
   }
 
   async function fetchHistory() {
@@ -519,7 +539,10 @@ export default function Activity() {
       })
     }
 
-    setVotes(votesData || [])
+    // Same RLS-null-on-join situation as fetchRevisit/fetchShifts — drop a
+    // past vote on a since-pulled question rather than rendering a blank
+    // history card for it (migration 071_pull_question_moderation.sql).
+    setVotes((votesData || []).filter(v => v.questions))
     setSnapshotMap(newSnapshotMap)
   }
 

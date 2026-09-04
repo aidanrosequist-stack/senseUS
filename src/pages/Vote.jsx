@@ -104,6 +104,16 @@ export default function Vote() {
       throw new Error("You're voting a little too fast — give it a second and try again.")
     }
 
+    // A question can be pulled from moderation after it was already loaded
+    // into this client's feed (or reached via a deep link/stale tab) — see
+    // migration 071_pull_question_moderation.sql. cast_vote() rejects the
+    // attempt the same way it rejects a cooldown (return normally with
+    // rejected_reason set, not a thrown exception, so the block itself
+    // still logs durably) rather than silently recording nothing.
+    if (freshTally?.rejected_reason === 'question_pulled') {
+      throw new Error('This question is no longer available.')
+    }
+
     return freshTally
       ? { yes: freshTally.yes, ly: freshTally.ly, ln: freshTally.ln, no: freshTally.no }
       : { yes: 0, ly: 0, ln: 0, no: 0 }

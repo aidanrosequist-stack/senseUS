@@ -342,7 +342,7 @@ async function toggleRegistration(open) {
     // for now and still bounds the worst case.
     const { data, error } = await supabase
       .from('questions')
-      .select('id, text, category, domain, published_at')
+      .select('id, text, category, domain, published_at, pulled_at, pulled_reason')
       .order('created_at', { ascending: false })
       .limit(500)
     if (!error) setQuestions(data || [])
@@ -425,7 +425,15 @@ async function toggleRegistration(open) {
       // `invalid input syntax for type timestamp with time zone: ""`.
       // Send null instead so the column stays genuinely unset.
       archive_at: newQuestion.archive_at ? newQuestion.archive_at : null,
-      published_at: new Date().toISOString(),
+      // Was set unconditionally regardless of the "requires human
+      // moderation" checkbox below — a question checked for moderation
+      // review still went live immediately, defeating the checkbox
+      // entirely (it only ever affected whether the question also showed
+      // up in the Review Queue, which filters on published_at being null
+      // — see loadFlaggedQuestions). Leave it unpublished when moderation
+      // is required so Approve & publish in the Review Queue is what
+      // actually makes it live.
+      published_at: newQuestion.human_moderation_required ? null : new Date().toISOString(),
     })
     if (error) {
       showMessage('Error adding question: ' + error.message, true)
@@ -451,6 +459,56 @@ async function toggleRegistration(open) {
         p_target_id: question.id,
       }).then(({ error }) => { if (error) console.error('log_admin_action failed', error) })
     }
+  }
+
+  // Pull/unpull a *published, live* question after the fact — distinct from
+  // togglePublish (draft vs. live, a normal pre-launch state) and from
+  // human_moderation_required (a pre-publish review gate only, never
+  // enforced once something's already live). See migration
+  // 071_pull_question_moderation.sql: once pulled, the question and its
+  // comments become invisible to everyone but admins, including people who
+  // already voted or commented on it, and cast_vote() itself rejects any
+  // further vote on it.
+  async function pullQuestion(question) {
+    const reason = window.prompt('Why is this question being pulled? (required — recorded for the audit trail)')
+    if (!reason || !reason.trim()) {
+      showMessage('Pulling a question requires a reason.', true)
+      return
+    }
+    const { error } = await supabase
+      .from('questions')
+      .update({ pulled_at: new Date().toISOString(), pulled_reason: reason.trim() })
+      .eq('id', question.id)
+    if (error) {
+      showMessage('Error pulling question: ' + error.message, true)
+      return
+    }
+    showMessage('Question pulled — hidden from everyone except admins.')
+    loadQuestions()
+    supabase.rpc('log_admin_action', {
+      p_action_type: 'pull_question',
+      p_target_type: 'question',
+      p_target_id: question.id,
+      p_details: { question_text: question.text, pulled_reason: reason.trim() },
+    }).then(({ error }) => { if (error) console.error('log_admin_action failed', error) })
+  }
+
+  async function unpullQuestion(question) {
+    const { error } = await supabase
+      .from('questions')
+      .update({ pulled_at: null, pulled_reason: null })
+      .eq('id', question.id)
+    if (error) {
+      showMessage('Error restoring question: ' + error.message, true)
+      return
+    }
+    showMessage('Question restored — visible again.')
+    loadQuestions()
+    supabase.rpc('log_admin_action', {
+      p_action_type: 'unpull_question',
+      p_target_type: 'question',
+      p_target_id: question.id,
+    }).then(({ error }) => { if (error) console.error('log_admin_action failed', error) })
   }
 
   async function pushAsBreakingNews(q) {
@@ -679,8 +737,13 @@ async function toggleRegistration(open) {
                         <div style={{ fontSize: '11px', color: '#6B7280' }}>
                           #{q.question_number} · {q.category} · {q.domain}
                         </div>
+                        {q.pulled_at && (
+                          <div style={{ fontSize: '11px', color: '#7a1313', marginTop: '4px' }}>
+                            🚫 Pulled{q.pulled_reason ? `: ${q.pulled_reason}` : ''}
+                          </div>
+                        )}
                       </div>
-                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                         <button
                           onClick={() => setEditingQuestion({ ...q })}
                           style={{ padding: '5px 10px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', background: '#E6F1FB', color: '#0C447C' }}
@@ -703,6 +766,17 @@ async function toggleRegistration(open) {
                           }}
                         >
                           {q.published_at ? 'Published' : 'Draft'}
+                        </button>
+                        <button
+                          onClick={() => (q.pulled_at ? unpullQuestion(q) : pullQuestion(q))}
+                          title={q.pulled_at ? 'Restore — make visible again' : 'Pull — hide from everyone but admins, even past voters'}
+                          style={{
+                            padding: '5px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif',
+                            background: q.pulled_at ? '#f9d8d8' : '#F3F4F6',
+                            color: q.pulled_at ? '#7a1313' : '#6B7280',
+                          }}
+                        >
+                          {q.pulled_at ? 'Pulled' : 'Pull'}
                         </button>
                         <button
                           onClick={() => deleteQuestion(q)}
