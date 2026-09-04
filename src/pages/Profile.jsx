@@ -6,6 +6,7 @@ import { Skeleton, SkeletonCard, SkeletonStatGrid } from '../components/ui/Skele
 import { useNotificationsContext } from '../context/NotificationsContext'
 import { BADGE_INFO } from '../lib/badgeInfo'
 import { useModalFocus } from '../hooks/useModalFocus'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 function timeAgo(dateString) {
   const now = new Date()
@@ -128,7 +129,7 @@ async function openIntegrityInfo() {
     return (
       <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
         <div style={{ padding: '14px', boxSizing: 'border-box' }}>
-          <div style={{ maxWidth: '420px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+          <div style={{ maxWidth: '420px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
               <Skeleton width="48px" height="48px" borderRadius="50%" />
               <div style={{ flex: 1 }}>
@@ -151,7 +152,7 @@ async function openIntegrityInfo() {
     return (
       <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC' }}>
         <div style={{ padding: '14px', boxSizing: 'border-box' }}>
-          <div style={{ maxWidth: '420px', margin: '0 auto', padding: '2rem 1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+          <div style={{ maxWidth: '420px', margin: '0 auto', padding: '2rem 1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)' }}>
             <p style={{ color: '#7a1313', fontSize: '14px' }}>{error || 'Profile not found.'}</p>
             <Link to="/" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none' }}>← back to home</Link>
           </div>
@@ -163,7 +164,7 @@ async function openIntegrityInfo() {
   return (
     <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
     <div style={{ padding: '14px', boxSizing: 'border-box' }}>
-    <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)', animation: 'senseus-content-in 0.35s ease' }}>
+    <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)', animation: 'senseus-content-in 0.35s ease' }}>
 
       {/* Identity */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '1.5rem' }}>
@@ -198,7 +199,22 @@ async function openIntegrityInfo() {
         </div>
         <div style={{ background: '#F9FAFB', borderRadius: '8px', padding: '1rem', textAlign: 'center' }}>
           <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '6px', fontWeight: 300 }}>Current streak</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: '#1A1A1A' }}>{profile.streak_days}</div>
+          <div style={{ fontSize: '24px', fontWeight: 700, color: profile.streak_days >= 7 ? '#c2731f' : '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+            {profile.streak_days}
+            {/* A flicker on the flame once there's a real streak going —
+                previously this number looked identical to "Answered" and
+                "Integrity weight" next to it, with nothing to signal that
+                the on-a-roll/unstoppable/constant-as-the-sun badges (7/30/
+                100-day streaks) are even a thing to build toward. */}
+            {profile.streak_days > 0 && (
+              <span
+                aria-hidden="true"
+                style={{ fontSize: '18px', display: 'inline-block', animation: 'senseus-streak-flicker 1.6s ease-in-out infinite' }}
+              >
+                🔥
+              </span>
+            )}
+          </div>
           <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '4px', fontWeight: 300 }}>days</div>
         </div>
         <button
@@ -217,8 +233,9 @@ async function openIntegrityInfo() {
     Badges
   </div>
   {(profile?.badges || []).length === 0 ? (
-    <div style={{ fontSize: '12px', color: '#6B7280' }}>
-      Keep voting to earn your first badge.
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '1.25rem 1rem', border: '1.5px dashed #D1D5DB', borderRadius: '10px' }}>
+      <span style={{ fontSize: '26px' }} aria-hidden="true">🏅</span>
+      <span style={{ fontSize: '12px', color: '#6B7280', textAlign: 'center' }}>Keep voting to earn your first badge.</span>
     </div>
   ) : (
     <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
@@ -263,6 +280,7 @@ async function openIntegrityInfo() {
   )}
   {notifications.length === 0 ? (
     <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '14px' }}>
+      <div style={{ fontSize: '28px', marginBottom: '0.5rem' }}>🔔</div>
       No notifications yet.
     </div>
   ) : (
@@ -395,7 +413,7 @@ async function openIntegrityInfo() {
               Your integrity weight reflects sustained, genuine participation. It only ever moves up, and it's based on your activity over the last 30 days.
             </p>
             {!integrityStatus ? (
-              <p style={{ fontSize: '13px', color: '#6B7280' }}>Loading...</p>
+              <div style={{ padding: '0.5rem 0' }}><LoadingSpinner size={18} label={null} /></div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '1rem' }}>
                 {[

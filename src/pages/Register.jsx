@@ -9,6 +9,8 @@ import 'react-phone-number-input/style.css'
 import { Link } from 'react-router-dom'
 import OnboardingAnimation from '../components/ui/OnboardingAnimation'
 import TurnstileWidget from '../components/ui/TurnstileWidget'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
+import ConfettiBurst from '../components/ui/ConfettiBurst'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
 
@@ -103,7 +105,7 @@ export default function Register() {
 if (checkingStatus) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
-        Loading...
+        <LoadingSpinner />
       </div>
     )
   }
@@ -368,10 +370,22 @@ if (checkingStatus) {
       )}
 
       {step === 'done' && !showOnboarding && (
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: '20px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>
-            Welcome to sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>!
-          </p>
+        <div style={{ textAlign: 'center', position: 'relative' }}>
+          {/* Arguably the single biggest activation moment in the app —
+              previously just two lines of plain text and a button, no
+              different from a generic form-submitted confirmation. */}
+          <ConfettiBurst />
+          <div
+            style={{
+              fontSize: '24px',
+              fontWeight: 600,
+              color: '#1A1A1A',
+              marginBottom: '8px',
+              animation: 'senseus-badge-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            }}
+          >
+            🎉 Welcome to sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>!
+          </div>
           <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '1.5rem' }}>Your account has been created.</p>
           <button
             onClick={() => setShowOnboarding(true)}

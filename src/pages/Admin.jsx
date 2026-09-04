@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAdmin } from '../hooks/useAdmin'
 import AdminReports from './AdminReports'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'sponsored', 'current events']
 const DOMAINS = ['society & culture', 'ethics & philosophy', 'health & wellbeing', 'relationships', 'technology', 'money & work', 'media & information', 'politics & policy', 'science & nature', 'sports & leisure']
@@ -538,7 +539,7 @@ async function toggleRegistration(open) {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
-        Loading...
+        <LoadingSpinner />
       </div>
     )
   }
@@ -611,7 +612,7 @@ async function toggleRegistration(open) {
               : `${questions.length} questions total (most recent 500 — use search above to find older, draft, or archived questions)`}
           </p>
           {loadingData ? (
-            <p style={{ color: '#6B7280', fontSize: '13px' }}>Loading...</p>
+            <div style={{ padding: '1rem 0' }}><LoadingSpinner size={18} label={null} /></div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {(questionSearchQuery.trim() ? questionSearchResults : questions).map(q => (
@@ -990,7 +991,7 @@ async function toggleRegistration(open) {
             {flaggedQuestions.length} question{flaggedQuestions.length !== 1 ? 's' : ''} awaiting review
           </p>
           {loadingFlagged ? (
-            <p style={{ color: '#6B7280', fontSize: '13px' }}>Loading...</p>
+            <div style={{ padding: '1rem 0' }}><LoadingSpinner size={18} label={null} /></div>
           ) : flaggedQuestions.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '2rem', color: '#6B7280', fontSize: '13px' }}>
               No questions pending review.

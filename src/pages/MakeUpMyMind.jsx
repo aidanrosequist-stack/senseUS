@@ -3,6 +3,7 @@ import { usePageTitle } from '../hooks/usePageTitle'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 const STANCE_CONFIG = {
   yes:  { label: 'Yes', background: '#6d8a1c', color: 'white', headerColor: '#4d621d' },
@@ -101,7 +102,7 @@ export default function MakeUpMyMind() {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
-        Loading...
+        <LoadingSpinner />
       </div>
     )
   }
@@ -117,7 +118,7 @@ export default function MakeUpMyMind() {
   return (
     <div style={{ minHeight: '100dvh', background: '#C7C7CC', boxSizing: 'border-box', paddingBottom: '90px' }}>
       <div style={{ padding: '14px', boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
-        <div style={{ width: '100%', maxWidth: '480px', background: '#FFFFFF', borderRadius: '20px', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+        <div style={{ width: '100%', maxWidth: '480px', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', boxShadow: 'var(--senseus-card-shadow)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>

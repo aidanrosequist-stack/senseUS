@@ -1,6 +1,7 @@
 import AnimatedWordmark from '../components/layout/AnimatedWordmark'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -12,7 +13,7 @@ export default function Home() {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
-        Loading...
+        <LoadingSpinner />
       </div>
     )
   }

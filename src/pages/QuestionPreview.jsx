@@ -3,6 +3,7 @@ import { usePageTitle } from '../hooks/usePageTitle'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f',
@@ -230,7 +231,7 @@ export default function QuestionPreview() {
         <div style={{ width: '100%', maxWidth: '420px', ...slideStyle }}>
 
           {loading ? (
-            <div style={{ textAlign: 'center', color: '#6B7280', padding: '3rem 0' }}>Loading...</div>
+            <div style={{ textAlign: 'center', padding: '3rem 0' }}><LoadingSpinner /></div>
           ) : !question ? (
             <div style={{ textAlign: 'center', color: '#6B7280', padding: '3rem 0' }}>Question not found.</div>
           ) : (

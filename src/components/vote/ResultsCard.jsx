@@ -1,5 +1,6 @@
 import { IconMessageCircle } from '@tabler/icons-react'
 import { useRef, useEffect, useState } from 'react'
+import ConfettiBurst from '../ui/ConfettiBurst'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c',
@@ -35,7 +36,7 @@ const VOTE_WASH = {
   dec: '#FFFFFF',
 }
 
-export default function ResultsCard({ question, userVote, tally, onJoinConversation, onNext, onChangeVote }) {
+export default function ResultsCard({ question, userVote, tally, onJoinConversation, onNext, onChangeVote, firstVote = false }) {
   const total = tally.yes + tally.ly + tally.ln + tally.no
   const yesTrue = tally.yes + tally.ly
   const noTrue = tally.ln + tally.no
@@ -176,6 +177,25 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
         transition: 'background 0.4s ease',
       }}
     >
+      {firstVote && (
+        <div style={{ position: 'relative', marginBottom: '0.75rem', width: '100%' }}>
+          <div
+            style={{
+              background: '#faf6d0',
+              color: '#7a6b0e',
+              borderRadius: '10px',
+              padding: '8px 14px',
+              fontSize: '12px',
+              fontWeight: 700,
+              animation: 'senseus-badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            }}
+          >
+            🎉 Nice — that's your first vote on senseUS!
+          </div>
+          <ConfettiBurst />
+        </div>
+      )}
+
       <span
         style={{
           fontSize: '11px',

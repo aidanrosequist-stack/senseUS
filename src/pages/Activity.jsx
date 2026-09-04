@@ -563,7 +563,7 @@ export default function Activity() {
   return (
     <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
     <div style={{ padding: '14px', boxSizing: 'border-box' }}>
-    <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+    <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)' }}>
 
       {/* Page title */}
       <div style={{ marginBottom: '1.5rem' }}>
@@ -605,6 +605,7 @@ export default function Activity() {
             <div>
               {myComments.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+                  <div style={{ fontSize: '32px', marginBottom: '0.5rem' }}>💬</div>
                   No comments yet. Vote on a question to join the conversation.
                 </div>
               ) : (
@@ -673,6 +674,7 @@ export default function Activity() {
               </p>
               {shifts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+                  <div style={{ fontSize: '32px', marginBottom: '0.5rem' }}>📈</div>
                   No shifts yet. Vote on some questions to see how they're trending.
                 </div>
               ) : (
@@ -699,6 +701,7 @@ export default function Activity() {
             <div>
               {skipped.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+                  <div style={{ fontSize: '32px', marginBottom: '0.5rem' }}>📥</div>
                   Nothing here. Questions you choose not to see disappear from your feed and show up here instead.
                 </div>
               ) : (
@@ -746,6 +749,7 @@ export default function Activity() {
 
               {votes.length === 0 ? (
                 <p style={{ fontSize: '13px', color: '#6B7280', textAlign: 'center', padding: '2rem 0' }}>
+                  <span style={{ display: 'block', fontSize: '32px', marginBottom: '0.5rem' }}>🗳️</span>
                   No votes yet — head to the vote feed to get started.
                 </p>
               ) : (

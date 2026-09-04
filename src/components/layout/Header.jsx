@@ -27,6 +27,11 @@ export default function Header() {
       height: `${HEADER_HEIGHT_PX}px`,
       background: '#FFFFFF',
       borderBottom: '0.5px solid #E5E7EB',
+      // A touch of depth so the sticky chrome (this and BottomNav) doesn't
+      // read as flatter than the heavily-shadowed page cards it frames —
+      // deliberately much lighter than --senseus-card-shadow, since this is
+      // a thin strip, not a card floating above the background.
+      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
       display: 'flex',
       justifyContent: 'center',
       boxSizing: 'border-box',

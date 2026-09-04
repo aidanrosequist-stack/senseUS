@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { IconWaveSine, IconCornerDownRight, IconNews } from '@tabler/icons-react'
 import { checkComment } from '../lib/moderation'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
@@ -763,7 +764,7 @@ export default function Conversation() {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
-        Loading...
+        <LoadingSpinner />
       </div>
     )
   }
@@ -771,7 +772,7 @@ export default function Conversation() {
   return (
     <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC' }}>
       <div style={{ padding: '14px', boxSizing: 'border-box' }}>
-        <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '100px', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+        <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '100px', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
@@ -810,9 +811,13 @@ export default function Conversation() {
 
       <div style={{ borderBottom: '5px solid #E5E7EB', marginBottom: '1rem' }} />
 
-      {/* Comment input — replaced by your own pinned comment once you've posted one */}
+      {/* Comment input — replaced by your own pinned comment once you've
+          posted one. The fade/slide-in here (same keyframe used for a
+          page's real content replacing its skeleton) is the acknowledgment
+          that posting worked — it used to swap in with no transition at
+          all, which read as an abrupt swap rather than a confirmed post. */}
       {myComment ? (
-        <div style={{ marginBottom: '1rem' }}>
+        <div style={{ marginBottom: '1rem', animation: 'senseus-content-in 0.35s ease' }}>
           <CommentCard comment={myComment} pinned {...cardProps} />
         </div>
       ) : (
@@ -867,6 +872,7 @@ export default function Conversation() {
                 fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', whiteSpace: 'nowrap', flexShrink: 0,
                 background: filter === f.key ? f.bold : f.wash,
                 color: filter === f.key ? 'white' : f.text,
+                transition: 'background 0.15s ease, color 0.15s ease',
               }}
             >
               {f.label}

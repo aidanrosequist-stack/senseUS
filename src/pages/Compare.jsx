@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { BADGE_EMOJI } from '../lib/badgeInfo'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f'
@@ -209,7 +210,7 @@ export default function Compare() {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
-        Loading...
+        <LoadingSpinner />
       </div>
     )
   }
@@ -217,7 +218,7 @@ export default function Compare() {
   return (
     <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC' }}>
       <div style={{ padding: '14px', boxSizing: 'border-box' }}>
-        <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '100px', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+        <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '100px', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)' }}>
 
           <button
             onClick={() => navigate('/profile')}
@@ -299,10 +300,17 @@ export default function Compare() {
                         key={m.key}
                         onClick={() => setMatchMode(m.key)}
                         style={{
-                          flex: 1, padding: '6px 10px', background: matchMode === m.key ? '#FFFFFF' : 'transparent',
-                          color: matchMode === m.key ? '#1A1A1A' : '#6B7280', border: 'none', borderRadius: '6px',
+                          // Blue-fill-on-selection, matching the segmented-
+                          // toggle pattern used everywhere else (Explore's
+                          // All/Unanswered toggle, Activity's tabs and
+                          // comment-sort toggle) — this one had drifted to
+                          // a separate floating-white-pill visual language
+                          // for the same UI idea.
+                          flex: 1, padding: '6px 10px', background: matchMode === m.key ? '#2D3DCA' : 'transparent',
+                          color: matchMode === m.key ? 'white' : '#6B7280', border: 'none', borderRadius: '6px',
                           fontSize: '11px', fontWeight: matchMode === m.key ? 700 : 500, cursor: 'pointer',
-                          fontFamily: 'Merriweather, serif', boxShadow: matchMode === m.key ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                          fontFamily: 'Merriweather, serif',
+                          transition: 'background 0.15s ease, color 0.15s ease',
                         }}
                       >
                         {m.label}

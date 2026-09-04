@@ -37,6 +37,10 @@ export default function BottomNav() {
         justifyContent: 'center',
         background: '#FFFFFF',
         borderTop: '0.5px solid #E5E7EB',
+        // Matches Header's own light depth treatment (see its comment) so
+        // the two pieces of sticky chrome read as one consistent elevation
+        // tier, shadow cast upward since this sits at the bottom.
+        boxShadow: '0 -1px 4px rgba(0,0,0,0.06)',
         zIndex: 100,
       }}
     >

@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 import VisuallyHidden from '../components/ui/VisuallyHidden'
 import { usePageTitle } from '../hooks/usePageTitle'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 export default function Vote() {
   usePageTitle('Vote')
@@ -120,7 +121,7 @@ export default function Vote() {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
-        Loading questions...
+        <LoadingSpinner label="Loading questions..." />
       </div>
     )
   }
@@ -204,10 +205,10 @@ export default function Vote() {
           maxWidth: '420px',
           height: '100%',
           maxHeight: '760px',
-          borderRadius: '20px',
+          borderRadius: 'var(--senseus-card-radius)',
           overflow: 'hidden',
           border: '0.5px solid #E5E7EB',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
+          boxShadow: 'var(--senseus-card-shadow)',
           background: '#FFFFFF',
           boxSizing: 'border-box',
         }}

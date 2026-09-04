@@ -20,6 +20,7 @@ function Detail({ title, children }) {
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
+        className="senseus-hover-row"
         style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
         <span style={{ fontSize: '15px', fontWeight: 600, color: '#1A1A1A' }}>{title}</span>

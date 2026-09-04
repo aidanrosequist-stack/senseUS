@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import ConfettiBurst from '../ui/ConfettiBurst'
 
 const BADGE_INFO = {
   'ultra-definitive': { emoji: '🎯', label: 'Ultra-Definitive' },
@@ -64,11 +65,24 @@ export default function NotificationPopup({ urgentNotification, highNotification
         zIndex: 999, fontFamily: 'Merriweather, serif',
       }}>
         <div style={{
+          position: 'relative',
           background: '#FFFFFF', borderRadius: '14px', padding: '1.25rem',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.18)', border: '1px solid #2D3DCA',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          // A badge-earned moment gets a warmer gold border (reusing the
+          // app's own "leaning yes" gold, #d9c01a, rather than a new color)
+          // plus a confetti burst — previously this looked identical to any
+          // other high-priority notification (generic blue border, ⭐).
+          border: isBadge ? '1px solid #d9c01a' : '1px solid #2D3DCA',
           display: 'flex', gap: '12px', alignItems: 'flex-start',
+          overflow: 'visible',
         }}>
-          <div style={{ fontSize: '28px', flexShrink: 0 }}>
+          {isBadge && <ConfettiBurst />}
+          <div
+            style={{
+              fontSize: '28px', flexShrink: 0,
+              ...(isBadge && { animation: 'senseus-badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' }),
+            }}
+          >
             {isBadge ? badgeInfo.emoji : '⭐'}
           </div>
           <div style={{ flex: 1 }}>

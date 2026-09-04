@@ -27,7 +27,10 @@ export default function NotFound() {
           real humans. real opinions. real truth.
         </div>
 
-        <div style={{ fontSize: '72px', fontWeight: 700, color: '#2D3DCA', lineHeight: 1, marginBottom: '1rem' }}>
+        {/* A small bounce-in so this one orphaned fallback page shares a
+            little of the motion language the rest of the app has, instead
+            of a static numeral sitting there. */}
+        <div style={{ fontSize: '72px', fontWeight: 700, color: '#2D3DCA', lineHeight: 1, marginBottom: '1rem', animation: 'senseus-bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
           404
         </div>
 

@@ -401,7 +401,7 @@ export default function Explore() {
     return (
       <div style={{ minHeight: '100dvh', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
         <div style={{ padding: '14px', boxSizing: 'border-box' }}>
-          <div style={{ maxWidth: '480px', margin: '0 auto', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)', padding: '1.25rem' }}>
+          <div style={{ maxWidth: '480px', margin: '0 auto', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)', padding: '1.25rem' }}>
             {[1, 2, 3].map(i => (
               <div key={i} style={{ marginBottom: '1.75rem' }}>
                 <Skeleton height="13px" width="30%" style={{ marginBottom: '0.75rem' }} />
@@ -426,7 +426,7 @@ export default function Explore() {
         section below already carries its own '0 1.25rem' inset, which used
         to be measured against the full page width. Padding the card too
         would double up and squeeze the horizontal-scroll rows. */}
-    <div style={{ maxWidth: '480px', margin: '0 auto', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)', padding: '1.5rem 0' }}>
+    <div style={{ maxWidth: '480px', margin: '0 auto', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)', padding: '1.5rem 0' }}>
 
       {/* Page title */}
       <div style={{ padding: '1.25rem 1.25rem 0', marginBottom: '1rem' }}>
@@ -443,6 +443,7 @@ export default function Explore() {
               fontSize: '12px', fontWeight: 500, fontFamily: 'Merriweather, serif',
               background: !unansweredOnly ? '#2D3DCA' : 'transparent',
               color: !unansweredOnly ? 'white' : '#6B7280',
+              transition: 'background 0.15s ease, color 0.15s ease',
             }}
           >
             All questions
@@ -454,6 +455,7 @@ export default function Explore() {
               fontSize: '12px', fontWeight: 500, fontFamily: 'Merriweather, serif',
               background: unansweredOnly ? '#2D3DCA' : 'transparent',
               color: unansweredOnly ? 'white' : '#6B7280',
+              transition: 'background 0.15s ease, color 0.15s ease',
             }}
           >
             Unanswered only
@@ -470,6 +472,7 @@ export default function Explore() {
             fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif',
             background: selectedCategory === null ? '#2D3DCA' : 'white',
             color: selectedCategory === null ? 'white' : '#6B7280',
+            transition: 'background 0.15s ease, color 0.15s ease, border-color 0.15s ease',
           }}
         >
           All categories
@@ -483,6 +486,7 @@ export default function Explore() {
               fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif',
               background: selectedCategory === cat ? '#2D3DCA' : 'white',
               color: selectedCategory === cat ? 'white' : '#6B7280',
+              transition: 'background 0.15s ease, color 0.15s ease, border-color 0.15s ease',
             }}
           >
             {categoryLabel(cat)}
@@ -526,7 +530,9 @@ export default function Explore() {
             </div>
           ) : searchResults.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '14px' }}>
+              <div style={{ fontSize: '28px', marginBottom: '0.5rem' }}>🔍</div>
               No questions match "{searchQuery}"
+              <div style={{ fontSize: '12px', marginTop: '4px' }}>Try a different search term.</div>
             </div>
           ) : (
             searchResults.map(question => (
@@ -800,12 +806,14 @@ export default function Explore() {
 
       {questions.length === 0 && (
         <div style={{ textAlign: 'center', padding: '4rem 1.5rem', color: '#6B7280', fontSize: '14px' }}>
+          <div style={{ fontSize: '32px', marginBottom: '0.5rem' }}>🧭</div>
           No questions available yet.
         </div>
       )}
 
       {!searchQuery.trim() && questions.length > 0 && !hasBucketResults && (
         <div style={{ textAlign: 'center', padding: '4rem 1.5rem', color: '#6B7280', fontSize: '14px' }}>
+          <div style={{ fontSize: '32px', marginBottom: '0.5rem' }}>🧭</div>
           {selectedCategory ? `No questions in "${categoryLabel(selectedCategory)}" right now.` : 'No questions match your current filters.'}
         </div>
       )}

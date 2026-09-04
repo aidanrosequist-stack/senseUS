@@ -20,6 +20,18 @@ html, body {
   font-family: 'Merriweather', serif;
 }
 
+:root {
+  /* Single source of truth for the "elevated white card" look shared by
+     Explore/Activity/Profile/Settings/Conversation/Compare's page shells —
+     previously the same two literal values (0 8px 32px rgba(0,0,0,0.22) /
+     20px) were repeated independently in each file. Home.jsx's promo cards
+     intentionally keep their own softer shadow (a lighter-weight, marketing-
+     page treatment, not this app-shell card), so they're left as literals
+     rather than pulled into this token. */
+  --senseus-card-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+  --senseus-card-radius: 20px;
+}
+
 html {
   /* Reserves the scrollbar's width whether or not the current page
      actually needs to scroll. Without this, navigating between a page
@@ -55,6 +67,72 @@ input, button, select, textarea {
 @keyframes senseus-content-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* App-wide "gussy it up" pass (2026-09-04) — hover/press affordance, a few
+   shared celebratory/entrance keyframes, and a couple of small reusable
+   utility classes. Nothing here replaces a more specific animation a
+   component already owns (the vote-card swipe gestures, the entrance above)
+   — this is for the many plain buttons/rows/loaders that had no motion at
+   all. */
+
+/* Every real <button> in the app gets a subtle press/hover acknowledgment
+   for free — there was previously no hover/active styling anywhere in the
+   codebase. Only applies to real, enabled buttons (::disabled buttons are
+   deliberately inert), and any component that already sets its own inline
+   `transform` unconditionally (none currently do) would simply keep that,
+   since inline styles always win over this rule for the same property. */
+button:not(:disabled) {
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+button:not(:disabled):hover {
+  filter: brightness(0.96);
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* For a clickable row that's more than just its own button chrome (e.g.
+   HowItWorks's accordion rows) — a soft background tint on hover, on top
+   of whatever the global button rule above already does. */
+.senseus-hover-row:hover {
+  background: rgba(45, 61, 202, 0.045);
+}
+
+@keyframes senseus-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* A freshly-earned badge (NotificationPopup) or a first-vote moment
+   (ResultsCard) scaling/popping into view — paired with ConfettiBurst.jsx
+   for the fuller celebration. */
+@keyframes senseus-badge-pop {
+  0% { transform: scale(0.4) rotate(-8deg); opacity: 0; }
+  60% { transform: scale(1.08) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* Driven by ConfettiBurst.jsx, which sets --dx/--dy/--rot per piece so each
+   one flies a different distance/direction, then a shared +40px of extra
+   fall for a touch of gravity as it fades. */
+@keyframes senseus-confetti-fall {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx, 0px), calc(var(--dy, 0px) + 40px)) rotate(var(--rot, 180deg)) scale(0.6); opacity: 0; }
+}
+
+/* A little flicker/scale pulse for Profile's streak stat once there's an
+   actual streak going (see Profile.jsx). */
+@keyframes senseus-streak-flicker {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.14); }
+}
+
+/* NotFound's numeral/logo settling into place, so the one orphaned fallback
+   page shares a little of the motion language the rest of the app has. */
+@keyframes senseus-bounce-in {
+  0% { transform: translateY(-14px) scale(0.92); opacity: 0; }
+  60% { transform: translateY(3px) scale(1.02); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 @media (min-width: 768px) {

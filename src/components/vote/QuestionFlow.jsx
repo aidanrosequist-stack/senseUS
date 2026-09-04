@@ -23,6 +23,14 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
   // question comes after (a normal forward skip/advance shouldn't play
   // this animation).
   const [enterFromAbove, setEnterFromAbove] = useState(false)
+  // One-shot celebration for a user's very first successful vote (see
+  // handleVote below) — localStorage-gated the same way a few other
+  // one-time UI moments already are in this app (senseus_onboarded,
+  // senseus_seen_longpress_hint_explore), rather than threading a real
+  // "is this actually vote #1 ever" check through the profile/RPC layer
+  // for what's purely a delight moment, not something that needs to be
+  // authoritative.
+  const [firstVoteToShow, setFirstVoteToShow] = useState(false)
 
   useEffect(() => {
     if (!targetQuestionId) return
@@ -66,6 +74,11 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
         setTallies((prev) => ({ ...prev, [currentQuestion.id]: updatedTally }))
       } else if (freshTally) {
         setTallies((prev) => ({ ...prev, [currentQuestion.id]: freshTally }))
+      }
+
+      if (!isChange && localStorage.getItem('senseus_first_vote_celebrated') !== 'true') {
+        localStorage.setItem('senseus_first_vote_celebrated', 'true')
+        setFirstVoteToShow(true)
       }
 
       setUserVote(value)
@@ -133,6 +146,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
     setUserVote(null)
     setVoteError(null)
     setView('voting')
+    setFirstVoteToShow(false)
     setCurrentIndex((prev) => Math.min(prev + 1, questions.length))
   }, [questions.length])
 
@@ -218,6 +232,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
           tally={getTallyFor(currentQuestion)}
           onJoinConversation={handleJoinConversation}
           onNext={advance}
+          firstVote={firstVoteToShow}
           onChangeVote={() => { setChangingVote(true); setView('voting') }}
         />
       )}
