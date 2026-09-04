@@ -71,9 +71,17 @@ export default function Register() {
 
   const currentYear = new Date().getFullYear()
   const meetsAgeRequirement = birthYear && (currentYear - parseInt(birthYear, 10)) >= 18
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-  return localStorage.getItem('senseus_onboarded') !== 'true'
-})
+  // Only ever flipped true by the "Start voting" button on the 'done'
+  // step below (after phone verification completes) — that's the one
+  // correct place for the tutorial to appear. This used to initialize
+  // from localStorage('senseus_onboarded') instead, which meant it was
+  // already `true` the instant this component mounted (any browser that
+  // has never finished onboarding), popping the animation up over the
+  // very first 'phone' step, before verification even happened. Nothing
+  // else in the app reads that flag for this decision — OnboardingAnimation
+  // itself still sets it on completion/skip, this just stops seeding the
+  // initial render from it.
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const [registrationOpen, setRegistrationOpen] = useState(true)
   const [checkingStatus, setCheckingStatus] = useState(true)
 
@@ -337,7 +345,7 @@ if (checkingStatus) {
                 </select>
               </label>
 
-              <p style={{ fontSize: '12px', color: '#52B788', textAlign: 'center', lineHeight: 1.6, margin: '0' }}>
+              <p style={{ fontSize: '12px', color: '#6B7280', textAlign: 'center', lineHeight: 1.6, margin: '0' }}>
                 We only keep your first name and last initial. Your phone number is the one thing tied to your account — used only for verification, never shown to other users.
               </p>
 
@@ -361,8 +369,8 @@ if (checkingStatus) {
 
       {step === 'done' && !showOnboarding && (
         <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: '20px', fontWeight: 600, color: '#52B788', marginBottom: '8px' }}>
-            Welcome to senseUS!
+          <p style={{ fontSize: '20px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>
+            Welcome to sense<span style={{ fontWeight: 700, color: '#6da627' }}>US</span>!
           </p>
           <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '1.5rem' }}>Your account has been created.</p>
           <button

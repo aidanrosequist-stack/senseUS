@@ -1,5 +1,5 @@
-import { Suspense, lazy } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Suspense, lazy, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import AppShell from './components/layout/AppShell'
 import NotificationPopup from './components/notifications/NotificationPopup'
@@ -35,6 +35,25 @@ function PageLoading() {
       Loading...
     </div>
   )
+}
+
+// React Router doesn't reset scroll position on navigation by itself —
+// that's a browser-native behavior for full page loads, not something a
+// client-side route change gets for free. Without this, scrolling down on
+// one page and then clicking to another leaves the window at the same
+// scroll offset, so the new page renders starting from wherever the old
+// one left off — its content (and AppShell's persistent Header above it,
+// see AppShell.jsx) ends up scrolled partway out of view, looking like the
+// top of the new page's card is cut off. Scoped to `pathname` only (not
+// the full `location`, which also changes on search-param-only updates
+// like Explore's filters) so switching a filter on the same page doesn't
+// yank the scroll position out from under the user.
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+  return null
 }
 
 // Holds the notification hook's live state and mounts the popup, as a
@@ -90,8 +109,10 @@ function NotificationsProvider({ children }) {
 
 function AppRoutes() {
   return (
-    <Suspense fallback={<PageLoading />}>
-      <Routes>
+    <>
+      <ScrollToTop />
+      <Suspense fallback={<PageLoading />}>
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
@@ -132,8 +153,9 @@ function AppRoutes() {
         </Route>
 
         <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Suspense>
+        </Routes>
+      </Suspense>
+    </>
   )
 }
 

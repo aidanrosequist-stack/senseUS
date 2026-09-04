@@ -1,5 +1,6 @@
 import { sendOtpCode, verifyOtpCode } from '../lib/otpAuth'
 import { supabase } from '../lib/supabase'
+import { checkDisplayText } from '../lib/moderation'
 import { useState, useEffect } from 'react'
 
 const ANONYMOUS_NAMES = [
@@ -78,6 +79,19 @@ useEffect(() => {
   }
 
   async function completeRegistration({ birthYear, displayPreference, firstName, lastName, country }) {
+    // Checked here rather than only relying on the database trigger
+    // (moderate_profile_text(), migration 070) so a bad name fails with a
+    // friendly inline message instead of a raw Postgres error surfacing
+    // after a round trip. The DB trigger stays the real backstop — this is
+    // reachable even while Anonymous is selected (first_name is still
+    // stored either way, just not displayed), so a name typed in and then
+    // hidden behind Anonymous doesn't sneak past unchecked.
+    const nameCheck = checkDisplayText(firstName, 'That name')
+    if (!nameCheck.allowed) {
+      setError(nameCheck.reason)
+      return
+    }
+
     setLoading(true)
     setError(null)
     try {

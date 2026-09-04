@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { checkDisplayText } from '../lib/moderation'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 
 const AVATAR_OPTIONS = ['🌿', '🌊', '🔥', '⚡', '🌙', '☀️', '🌱', '🍃', '🦋', '🌸', '🎯', '🧭', '🔮', '🌍', '💡', '🎨', '🏔️', '🌺', '🦅', '✨']
@@ -98,6 +99,29 @@ export default function Settings() {
 
   async function saveProfile(updates) {
     setSaveMessage(null)
+
+    // Client-side check for immediate feedback — the same field also gets
+    // checked server-side by moderate_profile_text() (migration 070), which
+    // is the real backstop since this call could otherwise be bypassed by
+    // hitting the Supabase API directly. Only checks whichever field is
+    // actually part of this particular update, since saveProfile is used
+    // for every field on this page (avatar, bio, display preference, etc.),
+    // most of which have nothing to do with name/bio text.
+    if ('first_name' in updates) {
+      const check = checkDisplayText(updates.first_name, 'That name')
+      if (!check.allowed) {
+        setSaveMessage(check.reason)
+        return
+      }
+    }
+    if ('bio' in updates) {
+      const check = checkDisplayText(updates.bio, 'That bio')
+      if (!check.allowed) {
+        setSaveMessage(check.reason)
+        return
+      }
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update(updates)
@@ -284,6 +308,35 @@ function maskPhone(phone) {
 
       {/* Identity */}
       <Section title="Identity">
+        {/* First name / last initial — kept editable regardless of the
+            current display preference below, not just when it's 'full' or
+            'first_only'. Registering as Anonymous never asks for a name at
+            all (see Register.jsx), so first_name is saved as an empty
+            string; someone who starts anonymous and later switches their
+            display preference had no way to go back and actually set a
+            name — these two fields are that missing path. */}
+        <Row label="First name">
+          <input
+            type="text"
+            placeholder="Not set"
+            aria-label="First name"
+            defaultValue={profile?.first_name || ''}
+            onBlur={(e) => saveProfile({ first_name: e.target.value.trim() })}
+            maxLength={50}
+            style={{ fontSize: '13px', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '6px 8px', fontFamily: 'Merriweather, serif', width: '140px' }}
+          />
+        </Row>
+        <Row label="Last initial">
+          <input
+            type="text"
+            placeholder="Not set"
+            aria-label="Last initial"
+            defaultValue={profile?.last_initial || ''}
+            onBlur={(e) => saveProfile({ last_initial: e.target.value.trim().charAt(0).toUpperCase() || null })}
+            maxLength={1}
+            style={{ fontSize: '13px', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '6px 8px', fontFamily: 'Merriweather, serif', width: '40px', textAlign: 'center' }}
+          />
+        </Row>
         <Row label="Display name">
           <select
             value={profile?.display_preference || 'full'}
