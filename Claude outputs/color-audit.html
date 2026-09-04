@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>senseUS vote-color audit</title>
+<style>
+  body { margin: 0; padding: 28px 32px 60px; background: #fafafa; font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #1A1A1A; max-width: 900px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  p.sub { font-size: 13px; color: #666; margin: 0 0 8px; max-width: 760px; line-height: 1.5; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.04em; margin: 36px 0 12px; border-bottom: 2px solid #eee; padding-bottom: 6px; }
+  .catcount { font-size: 11px; text-transform: none; letter-spacing: 0; color: #999; font-weight: 400; }
+  .swlist { display: flex; flex-direction: column; gap: 10px; }
+  .swrow { display: flex; gap: 14px; align-items: flex-start; background: white; border: 1px solid #eee; border-radius: 10px; padding: 12px 14px; }
+  .chip { width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); }
+  .meta { flex: 1; min-width: 0; }
+  .hexline { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .hex { font-family: ui-monospace, monospace; font-size: 13px; font-weight: 700; }
+  .role { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; background: #F3F4F6; color: #444; padding: 2px 8px; border-radius: 10px; }
+  .count { font-size: 11px; color: #999; }
+  .note { font-size: 12px; color: #555; margin-top: 4px; line-height: 1.45; }
+  details { margin-top: 6px; }
+  summary { font-size: 11px; color: #2D3DCA; cursor: pointer; }
+  ul { margin: 6px 0 0; padding-left: 18px; font-size: 11px; color: #777; }
+  li { font-family: ui-monospace, monospace; }
+</style>
+</head>
+<body>
+
+<h1>Every red / orange / yellow / green hex in senseUS</h1>
+<p class="sub">Every distinct hex value across <code>src/</code> whose hue falls in the red-orange-yellow-green range (computed by HSL hue, not eyeballed — excludes grays, blues, and near-white/near-black regardless of a faint tint). Grouped by color family, most-used first. "Role" is my read of what each one is actually doing in the app, based on everything traced in this conversation plus a fresh check of each file.</p>
+<p class="sub"><strong>Headline finding:</strong> green is the most tangled family — 10 distinct hexes serving overlapping jobs, including brand green (<code>#6DA627</code>, the logo) and a separate "success" mint (<code>#52B788</code>) that are easy to visually confuse with vote-green but are deliberately different systems and shouldn't be merged into a vote-color cleanup. Also found one real orphan: <code>Compare.jsx</code> line 380 still hardcodes the original (pre-Sept-3) wash green directly, missed by the tier-2 update since it's used as a border there, not a background.</p>
+
+<h2>Red <span class="catcount">(12 distinct hex values)</span></h2><div class="swlist">
+    <div class="swrow">
+      <div class="chip" style="background:#7A1313"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#7A1313</span><span class="role">no</span><span class="count">×36 · 12 files</span></div>
+        <div class="note">Overloaded: pill-badge text color (VOTE_PILL_STYLES) AND generic error/danger text color (banners, delete buttons, OTP errors) reused across ~12 unrelated files. Two different jobs sharing one hex.</div>
+        <details><summary>show files</summary><ul><li>src/components/ui/CardActionSheet.jsx</li><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Admin.jsx</li><li>src/pages/Login.jsx</li><li>src/pages/MakeUpMyMind.jsx</li><li>src/pages/Profile.jsx</li><li>src/pages/Register.jsx</li><li>src/pages/Settings.jsx</li><li>src/pages/Transparency.jsx</li><li>src/pages/Vote.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#C21F1F"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#C21F1F</span><span class="role">no</span><span class="count">×26 · 14 files</span></div>
+        <div class="note">Tier 1 — bold accent (borders, icon circles, badge text, segment-bar fill).</div>
+        <details><summary>show files</summary><ul><li>src/components/layout/BottomNav.jsx</li><li>src/components/notifications/NotificationPopup.jsx</li><li>src/components/ui/OnboardingAnimation.jsx</li><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Admin.jsx</li><li>src/pages/AdminReports.jsx</li><li>src/pages/Compare.jsx</li><li>src/pages/Conversation.jsx</li><li>src/pages/MakeUpMyMind.jsx</li><li>src/pages/Profile.jsx</li><li>src/pages/QuestionPreview.jsx</li><li>src/pages/Settings.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#F9D8D8"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#F9D8D8</span><span class="role">no</span><span class="count">×16 · 9 files</span></div>
+        <div class="note">Pill/button backfill background ("no" backfill) — proposed new tier 2.</div>
+        <details><summary>show files</summary><ul><li>src/components/ui/OnboardingAnimation.jsx</li><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Admin.jsx</li><li>src/pages/Login.jsx</li><li>src/pages/Profile.jsx</li><li>src/pages/Register.jsx</li><li>src/pages/Settings.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#8A1616"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#8A1616</span><span class="role">no</span><span class="count">×5 · 3 files</span></div>
+        <div class="note">ResultsCard/Conversation/QuestionPreview's own head-to-head "no" percentage color — a 3rd dark red, close to but not equal to #7A1313.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/pages/Conversation.jsx</li><li>src/pages/QuestionPreview.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#E18A8A"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#E18A8A</span><span class="role">no</span><span class="count">×4 · 4 files</span></div>
+        <div class="note">Current (Sept 3) deepened tier 2 — being replaced by the pill color above.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Conversation.jsx</li><li>src/pages/Explore.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#FBEAEA"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#FBEAEA</span><span class="role">no</span><span class="count">×2 · 2 files</span></div>
+        <div class="note">ResultsCard's own ultra-light "results card" wash — a 4th, even paler red, distinct from tier 2.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/pages/Conversation.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#EBADAD"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#EBADAD</span><span class="role">no</span><span class="count">×2 · 2 files</span></div>
+        <div class="note">Comment-only — appears in code comments documenting the old (pre-Sept-3) tier 2 value. Not live CSS.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Explore.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#991B1B"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#991B1B</span><span class="role">—</span><span class="count">×2 · 1 file</span></div>
+        <div class="note">One-off dark red, Activity.jsx only (badge/error accent) — not part of the shared vote-color system.</div>
+        <details><summary>show files</summary><ul><li>src/pages/Activity.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#B91C1C"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#B91C1C</span><span class="role">—</span><span class="count">×2 · 1 file</span></div>
+        <div class="note">One-off dark red, SponsorWithUs.jsx only (error banner) — not part of the shared vote-color system.</div>
+        <details><summary>show files</summary><ul><li>src/pages/SponsorWithUs.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#D1527C"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#D1527C</span><span class="role">—</span><span class="count">×1 · 1 file</span></div>
+        <div class="note">AnimatedWordmark's decorative per-letter color cycle — not a vote color at all.</div>
+        <details><summary>show files</summary><ul><li>src/components/layout/AnimatedWordmark.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#993C1D"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#993C1D</span><span class="role">ln</span><span class="count">×1 · 1 file</span></div>
+        <div class="note">VoteCard's own button-label text for "leaning no" — a 3rd dark accent, distinct from both #7a4513 (pill text) and #C2731F (tier 1).</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#791F1F"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#791F1F</span><span class="role">no</span><span class="count">×1 · 1 file</span></div>
+        <div class="note">VoteCard's own button-label text for "no" — distinct from #7A1313 (pill text elsewhere).</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li></ul></details>
+      </div>
+    </div></div><h2>Orange <span class="catcount">(11 distinct hex values)</span></h2><div class="swlist">
+    <div class="swrow">
+      <div class="chip" style="background:#C2731F"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#C2731F</span><span class="role">ln</span><span class="count">×8 · 8 files</span></div>
+        <div class="note">Tier 1 — bold accent (borders, icon circles, badge text, segment-bar fill).</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/AdminReports.jsx</li><li>src/pages/Compare.jsx</li><li>src/pages/Conversation.jsx</li><li>src/pages/MakeUpMyMind.jsx</li><li>src/pages/QuestionPreview.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#856404"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#856404</span><span class="role">—</span><span class="count">×5 · 3 files</span></div>
+        <div class="note">"Sponsored"/"in cooldown" amber warning badge text — Admin, Explore, VoteCard. Consistent 2-color warning pair, not part of the vote-color system.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Admin.jsx</li><li>src/pages/Explore.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#7A4513"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#7A4513</span><span class="role">ln</span><span class="count">×4 · 4 files</span></div>
+        <div class="note">Pill/button text color ("leaning no").</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/MakeUpMyMind.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#E1B68A"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#E1B68A</span><span class="role">ln</span><span class="count">×4 · 4 files</span></div>
+        <div class="note">Current (Sept 3) deepened tier 2 — being replaced by the pill color above.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Conversation.jsx</li><li>src/pages/Explore.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#F9EAD8"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#F9EAD8</span><span class="role">ln</span><span class="count">×3 · 3 files</span></div>
+        <div class="note">Pill/button backfill background ("leaning no" backfill) — proposed new tier 2.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#FFF3CD"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#FFF3CD</span><span class="role">—</span><span class="count">×3 · 2 files</span></div>
+        <div class="note">"Sponsored"/"in cooldown" amber warning badge background — pairs with #856404.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Admin.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#FBF1E6"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#FBF1E6</span><span class="role">ln</span><span class="count">×2 · 2 files</span></div>
+        <div class="note">ResultsCard's ultra-light results-card wash — a paler variant distinct from tier 2.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/pages/Conversation.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#EBCDAD"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#EBCDAD</span><span class="role">ln</span><span class="count">×2 · 2 files</span></div>
+        <div class="note">Comment-only — old (pre-Sept-3) tier 2 value referenced in a code comment. Not live CSS.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Explore.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#E0C797"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#E0C797</span><span class="role">—</span><span class="count">×1 · 1 file</span></div>
+        <div class="note">AnimatedWordmark's decorative per-letter color cycle — not a vote color.</div>
+        <details><summary>show files</summary><ul><li>src/components/layout/AnimatedWordmark.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#633806"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#633806</span><span class="role">ly</span><span class="count">×1 · 1 file</span></div>
+        <div class="note">VoteCard's own button-label text for "leaning yes" — distinct from #7a6b0e (pill text elsewhere).</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#FF9900"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#FF9900</span><span class="role">—</span><span class="count">×1 · 1 file</span></div>
+        <div class="note">Home.jsx one-off, paired with a near-black background (#0D0D0D) — reads like a dark badge/button accent, unrelated to vote colors.</div>
+        <details><summary>show files</summary><ul><li>src/pages/Home.jsx</li></ul></details>
+      </div>
+    </div></div><h2>Yellow <span class="catcount">(7 distinct hex values)</span></h2><div class="swlist">
+    <div class="swrow">
+      <div class="chip" style="background:#D9C01A"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#D9C01A</span><span class="role">ly</span><span class="count">×8 · 8 files</span></div>
+        <div class="note">Tier 1 — bold accent. Note: this is the color that can never pass AA contrast with white text at any reasonable saturation (see earlier discussion) — inherent to true yellow's luminance, not a code issue.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Compare.jsx</li><li>src/pages/Conversation.jsx</li><li>src/pages/MakeUpMyMind.jsx</li><li>src/pages/Profile.jsx</li><li>src/pages/QuestionPreview.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#7A6B0E"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#7A6B0E</span><span class="role">ly</span><span class="count">×5 · 5 files</span></div>
+        <div class="note">Pill/button text color ("leaning yes").</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Conversation.jsx</li><li>src/pages/MakeUpMyMind.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#E9DC86"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#E9DC86</span><span class="role">ly</span><span class="count">×4 · 4 files</span></div>
+        <div class="note">Current (Sept 3) deepened tier 2 — being replaced by the pill color above.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Conversation.jsx</li><li>src/pages/Explore.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#FAF6D0"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#FAF6D0</span><span class="role">ly</span><span class="count">×3 · 3 files</span></div>
+        <div class="note">Pill/button backfill background ("leaning yes" backfill) — proposed new tier 2.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#FBF8E4"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#FBF8E4</span><span class="role">ly</span><span class="count">×2 · 2 files</span></div>
+        <div class="note">ResultsCard's ultra-light results-card wash.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/pages/Conversation.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#EEE5AA"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#EEE5AA</span><span class="role">ly</span><span class="count">×2 · 2 files</span></div>
+        <div class="note">Comment-only — old (pre-Sept-3) tier 2 value referenced in a code comment. Not live CSS.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Explore.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#C3CE32"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#C3CE32</span><span class="role">—</span><span class="count">×1 · 1 file</span></div>
+        <div class="note">AnimatedWordmark's decorative per-letter color cycle — not a vote color.</div>
+        <details><summary>show files</summary><ul><li>src/components/layout/AnimatedWordmark.jsx</li></ul></details>
+      </div>
+    </div></div><h2>Green <span class="catcount">(12 distinct hex values)</span></h2><div class="swlist">
+    <div class="swrow">
+      <div class="chip" style="background:#4D621D"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#4D621D</span><span class="role">yes</span><span class="count">×29 · 8 files</span></div>
+        <div class="note">Pill/button text color ("yes") — the single most-reused green in the app (29 instances).</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Admin.jsx</li><li>src/pages/Compare.jsx</li><li>src/pages/MakeUpMyMind.jsx</li><li>src/pages/Settings.jsx</li><li>src/pages/Transparency.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#6D8A1C"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#6D8A1C</span><span class="role">yes</span><span class="count">×14 · 9 files</span></div>
+        <div class="note">Tier 1 — bold accent (borders, icon circles, badge text, segment-bar fill).</div>
+        <details><summary>show files</summary><ul><li>src/components/ui/OnboardingAnimation.jsx</li><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Compare.jsx</li><li>src/pages/Conversation.jsx</li><li>src/pages/MakeUpMyMind.jsx</li><li>src/pages/Profile.jsx</li><li>src/pages/QuestionPreview.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#6DA627"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#6DA627</span><span class="role">BRAND</span><span class="count">×13 · 12 files</span></div>
+        <div class="note">senseUS's actual brand/wordmark green — used in the logo and on every static page (Header, Ethos, Mission, Privacy, Terms, HowItWorks, Login, Register, SponsorWithUs...). Easy to visually confuse with "yes" green since both are olive-toned, but this one is brand identity, not a vote color, and should never be touched by a vote-color consolidation pass.</div>
+        <details><summary>show files</summary><ul><li>src/components/layout/AnimatedWordmark.jsx</li><li>src/components/layout/Header.jsx</li><li>src/pages/Admin.jsx</li><li>src/pages/Ethos.jsx</li><li>src/pages/HowItWorks.jsx</li><li>src/pages/Login.jsx</li><li>src/pages/Mission.jsx</li><li>src/pages/Privacy.jsx</li><li>src/pages/QuestionPreview.jsx</li><li>src/pages/Register.jsx</li><li>src/pages/SponsorWithUs.jsx</li><li>src/pages/Terms.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#EEF3E0"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#EEF3E0</span><span class="role">yes</span><span class="count">×13 · 6 files</span></div>
+        <div class="note">Pill/button backfill background ("yes" backfill) — proposed new tier 2.</div>
+        <details><summary>show files</summary><ul><li>src/components/ui/OnboardingAnimation.jsx</li><li>src/components/vote/ResultsCard.jsx</li><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Admin.jsx</li><li>src/pages/Settings.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#52B788"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#52B788</span><span class="role">SUCCESS</span><span class="count">×8 · 5 files</span></div>
+        <div class="note">A 3rd distinct green — used for success/completion states (registration success checks, streak badges, Transparency stat highlights). Mint/emerald, visually different from both brand green and vote green. Separate system, not part of vote colors.</div>
+        <details><summary>show files</summary><ul><li>src/pages/Admin.jsx</li><li>src/pages/AdminReports.jsx</li><li>src/pages/Register.jsx</li><li>src/pages/Settings.jsx</li><li>src/pages/Transparency.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#4D6214"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#4D6214</span><span class="role">yes</span><span class="count">×5 · 3 files</span></div>
+        <div class="note">ResultsCard/Conversation/QuestionPreview's own head-to-head "yes" percentage color — a 4th dark green, close to but not equal to #4D621D.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/pages/Conversation.jsx</li><li>src/pages/QuestionPreview.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#BFD18A"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#BFD18A</span><span class="role">yes</span><span class="count">×4 · 4 files</span></div>
+        <div class="note">Current (Sept 3) deepened tier 2 — being replaced by the pill color above.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Activity.jsx</li><li>src/pages/Conversation.jsx</li><li>src/pages/Explore.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#DAE9AF"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#DAE9AF</span><span class="role">yes</span><span class="count">×3 · 3 files</span></div>
+        <div class="note">Mixed: mostly comment-only (old pre-Sept-3 tier 2 value), BUT also one real live orphan — Compare.jsx line 380 hardcodes this exact hex directly as a border color, completely independent of any shared constant. Missed by the Sept-3 pass since Compare.jsx doesn't use the wash for a background there, just a border.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li><li>src/pages/Compare.jsx</li><li>src/pages/Explore.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#F4F8EC"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#F4F8EC</span><span class="role">yes</span><span class="count">×2 · 2 files</span></div>
+        <div class="note">ResultsCard's ultra-light results-card wash.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li><li>src/pages/Conversation.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#257532"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#257532</span><span class="role">—</span><span class="count">×1 · 1 file</span></div>
+        <div class="note">AnimatedWordmark's decorative per-letter color cycle — not a vote color.</div>
+        <details><summary>show files</summary><ul><li>src/components/layout/AnimatedWordmark.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#E9EFD9"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#E9EFD9</span><span class="role">yes</span><span class="count">×1 · 1 file</span></div>
+        <div class="note">ResultsCard's checkmark-circle background — a 5th distinct light green, used nowhere else.</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/ResultsCard.jsx</li></ul></details>
+      </div>
+    </div>
+    <div class="swrow">
+      <div class="chip" style="background:#27500A"></div>
+      <div class="meta">
+        <div class="hexline"><span class="hex">#27500A</span><span class="role">yes</span><span class="count">×1 · 1 file</span></div>
+        <div class="note">VoteCard's own button-label text for "yes" — distinct from #4D621D (pill text elsewhere).</div>
+        <details><summary>show files</summary><ul><li>src/components/vote/VoteCard.jsx</li></ul></details>
+      </div>
+    </div></div>
+
+</body>
+</html>

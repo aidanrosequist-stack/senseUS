@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: -apple-system, sans-serif; background: #f4f4f4; padding: 30px; }
+  h2 { font-size: 15px; margin: 30px 0 6px; }
+  .sub { font-size: 12px; color: #666; margin: 0 0 14px; max-width: 700px; line-height: 1.5; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .card {
+    width: 160px; min-height: 130px; border-radius: 12px; padding: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); box-sizing: border-box;
+    display: flex; flex-direction: column; justify-content: flex-end;
+  }
+  .pill { font-size: 10px; padding: 2px 8px; border-radius: 20px; display: inline-block; font-weight: 700; border-width: 1.5px; border-style: solid; }
+  .label { text-align: center; font-size: 11px; color: #666; margin-top: 6px; }
+  .fail { color: #c21f1f; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h2>Option A — exactly as you described: tier 2 bg, tier 1 border + tier 1 text</h2>
+<p class="sub">Literal tier-1 hex as both border and text, on the unchanged tier-2 card background.</p>
+<div class="row">
+  <div>
+    <div class="card" style="background:#eef3e0">
+      <div class="pill" style="border-color:#6d8a1c; color:#6d8a1c; background:transparent;">yes</div>
+    </div>
+    <div class="label">yes — 3.5:1 (text needs 4.5)</div>
+  </div>
+  <div>
+    <div class="card" style="background:#faf6d0">
+      <div class="pill" style="border-color:#d9c01a; color:#d9c01a; background:transparent;">leaning yes</div>
+    </div>
+    <div class="label fail">leaning yes — 1.67:1</div>
+  </div>
+  <div>
+    <div class="card" style="background:#f9ead8">
+      <div class="pill" style="border-color:#c2731f; color:#c2731f; background:transparent;">leaning no</div>
+    </div>
+    <div class="label">leaning no — 3.09:1</div>
+  </div>
+  <div>
+    <div class="card" style="background:#f9d8d8">
+      <div class="pill" style="border-color:#c21f1f; color:#c21f1f; background:transparent;">no</div>
+    </div>
+    <div class="label">no — 4.51:1 (just passes)</div>
+  </div>
+</div>
+
+<h2 style="margin-top:40px;">Option B — same idea, adjusted so it's actually legible</h2>
+<p class="sub">
+  Keeps your idea — tier-2 background, tier-1 colored border for the "pop" — but swaps the text for the app's existing darker pill-text shade instead of literal tier 1. Border passes the (more lenient) 3:1 decorative-element threshold for 3 of 4 hues; text passes the stricter 4.5:1 text threshold for all 4.
+</p>
+<div class="row">
+  <div>
+    <div class="card" style="background:#eef3e0">
+      <div class="pill" style="border-color:#6d8a1c; color:#4d621d; background:transparent;">yes</div>
+    </div>
+    <div class="label">border 3.5:1 · text 6.8:1</div>
+  </div>
+  <div>
+    <div class="card" style="background:#faf6d0">
+      <div class="pill" style="border-color:#d9c01a; color:#7a6b0e; background:transparent;">leaning yes</div>
+    </div>
+    <div class="label fail">border 1.67:1 (weak) · text 5.3:1</div>
+  </div>
+  <div>
+    <div class="card" style="background:#f9ead8">
+      <div class="pill" style="border-color:#c2731f; color:#7a4513; background:transparent;">leaning no</div>
+    </div>
+    <div class="label">border 3.09:1 · text 7.8:1</div>
+  </div>
+  <div>
+    <div class="card" style="background:#f9d8d8">
+      <div class="pill" style="border-color:#c21f1f; color:#7a1313; background:transparent;">no</div>
+    </div>
+    <div class="label">border 4.51:1 · text 10.9:1</div>
+  </div>
+</div>
+
+<p class="sub" style="margin-top:20px;">
+  Even in Option B, "leaning yes"'s border is a bit faint (1.67:1 — yellow is just too close in lightness to
+  its own tier-2 background for any thin outline to read clearly, the same physical limit we kept running into
+  earlier). Two ways to handle that one outlier: leave it as a slightly softer border than the other three
+  (it's decorative, not the only way the vote is conveyed — the word "leaning yes" still reads fine), or darken
+  just that one border a bit past literal tier 1 for visual parity. Happy to mock up either.
+</p>
+
+</body>
+</html>

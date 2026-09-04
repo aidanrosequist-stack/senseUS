@@ -17,6 +17,16 @@ const VOTE_LABELS = {
   yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no', dec: 'undecided'
 }
 
+// Darker text for the "voted" badge next to a commenter's name, to match
+// the white-background/darker-border badge style now used everywhere else
+// a vote choice gets a pill (Explore's VOTE_BADGE_TEXT, Activity's
+// VOTE_PILL_STYLES colors) instead of the old flat tinted-background pill.
+// yes/ly/ln/no reuse those exact hex values; dec reuses the text color
+// ResultsCard.jsx already established for an undecided/declined vote.
+const VOTE_BADGE_TEXT = {
+  yes: '#4d621d', ly: '#7a6b0e', ln: '#7a4513', no: '#7a1313', dec: '#0C447C',
+}
+
 // Updated 2026-09-03 (second pass), same tier-2 palette shared with
 // Explore.jsx, VoteCard.jsx, and Activity.jsx's VOTE_WASH — see
 // Explore.jsx's comment for why. These match the vote buttons' own
@@ -194,7 +204,7 @@ function CommentCard({
             </div>
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A' }}>{displayName}</span>
             {voteChoice && (
-              <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: VOTE_COLORS[voteChoice] + '20', color: VOTE_COLORS[voteChoice], fontWeight: 500 }}>
+              <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: '#FFFFFF', border: `1.5px solid ${VOTE_COLORS[voteChoice]}`, color: VOTE_BADGE_TEXT[voteChoice], fontWeight: 700 }}>
                 {VOTE_LABELS[voteChoice]}
               </span>
             )}

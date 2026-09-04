@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: -apple-system, sans-serif; background: #f4f4f4; padding: 30px; }
+  h2 { font-size: 15px; margin: 30px 0 14px; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .card {
+    width: 160px; min-height: 160px; border-radius: 12px; padding: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); box-sizing: border-box;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .badge { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-bottom: 8px; }
+  .qtext { font-size: 12px; font-weight: 500; color: #1A1A1A; line-height: 1.4; font-family: Merriweather, serif; margin-bottom: 8px; }
+  .pill { font-size: 10px; padding: 2px 8px; border-radius: 20px; display: inline-block; font-weight: 500; }
+  .label { text-align: center; font-size: 11px; color: #666; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<h2>BEFORE — light-blue badge + washed white pill</h2>
+<div class="row">
+  <div>
+    <div class="card" style="background:#eef3e0">
+      <div>
+        <div class="badge" style="background:#E6F1FB; color:#0C447C;">deep</div>
+        <div class="qtext">Should remote work be a legal right?</div>
+      </div>
+      <div class="pill" style="background:rgba(255,255,255,0.6); color:#1A1A1A;">yes</div>
+    </div>
+    <div class="label">yes</div>
+  </div>
+  <div>
+    <div class="card" style="background:#faf6d0">
+      <div>
+        <div class="badge" style="background:#E6F1FB; color:#0C447C;">hot take</div>
+        <div class="qtext">Is pineapple on pizza acceptable?</div>
+      </div>
+      <div class="pill" style="background:rgba(255,255,255,0.6); color:#1A1A1A;">leaning yes</div>
+    </div>
+    <div class="label">leaning yes</div>
+  </div>
+  <div>
+    <div class="card" style="background:#f9ead8">
+      <div>
+        <div class="badge" style="background:#E6F1FB; color:#0C447C;">topical</div>
+        <div class="qtext">Should college be free?</div>
+      </div>
+      <div class="pill" style="background:rgba(255,255,255,0.6); color:#1A1A1A;">leaning no</div>
+    </div>
+    <div class="label">leaning no</div>
+  </div>
+  <div>
+    <div class="card" style="background:#f9d8d8">
+      <div>
+        <div class="badge" style="background:#E6F1FB; color:#0C447C;">current events</div>
+        <div class="qtext">Should social media be regulated?</div>
+      </div>
+      <div class="pill" style="background:rgba(255,255,255,0.6); color:#1A1A1A;">no</div>
+    </div>
+    <div class="label">no</div>
+  </div>
+</div>
+
+<h2>AFTER — white badge + bold voted pill</h2>
+<div class="row">
+  <div>
+    <div class="card" style="background:#eef3e0">
+      <div>
+        <div class="badge" style="background:#FFFFFF; color:#0C447C;">deep</div>
+        <div class="qtext">Should remote work be a legal right?</div>
+      </div>
+      <div class="pill" style="background:#4d621d; color:white;">yes</div>
+    </div>
+    <div class="label">yes</div>
+  </div>
+  <div>
+    <div class="card" style="background:#faf6d0">
+      <div>
+        <div class="badge" style="background:#FFFFFF; color:#0C447C;">hot take</div>
+        <div class="qtext">Is pineapple on pizza acceptable?</div>
+      </div>
+      <div class="pill" style="background:#7a6b0e; color:white;">leaning yes</div>
+    </div>
+    <div class="label">leaning yes</div>
+  </div>
+  <div>
+    <div class="card" style="background:#f9ead8">
+      <div>
+        <div class="badge" style="background:#FFFFFF; color:#0C447C;">topical</div>
+        <div class="qtext">Should college be free?</div>
+      </div>
+      <div class="pill" style="background:#7a4513; color:white;">leaning no</div>
+    </div>
+    <div class="label">leaning no</div>
+  </div>
+  <div>
+    <div class="card" style="background:#f9d8d8">
+      <div>
+        <div class="badge" style="background:#FFFFFF; color:#0C447C;">current events</div>
+        <div class="qtext">Should social media be regulated?</div>
+      </div>
+      <div class="pill" style="background:#7a1313; color:white;">no</div>
+    </div>
+    <div class="label">no</div>
+  </div>
+</div>
+
+<h2 style="margin-top:40px;">For reference — true tier 1, why it was rejected</h2>
+<p style="font-size:12px; color:#555; max-width:600px; line-height:1.6;">
+  Tried the literal tier-1 hues (#6d8a1c / #d9c01a / #c2731f / #c21f1f) as the pill background first.
+  No single text color passes 4.5:1 against all four: white fails yes/leaning-yes/leaning-no
+  (3.96 / 1.83 / 3.64:1), black fails no (2.91:1 with #1A1A1A, 3.51:1 even with true black — still short of 4.5).
+  The version above reuses the same palette's darker member (already in the app as VOTE_PILL_STYLES'
+  text color) as a solid pill instead — same boldness, passes 5.3–10.9:1 with white text on all four.
+</p>
+<div class="row">
+  <div class="pill" style="background:#6d8a1c; color:white; padding:4px 10px;">yes (white text, 3.96:1 — fails)</div>
+  <div class="pill" style="background:#d9c01a; color:#1A1A1A; padding:4px 10px;">leaning yes (black text, 9.5:1 — but yellow itself fails w/ white)</div>
+  <div class="pill" style="background:#c21f1f; color:#1A1A1A; padding:4px 10px;">no (black text, 2.9:1 — fails)</div>
+</div>
+
+</body>
+</html>
