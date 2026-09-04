@@ -5,7 +5,7 @@ import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-import { IconWaveSine, IconCornerDownRight, IconNews } from '@tabler/icons-react'
+import { IconWaveSine, IconCornerDownRight, IconNews, IconThumbUp, IconThumbDown } from '@tabler/icons-react'
 import { checkComment } from '../lib/moderation'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
@@ -881,26 +881,50 @@ export default function Conversation() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
         <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', flex: 1, paddingBottom: '2px' }}>
           {[
-            { key: 'all', label: 'All', wash: '#E6F1FB', bold: '#2D3DCA', text: '#0C447C' },
-            { key: 'yes', label: 'Yes', wash: '#F4F8EC', bold: VOTE_COLORS.yes, text: VOTE_COLORS.yes },
-            { key: 'ly', label: 'LY', wash: '#FBF8E4', bold: VOTE_COLORS.ly, text: '#7a6b0e' },
-            { key: 'ln', label: 'LN', wash: '#FBF1E6', bold: VOTE_COLORS.ln, text: VOTE_COLORS.ln },
-            { key: 'no', label: 'No', wash: '#FBEAEA', bold: VOTE_COLORS.no, text: VOTE_COLORS.no },
-          ].map(f => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              style={{
-                padding: '5px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer',
-                fontSize: '11px', fontWeight: 500, fontFamily: 'Merriweather, serif', whiteSpace: 'nowrap', flexShrink: 0,
-                background: filter === f.key ? f.bold : f.wash,
-                color: filter === f.key ? 'white' : f.text,
-                transition: 'background 0.15s ease, color 0.15s ease',
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
+            { key: 'all', label: 'All', bold: '#2D3DCA', text: '#0C447C' },
+            { key: 'yes', label: 'Yes', bold: VOTE_COLORS.yes, text: VOTE_COLORS.yes },
+            { key: 'ly', label: 'Leaning yes', bold: VOTE_COLORS.ly, text: '#7a6b0e' },
+            { key: 'ln', label: 'Leaning no', bold: VOTE_COLORS.ln, text: VOTE_COLORS.ln },
+            { key: 'no', label: 'No', bold: VOTE_COLORS.no, text: VOTE_COLORS.no },
+          ].map(f => {
+            const isSelected = filter === f.key
+            const iconColor = isSelected ? '#FFFFFF' : f.text
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                aria-label={`Filter: ${f.label}`}
+                aria-pressed={isSelected}
+                title={f.label}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: f.key === 'all' ? '5px 12px' : '6px 10px', borderRadius: '20px', cursor: 'pointer',
+                  fontSize: '11px', fontWeight: isSelected ? 700 : 500, fontFamily: 'Merriweather, serif', whiteSpace: 'nowrap', flexShrink: 0,
+                  // White-background/darker-border when unselected, solid
+                  // fill when selected — matches the voted-badge style now
+                  // used everywhere else in the app (Explore's card badge,
+                  // Activity's History tab, the comment badge above).
+                  background: isSelected ? f.bold : '#FFFFFF',
+                  border: isSelected ? '1.5px solid transparent' : `1.5px solid ${f.bold}`,
+                  color: iconColor,
+                  transition: 'background 0.15s ease, color 0.15s ease, border-color 0.15s ease',
+                }}
+              >
+                {/* Thumb icons instead of text for yes/leaning-yes/
+                    leaning-no/no — same up/down + 45°-rotate-for-"leaning"
+                    convention Activity.jsx's VoteIcon already established,
+                    so a comment's own vote badge, the vote buttons, and
+                    this filter row all read the same shorthand. "All" has
+                    no natural thumb equivalent, so it keeps its text label. */}
+                {f.key === 'all' ? f.label
+                  : f.key === 'yes' ? <IconThumbUp size={14} color={iconColor} />
+                  : f.key === 'ly' ? <IconThumbUp size={14} color={iconColor} style={{ transform: 'rotate(45deg)' }} />
+                  : f.key === 'ln' ? <IconThumbDown size={14} color={iconColor} style={{ transform: 'rotate(45deg)' }} />
+                  : <IconThumbDown size={14} color={iconColor} />
+                }
+              </button>
+            )
+          })}
         </div>
         <select
           value={sort}
