@@ -599,7 +599,7 @@ export default function Activity() {
           <SkeletonCard />
         </div>
       ) : (
-        <>
+        <div style={{ animation: 'senseus-content-in 0.35s ease' }}>
           {/* Comments tab */}
           {tab === 'comments' && (
             <div>
@@ -770,7 +770,7 @@ export default function Activity() {
               )}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {actionSheet && (
