@@ -2,7 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/senseUS-logo.png" />
+    <!-- favicon.svg is the actual purpose-built small mark (public/favicon.svg,
+         48x46, single brand-color path) — it existed in the repo already but
+         was never referenced here, so every browser fell back to whatever it
+         could make of the full detailed logo PNG below (or, for surfaces like
+         Chrome's address-bar suggestions that specifically look for a small
+         dedicated icon, nothing usable at all — hence the generic icon
+         showing up for the bare domain while already-visited pages, which
+         Chrome caches a page-fetched icon for separately, still showed the
+         real logo). SVG first (modern browsers, crisp at any size), PNG as
+         the fallback for anything that doesn't support SVG favicons. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/senseUS-logo.png" />
+    <link rel="apple-touch-icon" href="/senseUS-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>senseUS — real humans. real opinions. real truth.</title>
     <meta name="description" content="senseUS is a verified human opinion platform. One person, one account, one voice." />
