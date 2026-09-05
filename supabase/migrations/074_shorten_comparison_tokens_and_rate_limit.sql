@@ -59,14 +59,26 @@ ALTER TABLE public.profiles
 
 -- ---------- generate_short_token(): the new, shorter token source ----------
 --
--- One gen_random_bytes() draw per character, mapped into a 62-symbol
--- alphabet via modulo. This has a small, known modulo bias (256 isn't
--- evenly divisible by 62, so the lowest 8 symbols in the alphabet are
--- ~1.6% more likely than the rest) — acceptable here: this is a
--- shareable invite link, not a cryptographic key, and the bias doesn't
--- meaningfully reduce the ~59.5 bits of entropy at length 10 (log2(62)
--- * 10), which combined with the rate limit below is already far beyond
--- anything worth brute-forcing.
+-- Draws one random byte per character via gen_random_uuid() -- NOT
+-- gen_random_bytes(), even though that's the obvious pgcrypto function
+-- for this. gen_random_bytes() requires the pgcrypto extension, which
+-- isn't guaranteed to be enabled (or on this role's search_path) on
+-- every Supabase project -- confirmed the hard way, this migration
+-- failed outright on first push with "function gen_random_bytes(integer)
+-- does not exist". gen_random_uuid(), by contrast, has been a
+-- pg_catalog core built-in (backed by the same OS-level CSPRNG,
+-- pg_strong_random) since Postgres 13, with zero extension dependency
+-- -- which is exactly why the rest of this codebase already uses it
+-- everywhere for id defaults without ever needing to enable pgcrypto.
+-- Each generate_series row calls it fresh (it's volatile), decodes it
+-- back to its raw 16 bytes via core encode/decode, not pgcrypto, and
+-- takes the first byte. Same small, known modulo bias as any
+-- byte-mod-62 mapping (256 isn't evenly divisible by 62, so the lowest
+-- 8 symbols in the alphabet are ~1.6% more likely than the rest) --
+-- acceptable here: this is a shareable invite link, not a cryptographic
+-- key, and the bias doesn't meaningfully reduce the ~59.5 bits of
+-- entropy at length 10 (log2(62) * 10), which combined with the rate
+-- limit below is already far beyond anything worth brute-forcing.
 CREATE OR REPLACE FUNCTION public.generate_short_token(p_length integer DEFAULT 10)
  RETURNS text
  LANGUAGE sql
@@ -75,7 +87,7 @@ AS $function$
   select string_agg(
     substr(
       '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
-      (get_byte(gen_random_bytes(1), 0) % 62) + 1,
+      (get_byte(decode(replace(gen_random_uuid()::text, '-', ''), 'hex'), 0) % 62) + 1,
       1
     ),
     ''
