@@ -115,9 +115,15 @@ export default function Vote() {
       throw new Error('This question is no longer available.')
     }
 
+    // was_new_vote/answers_count (migration 073) let QuestionFlow decide
+    // authoritatively whether this is the account's genuine first-ever
+    // vote, instead of the old localStorage-only guess — see that
+    // migration's own comment for why answers_count alone isn't enough
+    // on its own (a change to your one-and-only vote wouldn't increment
+    // it either) and was_new_vote is needed alongside it.
     return freshTally
-      ? { yes: freshTally.yes, ly: freshTally.ly, ln: freshTally.ln, no: freshTally.no }
-      : { yes: 0, ly: 0, ln: 0, no: 0 }
+      ? { yes: freshTally.yes, ly: freshTally.ly, ln: freshTally.ln, no: freshTally.no, wasNewVote: freshTally.was_new_vote, answersCount: freshTally.answers_count }
+      : { yes: 0, ly: 0, ln: 0, no: 0, wasNewVote: false, answersCount: null }
   }
   
   async function handleHideQuestion(questionId) {

@@ -23,13 +23,14 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
   // question comes after (a normal forward skip/advance shouldn't play
   // this animation).
   const [enterFromAbove, setEnterFromAbove] = useState(false)
-  // One-shot celebration for a user's very first successful vote (see
-  // handleVote below) — localStorage-gated the same way a few other
-  // one-time UI moments already are in this app (senseus_onboarded,
-  // senseus_seen_longpress_hint_explore), rather than threading a real
-  // "is this actually vote #1 ever" check through the profile/RPC layer
-  // for what's purely a delight moment, not something that needs to be
-  // authoritative.
+  // One-shot celebration for a user's very first successful vote ever on
+  // the account (see handleVote below). Used to be gated purely by a
+  // localStorage flag — simple, but per-device, so it re-fired the first
+  // time someone voted from a second device/browser even though their
+  // account had already voted before. As of migration 073, cast_vote()
+  // itself returns whether this call was a genuine new vote and the
+  // account's running distinct-questions-voted count, so this is now
+  // authoritative and account-wide with no extra round trip.
   const [firstVoteToShow, setFirstVoteToShow] = useState(false)
 
   useEffect(() => {
@@ -68,16 +69,31 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
         freshTally = await onVote(currentQuestion.id, value, tally)
       }
 
+      // wasNewVote/answersCount (migration 073) ride along on freshTally
+      // just for this check — pulled off here so only the actual
+      // yes/ly/ln/no counts ever land in the tallies cache below.
+      const wasNewVote = freshTally?.wasNewVote
+      const answersCount = freshTally?.answersCount
+      const tallyCounts = freshTally ? { yes: freshTally.yes, ly: freshTally.ly, ln: freshTally.ln, no: freshTally.no } : null
+
       // Only now — after the save is confirmed — update local state and transition
       if (!isChange) {
-        const updatedTally = freshTally || { ...tally, [value]: (tally[value] || 0) + 1 }
+        const updatedTally = tallyCounts || { ...tally, [value]: (tally[value] || 0) + 1 }
         setTallies((prev) => ({ ...prev, [currentQuestion.id]: updatedTally }))
-      } else if (freshTally) {
-        setTallies((prev) => ({ ...prev, [currentQuestion.id]: freshTally }))
+      } else if (tallyCounts) {
+        setTallies((prev) => ({ ...prev, [currentQuestion.id]: tallyCounts }))
       }
 
-      if (!isChange && localStorage.getItem('senseus_first_vote_celebrated') !== 'true') {
-        localStorage.setItem('senseus_first_vote_celebrated', 'true')
+      // Authoritative now (migration 073), not a localStorage guess:
+      // wasNewVote means this call genuinely inserted a new vote row
+      // (not a change to an existing one — closing a gap the old
+      // isChange-only check had for someone deep-linking in to change
+      // their one-and-only vote, see that migration's own comment), and
+      // answersCount === 1 means the account has never voted on any
+      // other question either. Together, this can only ever be true once
+      // per account, on any device — no need to gate it behind a
+      // per-device flag anymore.
+      if (wasNewVote && answersCount === 1) {
         setFirstVoteToShow(true)
       }
 
