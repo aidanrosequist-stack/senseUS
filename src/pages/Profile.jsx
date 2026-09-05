@@ -449,8 +449,11 @@ async function openIntegrityInfo() {
             <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
               Reach your full weight
             </div>
+            <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.7, marginBottom: '0.5rem' }}>
+              Your vote can be worth slightly more if you use the app regularly — it's one of the ways we help stop bots.
+            </p>
             <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.7, marginBottom: '1rem' }}>
-              Your integrity weight reflects sustained, genuine participation. It only ever moves up, and it's based on your activity over the last 30 days.
+              It reflects sustained, genuine participation, only ever moves up, and is based on your activity over the last 30 days.
             </p>
             {!integrityStatus ? (
               <div style={{ padding: '0.5rem 0' }}><LoadingSpinner size={18} label={null} /></div>

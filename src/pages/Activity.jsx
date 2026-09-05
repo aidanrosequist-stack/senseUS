@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { Skeleton, SkeletonCard } from '../components/ui/Skeleton'
-import { useLongPress } from '../hooks/useLongPress'
+import { useLongPress, LONG_PRESS_NO_SELECT } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
 import { IconThumbUp, IconThumbDown } from '@tabler/icons-react'
 import { usePageTitle } from '../hooks/usePageTitle'
@@ -88,7 +88,7 @@ function MyCommentCard({ c, navigate, onLongPress }) {
     <div
       onClick={() => { if (!longPress.wasLongPress()) navigate(`/conversation/${c.questions?.id}`) }}
       {...longPress}
-      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}
+      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', ...LONG_PRESS_NO_SELECT }}
     >
       <div style={{ fontSize: '11px', color: '#0C447C', background: '#E6F1FB', display: 'inline-block', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
         {c.questions?.category}
@@ -122,7 +122,7 @@ function MyCommentCard({ c, navigate, onLongPress }) {
 function ShiftCard({ shift, onLongPress }) {
   const longPress = useLongPress(() => onLongPress(shift))
   return (
-    <div {...longPress} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+    <div {...longPress} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', ...LONG_PRESS_NO_SELECT }}>
       <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.4, marginBottom: '8px' }}>
         {shift.questions?.text}
       </div>
@@ -161,7 +161,7 @@ function ShiftCard({ shift, onLongPress }) {
 function RevisitCard({ skip, navigate, onLongPress, onRevisit }) {
   const longPress = useLongPress(() => onLongPress(skip))
   return (
-    <div {...longPress} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+    <div {...longPress} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', ...LONG_PRESS_NO_SELECT }}>
       <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5, marginBottom: '8px' }}>
         {skip.questions?.text}
       </div>
@@ -180,7 +180,7 @@ function RevisitCard({ skip, navigate, onLongPress, onRevisit }) {
   )
 }
 
-function HistoryCard({ vote, snapshotMap, navigate, onLongPress }) {
+function HistoryCard({ vote, snapshotMap, onLongPress }) {
   const longPress = useLongPress(() => onLongPress(vote))
   const todaySnap = snapshotMap[vote.questions?.id]?.today
   const weekSnap = snapshotMap[vote.questions?.id]?.sevenDaysAgo
@@ -189,7 +189,7 @@ function HistoryCard({ vote, snapshotMap, navigate, onLongPress }) {
   const trend = weekSnap ? currentPctYes - weekSnap.pct_yes : null
 
   return (
-    <div {...longPress} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '12px 14px' }}>
+    <div {...longPress} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '12px 14px', ...LONG_PRESS_NO_SELECT }}>
       <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.5 }}>
         {vote.questions?.text}
       </div>
@@ -236,20 +236,6 @@ function HistoryCard({ vote, snapshotMap, navigate, onLongPress }) {
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-        <button
-          onClick={() => navigate(`/vote?question=${vote.questions?.id}&currentVote=${vote.choice}`)}
-          style={{ flex: 1, padding: '6px', background: '#F3F4F6', color: '#1A1A1A', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-        >
-          Change vote
-        </button>
-        <button
-          onClick={() => navigate(`/conversation/${vote.questions?.id}`)}
-          style={{ flex: 1, padding: '6px', background: '#E6F1FB', color: '#0C447C', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-        >
-          View conversation
-        </button>
-      </div>
     </div>
   )
 }
@@ -673,10 +659,16 @@ export default function Activity() {
                       navigate={navigate}
                       onLongPress={(comment) => setActionSheet({
                         title: comment.questions?.text,
+                        // "View this question" first and "Change my vote"
+                        // second, same ordering as every other longpress
+                        // sheet in this file — and change-vote added here
+                        // for the first time, since a comment is tied to a
+                        // real vote just like History/Shifts are.
                         actions: [
+                          { label: 'View this question', onClick: () => navigate(`/conversation/${comment.questions?.id}`) },
+                          { label: 'Change my vote', onClick: () => navigate(`/vote?question=${comment.questions?.id}&currentVote=${comment.voteChoice}`) },
                           { label: 'Share this question', onClick: () => shareQuestion(comment.questions) },
                           { label: 'Share your comment', onClick: () => shareComment(comment) },
-                          { label: 'View', onClick: () => navigate(`/conversation/${comment.questions?.id}`) },
                         ],
                       })}
                     />
@@ -731,8 +723,9 @@ export default function Activity() {
                       onLongPress={(s) => setActionSheet({
                         title: s.questions?.text,
                         actions: [
+                          { label: 'View this question', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
+                          { label: 'Change my vote', onClick: () => navigate(`/vote?question=${s.questions?.id}&currentVote=${s.choice}`) },
                           { label: 'Share this question', onClick: () => shareQuestion(s.questions) },
-                          { label: 'View', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
                         ],
                       })}
                     />
@@ -758,9 +751,12 @@ export default function Activity() {
                       navigate={navigate}
                       onLongPress={(s) => setActionSheet({
                         title: s.questions?.text,
+                        // No "Change my vote" here — a skipped question has
+                        // no vote on it yet to change (that's what the
+                        // card's own "Revisit →" button is for).
                         actions: [
+                          { label: 'View this question', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
                           { label: 'Share this question', onClick: () => shareQuestion(s.questions) },
-                          { label: 'View', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
                         ],
                       })}
                       onRevisit={async (s) => {
@@ -804,13 +800,17 @@ export default function Activity() {
                       key={vote.id}
                       vote={vote}
                       snapshotMap={snapshotMap}
-                      navigate={navigate}
                       onLongPress={(v) => setActionSheet({
                         title: v.questions?.text,
+                        // These two buttons used to live under the card
+                        // itself — removed so long-pressing the card (this
+                        // sheet) becomes the one way to reach them, right
+                        // from the start rather than a fallback most people
+                        // never discover.
                         actions: [
-                          { label: 'Share this question', onClick: () => shareQuestion(v.questions) },
-                          { label: 'View', onClick: () => navigate(`/conversation/${v.questions?.id}`) },
+                          { label: 'View this question', onClick: () => navigate(`/conversation/${v.questions?.id}`) },
                           { label: 'Change my vote', onClick: () => navigate(`/vote?question=${v.questions?.id}&currentVote=${v.choice}`) },
+                          { label: 'Share this question', onClick: () => shareQuestion(v.questions) },
                         ],
                       })}
                     />

@@ -1,5 +1,23 @@
 import { useRef, useCallback } from 'react'
 
+// Spread onto any element that also spreads useLongPress()'s handlers —
+// without this, holding a finger down long enough to trigger the
+// long-press often also triggers the platform's native text-selection
+// (a blue highlight on Android/desktop, the copy/select/lookup callout
+// on iOS) on whatever text is under the touch point, since a long-press
+// is exactly the gesture browsers use for that too. The two behaviors
+// compete and the native one is confusing here — it pops up general
+// text tools on a card whose long-press is meant to open a completely
+// different, card-specific action menu. This suppresses ONLY that
+// automatic selection/callout; the action sheet itself still opens
+// normally.
+export const LONG_PRESS_NO_SELECT = {
+  userSelect: 'none',
+  WebkitUserSelect: 'none',
+  MozUserSelect: 'none',
+  WebkitTouchCallout: 'none',
+}
+
 // A shared long-press gesture, usable on any card across the app —
 // Explore thumbnails, Shifts, Comments, Revisit, History, etc.
 // Works for both touch and mouse, so it behaves the same on the native

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { Skeleton } from '../components/ui/Skeleton'
-import { useLongPress } from '../hooks/useLongPress'
+import { useLongPress, LONG_PRESS_NO_SELECT } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
 import VisuallyHidden from '../components/ui/VisuallyHidden'
 import { usePageTitle } from '../hooks/usePageTitle'
@@ -118,6 +118,7 @@ function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
         justifyContent: 'space-between',
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         boxSizing: 'border-box',
+        ...LONG_PRESS_NO_SELECT,
       }}
     >
       <div>
@@ -177,6 +178,7 @@ function SearchResultCard({ question, userVote, onClick, onLongPress }) {
         marginBottom: '10px',
         cursor: 'pointer',
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        ...LONG_PRESS_NO_SELECT,
       }}
     >
       <div style={{
