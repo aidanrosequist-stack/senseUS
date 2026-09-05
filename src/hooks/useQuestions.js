@@ -84,7 +84,18 @@ export function useQuestions(userId) {
         let unanswered
         let usingFallbackPool = false
 
-        if (hasMatch) {
+        if (candidates.length === 0) {
+          // Nothing came back at all — get_candidate_questions already
+          // excludes everything this user has voted on or skipped, so an
+          // empty result means there's genuinely no question left for
+          // them anywhere, not just none matching their country/region.
+          // `hasMatch` is also false here (.some() on an empty array),
+          // so without this branch this used to fall into the "matching
+          // pool exhausted, widening to other countries" case below and
+          // wrongly claim there's a fallback pool to show — there isn't;
+          // it's just empty either way.
+          unanswered = []
+        } else if (hasMatch) {
           // Normal case — sprinkle in non-matching country questions at a low rate
           unanswered = candidates.filter(q => {
             if (matchesUser(q)) return true

@@ -183,34 +183,47 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
     swipeStart.current = null
   }
 
-  if (!currentQuestion) return null
-
-  if (currentIndex >= questions.length) {
-    return (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1.5rem',
-          textAlign: 'center',
-        }}
-      >
-        <div style={{ fontSize: '16px', fontWeight: 500, color: '#1A1A1A', marginBottom: '0.5rem' }}>
-          You've answered every available question right now
-        </div>
-        <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '1.25rem' }}>Check back soon for more questions.</p>
-        <button
-          onClick={() => navigate('/explore')}
-          style={{ padding: '10px 20px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+  // currentQuestion is undefined both when the feed is genuinely
+  // exhausted (currentIndex has reached questions.length) and in a
+  // couple of transient/defensive states that aren't that. These used
+  // to be two separate top-level checks with the exhausted-feed message
+  // written second — but currentQuestion is ALSO undefined in exactly
+  // that case, so the earlier bare `if (!currentQuestion) return null`
+  // always fired first and the dedicated "you've answered everything"
+  // screen below was unreachable dead code; running out of questions
+  // silently rendered a blank card instead of ever showing it. Nesting
+  // the checks (exhausted-feed message takes priority whenever
+  // currentQuestion is missing) fixes that while still falling back to
+  // a bare `null` for any other transient undefined-question state.
+  if (!currentQuestion) {
+    if (currentIndex >= questions.length) {
+      return (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem',
+            textAlign: 'center',
+          }}
         >
-          Browse Explore instead
-        </button>
-      </div>
-    )
+          <div style={{ fontSize: '16px', fontWeight: 500, color: '#1A1A1A', marginBottom: '0.5rem' }}>
+            You've answered every available question right now
+          </div>
+          <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '1.25rem' }}>Check back soon for more questions.</p>
+          <button
+            onClick={() => navigate('/explore')}
+            style={{ padding: '10px 20px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+          >
+            Browse Explore instead
+          </button>
+        </div>
+      )
+    }
+    return null
   }
 
   return (

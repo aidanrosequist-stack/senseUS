@@ -14,9 +14,20 @@ export default function Vote() {
   usePageTitle('Vote')
   const { user } = useAuth()
   const { questions, loading, error, usingFallbackPool } = useQuestions(user?.id)
-  const [showGlobalNotice, setShowGlobalNotice] = useState(
-    usingFallbackPool && localStorage.getItem('senseus_seen_global_notice') !== 'true'
-  )
+  // This used to be a useState *initializer* reading usingFallbackPool
+  // directly — but useQuestions starts with usingFallbackPool false and
+  // only sets it (asynchronously, after its fetch resolves) once
+  // loading finishes. A useState initializer only runs once, on this
+  // component's very first render, when usingFallbackPool is always
+  // still false — so this notice was never actually showing for anyone,
+  // regardless of whether the fallback pool genuinely kicked in. An
+  // effect that reacts to usingFallbackPool actually changing fixes it.
+  const [showGlobalNotice, setShowGlobalNotice] = useState(false)
+  useEffect(() => {
+    if (usingFallbackPool && localStorage.getItem('senseus_seen_global_notice') !== 'true') {
+      setShowGlobalNotice(true)
+    }
+  }, [usingFallbackPool])
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const targetQuestionId = searchParams.get('question')
