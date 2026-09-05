@@ -16,6 +16,14 @@ const VOTE_LABELS = {
   yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no'
 }
 
+// Darker text for the white-background/darker-border pill style, same
+// hex values as Explore's VOTE_BADGE_TEXT / Activity's VOTE_PILL_STYLES —
+// see Explore.jsx's own comment for why this palette (not true tier-1 as
+// the text color) was chosen for contrast reasons.
+const VOTE_BADGE_TEXT = {
+  yes: '#4d621d', ly: '#7a6b0e', ln: '#7a4513', no: '#7a1313',
+}
+
 // 'Closely' groups by side of the issue (yes/leaning-yes vs no/leaning-no);
 // 'exactly' only counts agreement when both picked the identical choice.
 const SAME_SIDE = { yes: 'yes', ly: 'yes', ln: 'no', no: 'no' }
@@ -146,10 +154,31 @@ export default function Compare() {
     // Was a raw table update with no expiry check — accept_comparison_token
     // enforces the 48h expiry (and self-accept/double-accept) server-side,
     // since a client-side-only check can always be bypassed.
-    const { error } = await supabase.rpc('accept_comparison_token', { p_token: token })
+    //
+    // As of migration 074, every rejection (rate-limited, not found,
+    // self-accept, already-processed, expired) comes back as a normal
+    // row with a rejected_reason instead of a thrown error — needed so
+    // the rate-limit cooldown's own timestamp write always commits, even
+    // on a bad-token guess (a RAISE EXCEPTION would have rolled that
+    // write back along with everything else in the same call).
+    const { data, error } = await supabase.rpc('accept_comparison_token', { p_token: token }).single()
 
     if (error) {
       alert(error.message || 'This link is no longer available — it may have already been used or expired.')
+      setProcessing(false)
+      return
+    }
+
+    const REJECTION_MESSAGES = {
+      rate_limited: "You're trying that a little too fast — give it a second and try again.",
+      not_found: 'This comparison link could not be found.',
+      self_accept: 'You cannot accept your own comparison link.',
+      already_processed: 'This comparison link is no longer pending.',
+      expired: 'This comparison link has expired.',
+    }
+
+    if (data?.rejected_reason && REJECTION_MESSAGES[data.rejected_reason]) {
+      alert(REJECTION_MESSAGES[data.rejected_reason])
       setProcessing(false)
       return
     }
@@ -282,9 +311,26 @@ export default function Compare() {
 
           {!notFound && tokenRow?.status === 'accepted' && comparison && (
             <div>
-              <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '1.25rem', textAlign: 'center' }}>
+              <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: (comparison.myProfile?.bio || comparison.otherProfile?.bio) ? '0.5rem' : '1.25rem', textAlign: 'center' }}>
                 You vs {getDisplayName(comparison.otherProfile)}
               </h1>
+
+              {/* Settings has had a "one line about you" bio field for a
+                  while with nowhere in the app that ever displayed it —
+                  this is that place: right under each person's name in
+                  the one screen that's specifically about the two of you,
+                  side by side. Only rendered at all if at least one side
+                  actually wrote one. */}
+              {(comparison.myProfile?.bio || comparison.otherProfile?.bio) && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1.25rem' }}>
+                  <div style={{ fontSize: '11px', color: '#6B7280', fontStyle: 'italic', textAlign: 'center', lineHeight: 1.4 }}>
+                    {comparison.myProfile?.bio || ''}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#6B7280', fontStyle: 'italic', textAlign: 'center', lineHeight: 1.4 }}>
+                    {comparison.otherProfile?.bio || ''}
+                  </div>
+                </div>
+              )}
 
               {comparison.shared.length === 0 ? (
                 <p style={{ fontSize: '13px', color: '#6B7280', textAlign: 'center' }}>
@@ -391,10 +437,15 @@ export default function Compare() {
                             {s.question.text}
                           </div>
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: VOTE_COLORS[s.mine] + '20', color: VOTE_COLORS[s.mine], fontWeight: 500 }}>
+                            {/* White background + darker border, matching
+                                the voted-pill style now used everywhere
+                                else (Explore, Activity's History tab,
+                                Conversation's comment badge and filter
+                                pills) instead of the old flat tinted pill. */}
+                            <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#FFFFFF', border: `1.5px solid ${VOTE_COLORS[s.mine]}`, color: VOTE_BADGE_TEXT[s.mine], fontWeight: 700 }}>
                               You: {VOTE_LABELS[s.mine]}
                             </span>
-                            <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: VOTE_COLORS[s.theirs] + '20', color: VOTE_COLORS[s.theirs], fontWeight: 500 }}>
+                            <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#FFFFFF', border: `1.5px solid ${VOTE_COLORS[s.theirs]}`, color: VOTE_BADGE_TEXT[s.theirs], fontWeight: 700 }}>
                               Them: {VOTE_LABELS[s.theirs]}
                             </span>
                             {isAgree && (

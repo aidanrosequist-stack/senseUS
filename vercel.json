@@ -12,6 +12,17 @@
       "destination": "https://gckjlshfesyxualwxurj.supabase.co/functions/v1/og-preview?number=:number"
     },
     {
+      "source": "/compare/:token",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|iMessage|Pinterestbot|Googlebot).*"
+        }
+      ],
+      "destination": "https://gckjlshfesyxualwxurj.supabase.co/functions/v1/og-preview?token=:token"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }
