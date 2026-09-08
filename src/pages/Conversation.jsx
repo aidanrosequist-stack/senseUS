@@ -285,21 +285,31 @@ function CommentCard({
           // one body exactly as before.
           <div style={{ margin: '0 0 10px' }}>
             {comment.original_body && (
-              <p
-                style={{
-                  fontSize: '13px',
-                  color: '#6B7280',
-                  lineHeight: 1.6,
-                  margin: '0 0 4px',
-                  padding: '8px 10px',
-                  borderRadius: '6px',
-                  background: VOTE_WASH[comment.original_vote_choice] || '#F9FAFB',
-                  textDecoration: 'line-through',
-                  textDecorationColor: '#9CA3AF',
-                }}
-              >
-                {comment.original_body}
-              </p>
+              <>
+                {/* A short struck-through line with only 4px below it read
+                    as a caption on the current text rather than a distinct
+                    block of its own — easy to skim past. This label plus
+                    the wider gap below make it unmistakably a separate,
+                    earlier version of the comment. */}
+                <p style={{ fontSize: '10px', color: '#6B7280', fontStyle: 'italic', margin: '0 0 2px' }}>
+                  Originally posted:
+                </p>
+                <p
+                  style={{
+                    fontSize: '13px',
+                    color: '#6B7280',
+                    lineHeight: 1.6,
+                    margin: '0 0 8px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    background: VOTE_WASH[comment.original_vote_choice] || '#F9FAFB',
+                    textDecoration: 'line-through',
+                    textDecorationColor: '#9CA3AF',
+                  }}
+                >
+                  {comment.original_body}
+                </p>
+              </>
             )}
             <p
               style={{
@@ -650,6 +660,22 @@ export default function Conversation() {
     const check = checkComment(editText)
     if (!check.allowed) {
       alert(check.reason)
+      return
+    }
+
+    // Hitting Save without actually changing the text is a no-op as far
+    // as snapshot_comment_edit_history() (migration 072) is concerned --
+    // it leaves original_body/edit_count/vote_choice_at_comment alone --
+    // but this client was still unconditionally sending a fresh
+    // edited_at on every save, which put a misleading "--edited--" tag
+    // (and the now-updated "Originally posted:" block, if this had
+    // already been edited before) on a comment nothing was actually
+    // changed on. Treat it like Cancel instead of sending that no-op
+    // UPDATE at all.
+    const current = comments.find(c => c.id === commentId)
+    if (current && editText.trim() === current.body) {
+      setEditingId(null)
+      setEditText('')
       return
     }
 
