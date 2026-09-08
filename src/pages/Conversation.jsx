@@ -283,6 +283,16 @@ function CommentCard({
           // in whatever the vote stance is as of the most recent edit.
           // Never touched for an unedited comment, which just renders its
           // one body exactly as before.
+          //
+          // As of migration 076, a SECOND edit also gets its own
+          // struck-through block: previous_body/previous_vote_choice
+          // capture whatever the comment said (and what vote it was under)
+          // right before the MOST RECENT edit, updated on every genuine
+          // edit rather than just the first. After only one edit,
+          // previous_body is identical to original_body, so
+          // hasDistinctPreviousVersion is false and only one block shows —
+          // nothing changes visually from a single-edit comment. Only once
+          // a second edit has happened do the two diverge and both render.
           <div style={{ margin: '0 0 10px' }}>
             {comment.original_body && (
               <>
@@ -308,6 +318,28 @@ function CommentCard({
                   }}
                 >
                   {comment.original_body}
+                </p>
+              </>
+            )}
+            {comment.previous_body && comment.previous_body !== comment.original_body && (
+              <>
+                <p style={{ fontSize: '10px', color: '#6B7280', fontStyle: 'italic', margin: '0 0 2px' }}>
+                  Then edited to:
+                </p>
+                <p
+                  style={{
+                    fontSize: '13px',
+                    color: '#6B7280',
+                    lineHeight: 1.6,
+                    margin: '0 0 8px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    background: VOTE_WASH[comment.previous_vote_choice] || '#F9FAFB',
+                    textDecoration: 'line-through',
+                    textDecorationColor: '#9CA3AF',
+                  }}
+                >
+                  {comment.previous_body}
                 </p>
               </>
             )}
@@ -548,7 +580,11 @@ export default function Conversation() {
         // votes — it no longer silently changes if the commenter later
         // changes their vote. original_body/original_vote_choice/
         // edit_count carry the edit-history CommentCard now renders as
-        // a struck-through "original" above the current text.
+        // a struck-through "original" above the current text. As of
+        // migration 076, previous_body/previous_vote_choice carry a
+        // SECOND struck-through block for whatever the comment said right
+        // before its most recent edit (only rendered when it differs from
+        // original_body — i.e. once a comment's been edited twice).
         const commentsWithVotes = (commentsData || []).map(c => ({
           id: c.id,
           body: c.body,
@@ -560,6 +596,8 @@ export default function Conversation() {
           is_own: c.is_own,
           original_body: c.original_body,
           original_vote_choice: c.original_vote_choice,
+          previous_body: c.previous_body,
+          previous_vote_choice: c.previous_vote_choice,
           edit_count: c.edit_count,
           profiles: {
             first_name: c.first_name,
@@ -638,7 +676,8 @@ export default function Conversation() {
       // INSERT, so local state stays shaped the same as a fetched row.
       const newCommentWithVote = {
         ...data, is_own: true, votes: [{ choice: userVote }],
-        original_body: null, original_vote_choice: null, edit_count: 0,
+        original_body: null, original_vote_choice: null,
+        previous_body: null, previous_vote_choice: null, edit_count: 0,
       }
       setComments(prev => parentId
         ? [...prev, newCommentWithVote]
@@ -679,12 +718,15 @@ export default function Conversation() {
       return
     }
 
-    // original_body/original_vote_choice/edit_count/vote_choice_at_comment
-    // are all computed server-side by snapshot_comment_edit_history()
-    // (migration 072) — freezing the pre-edit text+vote stance on the
-    // FIRST edit only, re-snapshotting the current vote stance on every
-    // edit, and enforcing the 2-edit cap — so this reads them back from
-    // the update itself rather than guessing them client-side.
+    // original_body/original_vote_choice/previous_body/previous_vote_choice/
+    // edit_count/vote_choice_at_comment are all computed server-side by
+    // snapshot_comment_edit_history() (migrations 072 + 076) — freezing
+    // the pre-edit text+vote stance permanently on the FIRST edit only,
+    // freezing previous_body/previous_vote_choice to whatever was just
+    // superseded on EVERY genuine edit, re-snapshotting the current vote
+    // stance on every edit, and enforcing the 2-edit cap — so this reads
+    // them back from the update itself rather than guessing them
+    // client-side.
     const { data, error } = await supabase
       .from('comments')
       .update({
@@ -694,7 +736,7 @@ export default function Conversation() {
       })
       .eq('id', commentId)
       .eq('user_id', user.id)
-      .select('body, edited_at, original_body, original_vote_choice, edit_count, vote_choice_at_comment')
+      .select('body, edited_at, original_body, original_vote_choice, previous_body, previous_vote_choice, edit_count, vote_choice_at_comment')
       .single()
 
     if (error) {
@@ -716,6 +758,8 @@ export default function Conversation() {
           edited_at: data.edited_at,
           original_body: data.original_body,
           original_vote_choice: data.original_vote_choice,
+          previous_body: data.previous_body,
+          previous_vote_choice: data.previous_vote_choice,
           edit_count: data.edit_count,
           votes: [{ choice: data.vote_choice_at_comment }],
         }
