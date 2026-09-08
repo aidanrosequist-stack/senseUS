@@ -247,6 +247,18 @@ function CommentCard({
               rows={3}
               style={{ width: '100%', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '8px', fontSize: '14px', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', resize: 'none' }}
             />
+            {/* The textarea is pre-filled with the existing comment (not
+                blank), so a <textarea placeholder="..."> here would never
+                actually be visible — placeholders only render on an empty
+                field. This caption is the persistent alternative: it stays
+                on screen for the whole editing session (not just until the
+                first keystroke) and explains what's about to happen to
+                comment.original_body / the struck-through rendering below,
+                per snapshot_comment_edit_history() (migration 072), once
+                they hit Save. */}
+            <p style={{ fontSize: '11px', color: '#6B7280', fontStyle: 'italic', margin: '6px 0 0' }}>
+              Your original comment will stay visible above, struck through, once you save this edit.
+            </p>
             <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
               <button
                 onClick={() => updateComment(comment.id)}
