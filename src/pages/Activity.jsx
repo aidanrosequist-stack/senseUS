@@ -257,11 +257,13 @@ function getDisplayName(row) {
 // the other tabs' cards) — the pin icon is the direct one-tap unpin, and
 // tapping the card just opens the question, same single-purpose pattern
 // PinButton already uses on Explore/Conversation.
-function PinnedQuestionCard({ pin, navigate, onTogglePin }) {
+function PinnedQuestionCard({ pin, navigate, onTogglePin, onLongPress }) {
+  const longPress = useLongPress(() => onLongPress(pin))
   return (
     <div
-      onClick={() => navigate(pin.userVoteChoice ? `/conversation/${pin.question_id}` : `/vote?question=${pin.question_id}`)}
-      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', position: 'relative' }}
+      onClick={() => { if (!longPress.wasLongPress()) navigate(pin.userVoteChoice ? `/conversation/${pin.question_id}` : `/vote?question=${pin.question_id}`) }}
+      {...longPress}
+      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', position: 'relative', ...LONG_PRESS_NO_SELECT }}
     >
       <PinButton pinned onToggle={onTogglePin} size={15} style={{ position: 'absolute', top: '10px', right: '10px' }} />
       <div style={{ fontSize: '11px', color: '#0C447C', background: '#E6F1FB', display: 'inline-block', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
@@ -288,12 +290,14 @@ function PinnedQuestionCard({ pin, navigate, onTogglePin }) {
 // context (you need to know what this was about before the comment makes
 // sense), the comment itself below it, quick info (who said it, when,
 // their vote stance) beneath that.
-function PinnedCommentCard({ pin, navigate, onTogglePin }) {
+function PinnedCommentCard({ pin, navigate, onTogglePin, onLongPress }) {
   const displayName = getDisplayName(pin)
+  const longPress = useLongPress(() => onLongPress(pin))
   return (
     <div
-      onClick={() => navigate(`/conversation/${pin.question_id}`)}
-      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', position: 'relative' }}
+      onClick={() => { if (!longPress.wasLongPress()) navigate(`/conversation/${pin.question_id}`) }}
+      {...longPress}
+      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', position: 'relative', ...LONG_PRESS_NO_SELECT }}
     >
       <PinButton pinned onToggle={onTogglePin} size={15} style={{ position: 'absolute', top: '10px', right: '10px' }} />
       <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', lineHeight: 1.4, marginBottom: '8px', paddingRight: '22px' }}>
@@ -731,6 +735,7 @@ export default function Activity() {
           question_id: p.question_id,
           text: p.questions.text,
           category: p.questions.category,
+          question_number: p.questions.question_number,
           userVoteChoice: voteMap[p.question_id] || null,
         }))
     )
@@ -1073,6 +1078,17 @@ export default function Activity() {
                         pin={pin}
                         navigate={navigate}
                         onTogglePin={() => togglePinQuestion(pin.question_id)}
+                        onLongPress={(p) => setActionSheet({
+                          title: p.text,
+                          actions: [
+                            { label: 'View this question', onClick: () => navigate(`/conversation/${p.question_id}`) },
+                            ...(p.userVoteChoice
+                              ? [{ label: 'Change my vote', onClick: () => navigate(`/vote?question=${p.question_id}&currentVote=${p.userVoteChoice}`) }]
+                              : []),
+                            { label: 'Share this question', onClick: () => shareQuestion({ question_number: p.question_number }) },
+                            { label: 'Unpin this question', onClick: () => togglePinQuestion(p.question_id) },
+                          ],
+                        })}
                       />
                     ))}
                   </div>
@@ -1091,6 +1107,27 @@ export default function Activity() {
                         pin={pin}
                         navigate={navigate}
                         onTogglePin={() => togglePinComment(pin.comment_id)}
+                        onLongPress={(p) => setActionSheet({
+                          title: p.question_text,
+                          actions: [
+                            { label: 'View this question', onClick: () => navigate(`/conversation/${p.question_id}`) },
+                            // Only offered on your own pinned comment — get_pinned_comments()'s
+                            // vote_choice is the comment's own frozen snapshot, which for someone
+                            // ELSE's comment isn't the current viewer's vote at all, so "change my
+                            // vote" wouldn't mean anything reliable there.
+                            ...(p.is_own
+                              ? [{ label: 'Change my vote', onClick: () => navigate(`/vote?question=${p.question_id}&currentVote=${p.vote_choice}`) }]
+                              : []),
+                            { label: 'Share this question', onClick: () => shareQuestion({ question_number: p.question_number }) },
+                            ...(p.question_number
+                              ? [{
+                                  label: 'Share this comment',
+                                  onClick: () => shareComment({ id: p.comment_id, questions: { question_number: p.question_number } }),
+                                }]
+                              : []),
+                            { label: 'Unpin this comment', onClick: () => togglePinComment(p.comment_id) },
+                          ],
+                        })}
                       />
                     ))}
                   </div>
