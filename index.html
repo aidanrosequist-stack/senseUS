@@ -2,19 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- favicon.svg is the actual purpose-built small mark (public/favicon.svg,
-         48x46, single brand-color path) — it existed in the repo already but
-         was never referenced here, so every browser fell back to whatever it
-         could make of the full detailed logo PNG below (or, for surfaces like
-         Chrome's address-bar suggestions that specifically look for a small
-         dedicated icon, nothing usable at all — hence the generic icon
-         showing up for the bare domain while already-visited pages, which
-         Chrome caches a page-fetched icon for separately, still showed the
-         real logo). SVG first (modern browsers, crisp at any size), PNG as
-         the fallback for anything that doesn't support SVG favicons. -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/senseUS-logo.png" />
-    <link rel="apple-touch-icon" href="/senseUS-logo.png" />
+    <!-- The previous fix here (referencing public/favicon.svg) turned out to
+         be wrong: that file was never actually a senseUS mark at all — it's
+         an unrelated purple-blue lightning-bolt graphic, confirmed by
+         rendering it directly rather than trusting its filename. It's been
+         deleted from public/ so nothing can pick it up again. This is the
+         real fix: a proper multi-resolution favicon.ico (16x16 + 32x32,
+         generated from the actual logo, from Aidan's assets/web/ folder) —
+         browsers have long checked /favicon.ico at the site root by
+         convention regardless of any <link> tag, which is almost certainly
+         why the lightning bolt was surfacing in address-bar suggestions
+         even before it was ever explicitly linked here. apple-touch-icon
+         is the same real logo too, simplified the same way. -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>senseUS — real humans. real opinions. real truth.</title>
     <meta name="description" content="senseUS is a verified human opinion platform. One person, one account, one voice." />
