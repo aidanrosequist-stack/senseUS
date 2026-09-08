@@ -43,6 +43,17 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Hides the scrollbar on an otherwise-still-scrollable element (touch
+   swipe, trackpad, and the .scrollBy() calls behind Profile's badges
+   row and Explore's domain rows both still work) -- scrollbarWidth:
+   'none' inline already covers Firefox, but that's a JS-only CSS
+   property with no `none` keyword equivalent for WebKit/Blink, which
+   need this ::-webkit-scrollbar rule instead to actually disappear in
+   Chrome/Safari/Edge. */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 #root {
   min-height: 100%;
   margin: 0;

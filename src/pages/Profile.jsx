@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -51,6 +51,30 @@ export default function Profile() {
   // one-time thing, so it's still there whenever someone actually
   // wonders about it, not just on their first visit.
   const [showBadgesInfo, setShowBadgesInfo] = useState(false)
+  // Badges row used to just be a bare overflowX: auto strip -- functional,
+  // but left a native horizontal scrollbar sitting under it with no other
+  // way to tell it was scrollable. Same ‹/› scroll-button pattern Explore's
+  // domain rows already use (scrollRow/scrollBy there), plus a
+  // .hide-scrollbar class (index.css) so the row itself scrolls without a
+  // visible scrollbar. canScrollLeft/canScrollRight track whether there's
+  // actually anything to scroll to on either side, so the arrows only show
+  // up at all when someone has enough badges to overflow the row, and each
+  // one dims out once it reaches that edge.
+  const badgesRowRef = useRef(null)
+  const [badgeScroll, setBadgeScroll] = useState({ canLeft: false, canRight: false })
+
+  function updateBadgeScrollState() {
+    const el = badgesRowRef.current
+    if (!el) return
+    setBadgeScroll({
+      canLeft: el.scrollLeft > 4,
+      canRight: el.scrollLeft < el.scrollWidth - el.clientWidth - 4,
+    })
+  }
+
+  function scrollBadges(direction) {
+    badgesRowRef.current?.scrollBy({ left: direction * 220, behavior: 'smooth' })
+  }
   // One-time dismissible pointer at the settings gear, same lightweight
   // pattern as Explore's long-press tip (senseus_seen_longpress_hint_explore)
   // — the gear is a small unlabeled icon tucked into the identity row with
@@ -80,6 +104,14 @@ export default function Profile() {
   const resonancePanelRef = useModalFocus(showResonanceInfo, () => setShowResonanceInfo(false))
   const integrityPanelRef = useModalFocus(showIntegrityInfo, () => setShowIntegrityInfo(false))
   const badgesPanelRef = useModalFocus(showBadgesInfo, () => setShowBadgesInfo(false))
+
+  // Recompute once the badges row actually has content to measure --
+  // profile loads asynchronously, so the ref's scrollWidth isn't
+  // meaningful until badges have rendered into it.
+  useEffect(() => {
+    updateBadgeScrollState()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: updateBadgeScrollState is a plain function redefined every render, not memoized; depending on profile?.badges (the thing that actually changes the row's scrollWidth) is what actually matters here.
+  }, [profile?.badges])
 
 async function openIntegrityInfo() {
     setShowIntegrityInfo(true)
@@ -264,21 +296,53 @@ async function openIntegrityInfo() {
 
 {/* Badges widget */}
 <div style={{ marginBottom: '1.5rem' }}>
-  <button
-    type="button"
-    onClick={() => setShowBadgesInfo(true)}
-    style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', padding: 0, marginBottom: '0.75rem', cursor: 'pointer', fontFamily: 'inherit' }}
-  >
-    <span style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A' }}>Badges</span>
-    <span style={{ fontSize: '12px', color: '#6B7280' }} aria-hidden="true">ⓘ</span>
-  </button>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+    <button
+      type="button"
+      onClick={() => setShowBadgesInfo(true)}
+      style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit' }}
+    >
+      <span style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A' }}>Badges</span>
+      <span style={{ fontSize: '12px', color: '#6B7280' }} aria-hidden="true">ⓘ</span>
+    </button>
+    {/* Same ‹/› scroll-button pattern as Explore's domain rows —
+        only shown once there's actually somewhere to scroll to, and
+        each side dims out once it's reached that edge. */}
+    {(badgeScroll.canLeft || badgeScroll.canRight) && (
+      <div style={{ display: 'flex', gap: '4px' }}>
+        <button
+          type="button"
+          onClick={() => scrollBadges(-1)}
+          disabled={!badgeScroll.canLeft}
+          aria-label="Scroll badges left"
+          style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: badgeScroll.canLeft ? 'pointer' : 'default', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, opacity: badgeScroll.canLeft ? 1 : 0.35 }}
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollBadges(1)}
+          disabled={!badgeScroll.canRight}
+          aria-label="Scroll badges right"
+          style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #D1D5DB', background: 'white', color: '#6B7280', cursor: badgeScroll.canRight ? 'pointer' : 'default', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, opacity: badgeScroll.canRight ? 1 : 0.35 }}
+        >
+          ›
+        </button>
+      </div>
+    )}
+  </div>
   {(profile?.badges || []).length === 0 ? (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '1.25rem 1rem', border: '1.5px dashed #D1D5DB', borderRadius: '10px' }}>
       <span style={{ fontSize: '26px' }} aria-hidden="true">🏅</span>
       <span style={{ fontSize: '12px', color: '#6B7280', textAlign: 'center' }}>Keep voting to earn your first badge.</span>
     </div>
   ) : (
-    <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
+    <div
+      ref={badgesRowRef}
+      onScroll={updateBadgeScrollState}
+      className="hide-scrollbar"
+      style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}
+    >
       {(profile?.badges || []).map(badge => {
         const info = BADGE_INFO[badge] || { label: badge, emoji: '🏅' }
         return (
