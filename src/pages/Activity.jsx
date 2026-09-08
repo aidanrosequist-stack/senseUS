@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { Skeleton, SkeletonCard } from '../components/ui/Skeleton'
 import { useLongPress, LONG_PRESS_NO_SELECT } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
+import PinButton from '../components/ui/PinButton'
 import { IconThumbUp, IconThumbDown } from '@tabler/icons-react'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useModalFocus } from '../hooks/useModalFocus'
@@ -240,6 +241,82 @@ function HistoryCard({ vote, snapshotMap, onLongPress }) {
   )
 }
 
+// Matches Conversation.jsx's getDisplayName(profile) exactly — get_pinned_comments()
+// (migration 077) returns the same display fields flattened onto the row
+// instead of nested under a `profiles` key, so this takes the row itself.
+function getDisplayName(row) {
+  if (!row) return 'Anonymous'
+  if (row.display_preference === 'anon') return row.anon_name || 'Anonymous'
+  if (row.display_preference === 'first_only') return row.first_name
+  return `${row.first_name} ${row.last_initial}.`
+}
+
+// A pinned question — bold question text as the main content (this is
+// what you're being reminded of), category + your vote status (or "Not
+// voted yet") as the quick info below. No longpress sheet here (unlike
+// the other tabs' cards) — the pin icon is the direct one-tap unpin, and
+// tapping the card just opens the question, same single-purpose pattern
+// PinButton already uses on Explore/Conversation.
+function PinnedQuestionCard({ pin, navigate, onTogglePin }) {
+  return (
+    <div
+      onClick={() => navigate(pin.userVoteChoice ? `/conversation/${pin.question_id}` : `/vote?question=${pin.question_id}`)}
+      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', position: 'relative' }}
+    >
+      <PinButton pinned onToggle={onTogglePin} size={15} style={{ position: 'absolute', top: '10px', right: '10px' }} />
+      <div style={{ fontSize: '11px', color: '#0C447C', background: '#E6F1FB', display: 'inline-block', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
+        {pin.category}
+      </div>
+      <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A', lineHeight: 1.4, marginBottom: '8px', paddingRight: '22px' }}>
+        {pin.text}
+      </div>
+      {pin.userVoteChoice ? (
+        <span style={{
+          fontSize: '10px', padding: '2px 8px', borderRadius: '20px', fontWeight: 700,
+          background: '#FFFFFF', border: `1.5px solid ${VOTE_COLORS[pin.userVoteChoice]}`, color: VOTE_PILL_STYLES[pin.userVoteChoice]?.color,
+        }}>
+          You voted {VOTE_LABELS[pin.userVoteChoice]}
+        </span>
+      ) : (
+        <span style={{ fontSize: '11px', fontWeight: 500, color: '#2D3DCA' }}>Not voted yet</span>
+      )}
+    </div>
+  )
+}
+
+// A pinned comment — the question it belongs to bold at the top for
+// context (you need to know what this was about before the comment makes
+// sense), the comment itself below it, quick info (who said it, when,
+// their vote stance) beneath that.
+function PinnedCommentCard({ pin, navigate, onTogglePin }) {
+  const displayName = getDisplayName(pin)
+  return (
+    <div
+      onClick={() => navigate(`/conversation/${pin.question_id}`)}
+      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', position: 'relative' }}
+    >
+      <PinButton pinned onToggle={onTogglePin} size={15} style={{ position: 'absolute', top: '10px', right: '10px' }} />
+      <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', lineHeight: 1.4, marginBottom: '8px', paddingRight: '22px' }}>
+        {pin.question_text}
+      </div>
+      {pin.is_removed ? (
+        <div style={{ fontSize: '13px', color: '#6B7280', fontStyle: 'italic', marginBottom: '8px' }}>
+          [deleted by user]
+        </div>
+      ) : (
+        <div style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.6, marginBottom: '8px' }}>
+          <span style={{ background: VOTE_WASH[pin.vote_choice] || '#F9FAFB', boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone', padding: '2px 5px', borderRadius: '4px' }}>
+            {pin.body}
+          </span>
+        </div>
+      )}
+      <div style={{ fontSize: '11px', color: '#6B7280' }}>
+        {pin.is_own ? 'You' : displayName} · {timeAgo(pin.created_at)}
+      </div>
+    </div>
+  )
+}
+
 export default function Activity() {
   usePageTitle('Your Activity')
   const { user } = useAuth()
@@ -255,6 +332,19 @@ export default function Activity() {
   const [votes, setVotes] = useState([])
   const [snapshotMap, setSnapshotMap] = useState({})
   const [actionSheet, setActionSheet] = useState(null)
+
+  // Pin state (migration 077) — just the id sets, fetched eagerly (not
+  // gated behind the lazy per-tab loading below) since the Comments tab's
+  // own longpress sheet needs an accurate Pin/Unpin label regardless of
+  // whether the Pinned tab has been opened yet this visit. The Pinned
+  // tab's own fetcher (added alongside it) loads the full card data
+  // (question text, comment body, etc.) separately and keeps these two
+  // sets in sync with whatever it finds.
+  const [pinnedCommentIds, setPinnedCommentIds] = useState(new Set())
+  const [pinnedQuestionIds, setPinnedQuestionIds] = useState(new Set())
+  const [pinnedQuestionsList, setPinnedQuestionsList] = useState([])
+  const [pinnedCommentsList, setPinnedCommentsList] = useState([])
+  const [pinnedView, setPinnedView] = useState('questions')
 
   // Comparison-link modal: startComparison() used to rely entirely on
   // navigator.share() / navigator.clipboard succeeding, with nothing
@@ -273,6 +363,61 @@ export default function Activity() {
   // whether the currently-open tab's own fetch is still in flight.
   const [loadedTabs, setLoadedTabs] = useState(new Set())
   const [tabLoading, setTabLoading] = useState(true)
+
+  // Eager, outside the lazy per-tab system above — just the id sets, a
+  // cheap single-column query each, run once on mount regardless of
+  // which tab is open first.
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+
+    Promise.all([
+      supabase.from('pinned_comments').select('comment_id').eq('user_id', user.id),
+      supabase.from('pinned_questions').select('question_id').eq('user_id', user.id),
+    ]).then(([{ data: comments }, { data: questions }]) => {
+      if (cancelled) return
+      setPinnedCommentIds(new Set((comments || []).map(c => c.comment_id)))
+      setPinnedQuestionIds(new Set((questions || []).map(q => q.question_id)))
+    }).catch(err => console.error(err))
+
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user?.id, not the user object, same reasoning as the tab-loading effect below.
+  }, [user?.id])
+
+  // Optimistic toggles, same insert/delete shape as Conversation.jsx's
+  // toggleResonate/toggleCommentPin — used by both the Comments tab's
+  // longpress sheet and the Pinned tab's own pin icons.
+  async function togglePinComment(commentId) {
+    if (!user) return
+    const isPinned = pinnedCommentIds.has(commentId)
+    if (isPinned) {
+      const { error } = await supabase.from('pinned_comments').delete()
+        .eq('comment_id', commentId).eq('user_id', user.id)
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPinnedCommentIds(prev => { const s = new Set(prev); s.delete(commentId); return s })
+      setPinnedCommentsList(prev => prev.filter(c => c.comment_id !== commentId))
+    } else {
+      const { error } = await supabase.from('pinned_comments').insert({ comment_id: commentId, user_id: user.id })
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPinnedCommentIds(prev => new Set([...prev, commentId]))
+    }
+  }
+
+  async function togglePinQuestion(questionId) {
+    if (!user) return
+    const isPinned = pinnedQuestionIds.has(questionId)
+    if (isPinned) {
+      const { error } = await supabase.from('pinned_questions').delete()
+        .eq('question_id', questionId).eq('user_id', user.id)
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPinnedQuestionIds(prev => { const s = new Set(prev); s.delete(questionId); return s })
+      setPinnedQuestionsList(prev => prev.filter(q => q.question_id !== questionId))
+    } else {
+      const { error } = await supabase.from('pinned_questions').insert({ question_id: questionId, user_id: user.id })
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPinnedQuestionIds(prev => new Set([...prev, questionId]))
+    }
+  }
 
   function shareQuestion(question) {
     if (!question?.question_number) return
@@ -552,11 +697,64 @@ export default function Activity() {
     return arr
   }, [myComments, commentSort])
 
+  // Pinned questions: no RPC needed (questions carry no other user's
+  // identity — same reasoning Explore.jsx's own direct fetch already
+  // relies on). A nested select through pinned_questions, plus a second
+  // query for the user's own votes on just those questions so each card
+  // can show "you voted X" / "not voted yet".
+  async function fetchPinnedQuestions() {
+    const { data: pinsData } = await supabase
+      .from('pinned_questions')
+      .select('question_id, created_at, questions (id, text, category, question_number)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    const questionIds = (pinsData || []).map(p => p.question_id)
+    const voteMap = {}
+    if (questionIds.length > 0) {
+      const { data: votesData } = await supabase
+        .from('votes')
+        .select('question_id, choice')
+        .eq('user_id', user.id)
+        .in('question_id', questionIds)
+      ;(votesData || []).forEach(v => { voteMap[v.question_id] = v.choice })
+    }
+
+    // Same RLS-null-on-join guard as fetchRevisit/fetchShifts/fetchHistory
+    // — drops a pin whose question was hard-deleted (cascade should have
+    // already removed the pin row itself, but this is a harmless backstop
+    // rather than rendering a blank card).
+    setPinnedQuestionsList(
+      (pinsData || [])
+        .filter(p => p.questions)
+        .map(p => ({
+          question_id: p.question_id,
+          text: p.questions.text,
+          category: p.questions.category,
+          userVoteChoice: voteMap[p.question_id] || null,
+        }))
+    )
+  }
+
+  // Pinned comments: DOES go through an RPC (get_pinned_comments(),
+  // migration 077) — unlike questions, a pinned comment can belong to
+  // another user, and this app never sends another user's raw user_id to
+  // the client (same reasoning as get_conversation_comments()).
+  async function fetchPinnedComments() {
+    const { data } = await supabase.rpc('get_pinned_comments')
+    setPinnedCommentsList(data || [])
+  }
+
+  async function fetchPinned() {
+    await Promise.all([fetchPinnedQuestions(), fetchPinnedComments()])
+  }
+
   const FETCHERS = {
     comments: fetchComments,
     shifts: fetchShifts,
     revisit: fetchRevisit,
     history: fetchHistory,
+    pinned: fetchPinned,
   }
 
   // Runs whenever the active tab changes (including the very first render,
@@ -598,6 +796,7 @@ export default function Activity() {
           { key: 'comments', label: 'Comments' },
           { key: 'shifts', label: 'Shifts' },
           { key: 'revisit', label: 'Revisit' },
+          { key: 'pinned', label: 'Pinned' },
         ].map(t => (
           <button
             key={t.key}
@@ -669,6 +868,10 @@ export default function Activity() {
                           { label: 'Change my vote', onClick: () => navigate(`/vote?question=${comment.questions?.id}&currentVote=${comment.voteChoice}`) },
                           { label: 'Share this question', onClick: () => shareQuestion(comment.questions) },
                           { label: 'Share your comment', onClick: () => shareComment(comment) },
+                          {
+                            label: pinnedCommentIds.has(comment.id) ? 'Unpin this comment' : 'Pin this comment',
+                            onClick: () => togglePinComment(comment.id),
+                          },
                         ],
                       })}
                     />
@@ -726,6 +929,10 @@ export default function Activity() {
                           { label: 'View this question', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
                           { label: 'Change my vote', onClick: () => navigate(`/vote?question=${s.questions?.id}&currentVote=${s.choice}`) },
                           { label: 'Share this question', onClick: () => shareQuestion(s.questions) },
+                          {
+                            label: pinnedQuestionIds.has(s.questions?.id) ? 'Unpin this question' : 'Pin this question',
+                            onClick: () => togglePinQuestion(s.questions?.id),
+                          },
                         ],
                       })}
                     />
@@ -757,6 +964,10 @@ export default function Activity() {
                         actions: [
                           { label: 'View this question', onClick: () => navigate(`/conversation/${s.questions?.id}`) },
                           { label: 'Share this question', onClick: () => shareQuestion(s.questions) },
+                          {
+                            label: pinnedQuestionIds.has(s.questions?.id) ? 'Unpin this question' : 'Pin this question',
+                            onClick: () => togglePinQuestion(s.questions?.id),
+                          },
                         ],
                       })}
                       onRevisit={async (s) => {
@@ -811,11 +1022,79 @@ export default function Activity() {
                           { label: 'View this question', onClick: () => navigate(`/conversation/${v.questions?.id}`) },
                           { label: 'Change my vote', onClick: () => navigate(`/vote?question=${v.questions?.id}&currentVote=${v.choice}`) },
                           { label: 'Share this question', onClick: () => shareQuestion(v.questions) },
+                          {
+                            label: pinnedQuestionIds.has(v.questions?.id) ? 'Unpin this question' : 'Pin this question',
+                            onClick: () => togglePinQuestion(v.questions?.id),
+                          },
                         ],
                       })}
                     />
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'pinned' && (
+            <div>
+              {/* Questions/Comments toggle — same segmented-pill pattern as
+                  the Comments tab's own sort toggle just above. */}
+              <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', background: '#F3F4F6', padding: '3px', borderRadius: '8px' }}>
+                {[
+                  { key: 'questions', label: 'Questions' },
+                  { key: 'comments', label: 'Comments' },
+                ].map(v => (
+                  <button
+                    key={v.key}
+                    onClick={() => setPinnedView(v.key)}
+                    style={{
+                      flex: 1, padding: '6px 4px', background: pinnedView === v.key ? '#2D3DCA' : 'transparent',
+                      color: pinnedView === v.key ? 'white' : '#6B7280', border: 'none', borderRadius: '6px',
+                      fontSize: '11px', fontWeight: pinnedView === v.key ? 700 : 500, cursor: 'pointer',
+                      fontFamily: 'Merriweather, serif',
+                    }}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+
+              {pinnedView === 'questions' ? (
+                pinnedQuestionsList.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '0.5rem' }}>📌</div>
+                    No pinned questions yet. Tap the pin icon on any question to save it here.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {pinnedQuestionsList.map(pin => (
+                      <PinnedQuestionCard
+                        key={pin.question_id}
+                        pin={pin}
+                        navigate={navigate}
+                        onTogglePin={() => togglePinQuestion(pin.question_id)}
+                      />
+                    ))}
+                  </div>
+                )
+              ) : (
+                pinnedCommentsList.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6B7280', fontSize: '14px' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '0.5rem' }}>📌</div>
+                    No pinned comments yet. Tap the pin icon on any comment to save it here.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {pinnedCommentsList.map(pin => (
+                      <PinnedCommentCard
+                        key={pin.comment_id}
+                        pin={pin}
+                        navigate={navigate}
+                        onTogglePin={() => togglePinComment(pin.comment_id)}
+                      />
+                    ))}
+                  </div>
+                )
               )}
             </div>
           )}

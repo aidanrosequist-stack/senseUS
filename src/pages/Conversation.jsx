@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth'
 import { IconWaveSine, IconCornerDownRight, IconNews, IconThumbUp, IconThumbDown } from '@tabler/icons-react'
 import { checkComment } from '../lib/moderation'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import PinButton from '../components/ui/PinButton'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
@@ -143,6 +144,8 @@ function CommentCard({
   user,
   canParticipate,
   userResonances,
+  pinnedCommentIds,
+  toggleCommentPin,
   replyingTo,
   setReplyingTo,
   replyText,
@@ -162,6 +165,13 @@ function CommentCard({
   const displayName = getDisplayName(comment.profiles)
   const voteChoice = comment.votes?.[0]?.choice
   const hasResonated = userResonances.has(comment.id)
+  // "isPinnedByMe" to avoid colliding with the existing `pinned` prop
+  // above, which means something unrelated (this card is the current
+  // user's own top-level comment, always shown pinned to the top of the
+  // thread) — this is the NEW private bookmark feature (migration 077),
+  // named "Pin" in the UI but kept distinct in code from that older,
+  // unrelated "pinned to top" concept.
+  const isPinnedByMe = pinnedCommentIds.has(comment.id)
   // Previously `comments.filter(c => c.parent_id === comment.id)` — a full
   // scan of every comment on the question, run again for every card,
   // including recursively for every reply of every reply (O(n) per card ×
@@ -188,6 +198,7 @@ function CommentCard({
   // just the comment/depth changing per call.
   const sharedProps = {
     childrenByParent, user, canParticipate, userResonances,
+    pinnedCommentIds, toggleCommentPin,
     replyingTo, setReplyingTo, replyText, setReplyText,
     editingId, setEditingId, editText, setEditText, submitting,
     toggleResonate, shareComment, flagComment, deleteComment, updateComment, submitComment,
@@ -232,7 +243,10 @@ function CommentCard({
               </span>
             )}
           </div>
-          <span style={{ fontSize: '10px', color: '#6B7280' }}>{timeAgo(comment.created_at)}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+            <PinButton pinned={isPinnedByMe} onToggle={() => toggleCommentPin(comment.id)} size={13} />
+            <span style={{ fontSize: '10px', color: '#6B7280' }}>{timeAgo(comment.created_at)}</span>
+          </div>
         </div>
 
         {comment.is_removed ? (
@@ -503,6 +517,7 @@ export default function Conversation() {
   const [editText, setEditText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [userResonances, setUserResonances] = useState(new Set())
+  const [pinnedCommentIds, setPinnedCommentIds] = useState(new Set())
 
   const canParticipate = !!userVote
 
@@ -517,6 +532,7 @@ export default function Conversation() {
           { data: tallyRow },
           { data: commentsData },
           { data: resonances },
+          { data: pins },
         ] = await Promise.all([
           supabase
             .from('questions')
@@ -557,6 +573,15 @@ export default function Conversation() {
           user
             ? supabase
                 .from('comment_resonances')
+                .select('comment_id')
+                .eq('user_id', user.id)
+            : Promise.resolve({ data: null }),
+          // Which comments the user has pinned (migration 077) — direct
+          // select through pinned_comments, RLS-scoped to their own rows,
+          // same shape as the resonances query just above.
+          user
+            ? supabase
+                .from('pinned_comments')
                 .select('comment_id')
                 .eq('user_id', user.id)
             : Promise.resolve({ data: null }),
@@ -612,6 +637,7 @@ export default function Conversation() {
 
         if (user) {
           setUserResonances(new Set((resonances || []).map(r => r.comment_id)))
+          setPinnedCommentIds(new Set((pins || []).map(p => p.comment_id)))
         }
       } catch (err) {
         console.error(err)
@@ -793,6 +819,26 @@ export default function Conversation() {
     }
   }
 
+  // Private bookmark toggle (migration 077) — same optimistic
+  // insert/delete shape as toggleResonate above, but against
+  // pinned_comments instead, and with no public count to keep in sync
+  // (pinning has no effect on the comment itself, unlike resonating).
+  async function toggleCommentPin(commentId) {
+    if (!user) return
+    const isPinned = pinnedCommentIds.has(commentId)
+
+    if (isPinned) {
+      const { error } = await supabase.from('pinned_comments').delete()
+        .eq('comment_id', commentId).eq('user_id', user.id)
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPinnedCommentIds(prev => { const s = new Set(prev); s.delete(commentId); return s })
+    } else {
+      const { error } = await supabase.from('pinned_comments').insert({ comment_id: commentId, user_id: user.id })
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPinnedCommentIds(prev => new Set([...prev, commentId]))
+    }
+  }
+
   async function shareComment(commentId) {
     if (!question?.question_number) return
 
@@ -950,6 +996,7 @@ export default function Conversation() {
   // spread the same object instead of repeating this long prop list.
   const cardProps = {
     childrenByParent, user, canParticipate, userResonances,
+    pinnedCommentIds, toggleCommentPin,
     replyingTo, setReplyingTo, replyText, setReplyText,
     editingId, setEditingId, editText, setEditText, submitting,
     toggleResonate, shareComment, flagComment, deleteComment, updateComment, submitComment,

@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { Skeleton } from '../components/ui/Skeleton'
 import { useLongPress, LONG_PRESS_NO_SELECT } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
+import PinButton from '../components/ui/PinButton'
 import VisuallyHidden from '../components/ui/VisuallyHidden'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
@@ -94,7 +95,7 @@ function timeLeftLabel(archiveAt) {
   return `${daysLeft} days left to vote`
 }
 
-function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
+function QuestionThumbnail({ question, userVote, onClick, onLongPress, pinned, onTogglePin }) {
   const voted = !!userVote
   const longPress = useLongPress(() => onLongPress(question))
   const bgColor = voted ? VOTE_COLORS[userVote] : '#FFFFFF'
@@ -118,9 +119,11 @@ function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
         justifyContent: 'space-between',
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         boxSizing: 'border-box',
+        position: 'relative',
         ...LONG_PRESS_NO_SELECT,
       }}
     >
+      <PinButton pinned={pinned} onToggle={onTogglePin} size={15} style={{ position: 'absolute', top: '8px', right: '8px' }} />
       <div>
         <div style={{
           // Square-ish (not a full pill) and, once voted, black text
@@ -163,7 +166,7 @@ function QuestionThumbnail({ question, userVote, onClick, onLongPress }) {
   )
 }
 
-function SearchResultCard({ question, userVote, onClick, onLongPress }) {
+function SearchResultCard({ question, userVote, onClick, onLongPress, pinned, onTogglePin }) {
   const voted = !!userVote
   const longPress = useLongPress(() => onLongPress(question))
   return (
@@ -178,9 +181,11 @@ function SearchResultCard({ question, userVote, onClick, onLongPress }) {
         marginBottom: '10px',
         cursor: 'pointer',
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        position: 'relative',
         ...LONG_PRESS_NO_SELECT,
       }}
     >
+      <PinButton pinned={pinned} onToggle={onTogglePin} size={15} style={{ position: 'absolute', top: '10px', right: '10px' }} />
       <div style={{
         fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '4px', display: 'inline-block', marginBottom: '14px',
         background: voted ? '#FFFFFF' : '#E6F1FB',
@@ -206,6 +211,7 @@ export default function Explore() {
   const navigate = useNavigate()
   const [questions, setQuestions] = useState([])
   const [userVotes, setUserVotes] = useState({})
+  const [pinnedQuestions, setPinnedQuestions] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [unansweredOnly, setUnansweredOnly] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(null)
@@ -288,6 +294,16 @@ export default function Explore() {
         ;(votesData || []).forEach(v => { votesMap[v.question_id] = v.choice })
         setUserVotes(votesMap)
 
+        // Fetch which of these questions the user has pinned. Direct
+        // select through pinned_questions rather than an RPC — questions
+        // carry no other user's identity, and RLS already scopes this to
+        // the current user's own pin rows (migration 077).
+        const { data: pinsData } = await supabase
+          .from('pinned_questions')
+          .select('question_id')
+          .eq('user_id', user.id)
+        setPinnedQuestions(new Set((pinsData || []).map(p => p.question_id)))
+
       } catch (err) {
         console.error(err)
       } finally {
@@ -298,6 +314,25 @@ export default function Explore() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern). AuthContext hands out a new user object reference on every onAuthStateChange firing, including Supabase's routine hourly token refresh — depending on the whole object here would re-shuffle and re-fetch the whole question list under the user's feet on every refresh.
   }, [user?.id])
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Optimistic toggle, same shape as Conversation.jsx's toggleResonate —
+  // insert/delete directly against pinned_questions (RLS-scoped to the
+  // user's own rows), update local Set state on success.
+  async function togglePinQuestion(questionId) {
+    if (!user) return
+    const isPinned = pinnedQuestions.has(questionId)
+
+    if (isPinned) {
+      const { error } = await supabase.from('pinned_questions').delete()
+        .eq('question_id', questionId).eq('user_id', user.id)
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPinnedQuestions(prev => { const s = new Set(prev); s.delete(questionId); return s })
+    } else {
+      const { error } = await supabase.from('pinned_questions').insert({ question_id: questionId, user_id: user.id })
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPinnedQuestions(prev => new Set([...prev, questionId]))
+    }
+  }
 
   function handleThumbnailClick(question) {
     const userVote = userVotes[question.id]
@@ -551,6 +586,8 @@ export default function Explore() {
                 question={question}
                 userVote={userVotes[question.id]}
                 onClick={() => handleThumbnailClick(question)}
+                pinned={pinnedQuestions.has(question.id)}
+                onTogglePin={() => togglePinQuestion(question.id)}
               />
             ))
           )}
@@ -599,6 +636,8 @@ export default function Explore() {
                   question={question}
                   userVote={userVotes[question.id]}
                   onClick={() => handleThumbnailClick(question)}
+                  pinned={pinnedQuestions.has(question.id)}
+                  onTogglePin={() => togglePinQuestion(question.id)}
                 />
               ))}
             </div>
@@ -647,6 +686,8 @@ export default function Explore() {
                   question={question}
                   userVote={userVotes[question.id]}
                   onClick={() => handleThumbnailClick(question)}
+                  pinned={pinnedQuestions.has(question.id)}
+                  onTogglePin={() => togglePinQuestion(question.id)}
                 />
               ))}
             </div>
@@ -696,6 +737,8 @@ export default function Explore() {
                   question={question}
                   userVote={userVotes[question.id]}
                   onClick={() => handleThumbnailClick(question)}
+                  pinned={pinnedQuestions.has(question.id)}
+                  onTogglePin={() => togglePinQuestion(question.id)}
                 />
               ))}
             </div>
@@ -750,6 +793,8 @@ export default function Explore() {
                   question={question}
                   userVote={userVotes[question.id]}
                   onClick={() => handleThumbnailClick(question)}
+                  pinned={pinnedQuestions.has(question.id)}
+                  onTogglePin={() => togglePinQuestion(question.id)}
                 />
               ))}
             </div>
@@ -804,6 +849,8 @@ export default function Explore() {
                   question={question}
                   userVote={userVotes[question.id]}
                   onClick={() => handleThumbnailClick(question)}
+                  pinned={pinnedQuestions.has(question.id)}
+                  onTogglePin={() => togglePinQuestion(question.id)}
                 />
               ))}
             </div>
@@ -834,6 +881,10 @@ export default function Explore() {
           actions={[
             { label: 'Share this question', onClick: () => shareQuestionCard(actionSheetQuestion) },
             { label: 'View', onClick: () => handleThumbnailClick(actionSheetQuestion) },
+            {
+              label: pinnedQuestions.has(actionSheetQuestion.id) ? 'Unpin this question' : 'Pin this question',
+              onClick: () => togglePinQuestion(actionSheetQuestion.id),
+            },
           ]}
         />
       )}
