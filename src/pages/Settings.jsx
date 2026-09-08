@@ -9,6 +9,7 @@ import { checkDisplayText } from '../lib/moderation'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import Toggle from '../components/ui/Toggle'
 
 const AVATAR_OPTIONS = ['🌿', '🌊', '🔥', '⚡', '🌙', '☀️', '🌱', '🍃', '🦋', '🌸', '🎯', '🧭', '🔮', '🌍', '💡', '🎨', '🏔️', '🌺', '🦅', '✨']
 
@@ -286,26 +287,21 @@ function maskPhone(phone) {
       {/* Experience */}
       <Section title="Experience">
         <Row label="Swipe sound effects">
-          <button
-            onClick={toggleSound}
-            role="switch"
-            aria-checked={soundEnabled}
-            aria-label="Swipe sound effects"
-            style={{
-              width: '44px', height: '24px', borderRadius: '12px',
-              background: soundEnabled ? '#2D3DCA' : '#D1D5DB',
-              border: 'none', cursor: 'pointer', position: 'relative',
-              transition: 'background 0.2s ease', flexShrink: 0,
-            }}
-          >
-            <div aria-hidden="true" style={{
-              width: '18px', height: '18px', borderRadius: '50%', background: 'white',
-              position: 'absolute', top: '3px',
-              left: soundEnabled ? '23px' : '3px',
-              transition: 'left 0.2s ease',
-            }} />
-          </button>
+          <Toggle checked={soundEnabled} onChange={toggleSound} label="Swipe sound effects" />
         </Row>
+      </Section>
+
+      {/* Notifications — its own page (src/pages/NotificationSettings.jsx),
+          not another Section grown in place here. This page was already
+          getting crowded with one section per settings area; ten-plus new
+          per-category toggles (see migration 075_notification_preferences.sql)
+          belonged on their own screen, not stacked into this one. */}
+      <Section title="Notifications">
+        <Link to="/settings/notifications" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+          <Row label="Notification preferences" border={false}>
+            <span aria-hidden="true" style={{ color: '#9CA3AF', fontSize: '18px', lineHeight: 1 }}>›</span>
+          </Row>
+        </Link>
       </Section>
 
       {/* Identity */}

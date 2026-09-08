@@ -6,6 +6,7 @@ import NotificationPopup from './components/notifications/NotificationPopup'
 import { NotificationsContext } from './context/NotificationsContext'
 import { useNotifications } from './hooks/useNotifications'
 import { AuthProvider } from './context/AuthContext'
+import LoadingSpinner from './components/ui/LoadingSpinner'
 
 const Home = lazy(() => import('./pages/Home'))
 const Vote = lazy(() => import('./pages/Vote'))
@@ -15,6 +16,7 @@ const Register = lazy(() => import('./pages/Register'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Login = lazy(() => import('./pages/Login'))
 const Settings = lazy(() => import('./pages/Settings'))
+const NotificationSettings = lazy(() => import('./pages/NotificationSettings'))
 const MakeUpMyMind = lazy(() => import('./pages/MakeUpMyMind'))
 const Admin = lazy(() => import('./pages/Admin'))
 const Explore = lazy(() => import('./pages/Explore'))
@@ -32,7 +34,7 @@ const SponsorWithUs = lazy(() => import('./pages/SponsorWithUs'))
 function PageLoading() {
   return (
     <div role="status" aria-live="polite" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
-      Loading...
+      <LoadingSpinner />
     </div>
   )
 }
@@ -138,6 +140,7 @@ function AppRoutes() {
           <Route path="/vote" element={<Vote />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/settings/notifications" element={<NotificationSettings />} />
           <Route path="/make-up-my-mind/:questionId" element={<MakeUpMyMind />} />
           <Route path="/activity" element={<Activity />} />
           <Route path="/explore" element={<Explore />} />
