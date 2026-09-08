@@ -311,23 +311,48 @@ export default function Compare() {
 
           {!notFound && tokenRow?.status === 'accepted' && comparison && (
             <div>
-              <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: (comparison.myProfile?.bio || comparison.otherProfile?.bio) ? '0.5rem' : '1.25rem', textAlign: 'center' }}>
-                You vs {getDisplayName(comparison.otherProfile)}
-              </h1>
+              {/* Redesigned from a single "You vs Name" line into a
+                  three-column scoreboard (You / vs / Them) at a bigger
+                  size — the flanking 1fr columns keep "vs" centered on
+                  the page regardless of how long either name is. "You"
+                  now also shows your own display name underneath,
+                  matching how the other side already shows theirs. */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '10px', marginBottom: (comparison.myProfile?.bio || comparison.otherProfile?.bio) ? '1rem' : '1.25rem' }}>
+                <div>
+                  <div style={{ fontSize: '21px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center', lineHeight: 1.2 }}>You</div>
+                  <div style={{ fontSize: '12.5px', color: '#9CA3AF', textAlign: 'center', marginTop: '2px' }}>({getDisplayName(comparison.myProfile)})</div>
+                </div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#9CA3AF', textAlign: 'center', padding: '0 2px' }}>vs</div>
+                <div style={{ fontSize: '21px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center', lineHeight: 1.2 }}>
+                  {getDisplayName(comparison.otherProfile)}
+                </div>
+              </div>
 
               {/* Settings has had a "one line about you" bio field for a
                   while with nowhere in the app that ever displayed it —
                   this is that place: right under each person's name in
                   the one screen that's specifically about the two of you,
                   side by side. Only rendered at all if at least one side
-                  actually wrote one. */}
+                  actually wrote one. Each side is now labeled "Tagline:"
+                  with the person's chosen Settings icon between the
+                  label and the text, rather than an unlabeled line of
+                  italic text — get_public_profiles() already returns
+                  avatar alongside bio, so no backend change was needed. */}
               {(comparison.myProfile?.bio || comparison.otherProfile?.bio) && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1.25rem' }}>
-                  <div style={{ fontSize: '11px', color: '#6B7280', fontStyle: 'italic', textAlign: 'center', lineHeight: 1.4 }}>
-                    {comparison.myProfile?.bio || ''}
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#374151', marginBottom: '5px' }}>Tagline:</div>
+                    <div style={{ fontSize: '22px', lineHeight: 1, marginBottom: '5px' }}>{comparison.myProfile?.avatar || ''}</div>
+                    <div style={{ fontSize: '11px', color: '#6B7280', fontStyle: 'italic', lineHeight: 1.4 }}>
+                      {comparison.myProfile?.bio || ''}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#6B7280', fontStyle: 'italic', textAlign: 'center', lineHeight: 1.4 }}>
-                    {comparison.otherProfile?.bio || ''}
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#374151', marginBottom: '5px' }}>Tagline:</div>
+                    <div style={{ fontSize: '22px', lineHeight: 1, marginBottom: '5px' }}>{comparison.otherProfile?.avatar || ''}</div>
+                    <div style={{ fontSize: '11px', color: '#6B7280', fontStyle: 'italic', lineHeight: 1.4 }}>
+                      {comparison.otherProfile?.bio || ''}
+                    </div>
                   </div>
                 </div>
               )}
