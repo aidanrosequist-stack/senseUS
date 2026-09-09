@@ -1,0 +1,40 @@
+Add weekly question-supply health check (migration 078)
+
+Adds public.check_supply_health(), scheduled weekly via pg_cron
+(Sunday 7:00 UTC) to alert when the question supply is running low
+relative to how fast engaged users are burning through it.
+
+- Active questions: published_at is not null and <= now(), and
+  archived_at is null (matches Explore.jsx's own live-feed filter).
+- Engaged users: profiles.answers_count > 0 (excludes never-voted
+  signups from the denominator).
+- Alerts when >= 25% of engaged users have answered >= 75% of active
+  questions. Both thresholds are named constants in the function,
+  easy to retune later.
+- Delivers via the existing call_alert_function() -> send-alert-email
+  pipeline (email to hello@senseus.app) -- real push notifications
+  aren't built yet (phase 2, per senseUS-notification-preferences-design.md),
+  so this reuses the one delivery path that already works today.
+- Runs entirely inside Supabase (pg_cron + pg_net) rather than through
+  an external scheduler -- the service_role key it needs is already in
+  Vault and never has to leave the database.
+- Wired into check_function_heartbeats() at an 8-day max-staleness,
+  same as the other weekly jobs.
+
+Known simplification: doesn't account for questions.geo_scope /
+country_code / region_code, so a geo-restricted user's real eligible
+pool can be smaller than the global active-question count used here.
+Flagged, not fixed, for now.
+
+Verified locally against a reconstructed schema slice in Postgres 16:
+below-threshold silence, active-question-count=0 and engaged-user-
+count=0 guards (no division error, heartbeat still recorded), the
+exact 25%/75% boundary alerting (>=, not >), a comfortably-over-
+threshold case with correct counts and a real net.http_post call
+recorded, and confirming votes on archived/not-yet-published
+questions don't count toward a user's 75%. Also confirmed re-running
+the migration doesn't duplicate the cron job, and anon/authenticated
+cannot execute the function.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HsnduTdirtqsmBGJpVE7dV
