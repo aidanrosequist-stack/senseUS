@@ -166,7 +166,34 @@ Deno.serve(async (req) => {
 
   const results = await mapWithConcurrency(pending || [], 5, async (exportRow: any) => {
     try {
-      await adminClient.from("exports").update({ status: "processing" }).eq("id", exportRow.id)
+      // Atomic claim, same pattern as claim_welcome_sms_send() (migration
+      // 057) and the other claim-then-act spots in this codebase: the
+      // WHERE status='pending' guard means Postgres row-level locking does
+      // the serializing for us — two overlapping invocations (a manual
+      // "Run Now" overlapping the cron tick, or a platform retry of a slow
+      // call, round 6's finding) both fetched this same row above, but
+      // only the first UPDATE actually matches a row; the second blocks on
+      // the row lock, then re-evaluates status='pending' against the
+      // now-committed 'processing' value and matches zero. `.select("id")`
+      // reports back which case happened — no rows returned means someone
+      // else already claimed it, so this invocation skips the row instead
+      // of re-running the whole pipeline and sending a duplicate export
+      // email.
+      const { data: claimed, error: claimError } = await adminClient
+        .from("exports")
+        .update({ status: "processing" })
+        .eq("id", exportRow.id)
+        .eq("status", "pending")
+        .select("id")
+
+      if (claimError) {
+        console.error(`Failed to claim export ${exportRow.id}:`, claimError)
+        return { id: exportRow.id, status: "failed" }
+      }
+
+      if (!claimed || claimed.length === 0) {
+        return { id: exportRow.id, status: "skipped_already_claimed" }
+      }
 
       const recoveryEmail = exportRow.profiles?.recovery_email
 

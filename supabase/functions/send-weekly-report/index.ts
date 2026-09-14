@@ -29,6 +29,24 @@ const FROM_ADDRESS = "senseUS Reports <hello@senseus.app>";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Same helper og-preview, process-pending-exports, and send-alert-email
+// already define and use before interpolating any value into HTML — round
+// 6 found this file (and send-daily-report) were the two functions in this
+// codebase that build an HTML email but never called it. Low severity
+// today (every interpolated field here comes from questions.text/domain or
+// transparency_events.event_type, all admin-only-writable per RLS), but
+// closing it keeps the pattern actually uniform instead of
+// three-out-of-five, and costs nothing against any future less-strict
+// write path to those columns.
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function buildReportHtml(data: {
   thisWeekRegistrations: number;
   lastWeekRegistrations: number;
@@ -79,12 +97,12 @@ function buildReportHtml(data: {
 
                     ${listSection(
                       "Top 5 questions by engagement",
-                      data.topQuestions.map((q, i) => `${i + 1}. ${q.text} — ${q.votes} votes`)
+                      data.topQuestions.map((q, i) => `${i + 1}. ${escapeHtml(q.text)} — ${q.votes} votes`)
                     )}
 
                     ${listSection(
                       "Category breakdown",
-                      data.categoryBreakdown.map((c) => `${c.name}: ${c.votes} votes`)
+                      data.categoryBreakdown.map((c) => `${escapeHtml(c.name)}: ${c.votes} votes`)
                     )}
 
                     ${listSection(
@@ -95,7 +113,7 @@ function buildReportHtml(data: {
                     ${listSection(
                       "Transparency events this week",
                       data.transparencyEvents.length > 0
-                        ? data.transparencyEvents.map((e) => `${e.date} — ${e.type}`)
+                        ? data.transparencyEvents.map((e) => `${e.date} — ${escapeHtml(e.type)}`)
                         : ["None this week"]
                     )}
                   </table>

@@ -38,6 +38,23 @@ const FROM_ADDRESS = "senseUS Reports <hello@senseus.app>";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Same helper og-preview, process-pending-exports, and send-alert-email
+// already define and use before interpolating any value into HTML — round
+// 6 found this file (and send-weekly-report) were the two functions in
+// this codebase that build an HTML email/page but never called it. Low
+// severity today (topQuestion.text/topCategory.name only ever come from
+// questions.text/domain, both admin-only-writable per RLS), but closing it
+// keeps the pattern actually uniform instead of three-out-of-five, and
+// costs nothing against any future less-strict write path to those columns.
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 async function getSmsSuccessRate(since: string): Promise<{ sent: number; delivered: number; rate: string }> {
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
     return { sent: 0, delivered: 0, rate: "N/A (Twilio not configured)" };
@@ -101,8 +118,8 @@ function buildReportHtml(data: {
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                     ${row("New registrations (24h)", data.newRegistrations)}
                     ${row("Total votes cast (24h)", data.totalVotes)}
-                    ${row("Most voted question", data.topQuestion ? `${data.topQuestion.text} (${data.topQuestion.votes})` : "No votes yet")}
-                    ${row("Most popular category", data.topCategory ? `${data.topCategory.name} (${data.topCategory.votes} votes)` : "N/A")}
+                    ${row("Most voted question", data.topQuestion ? `${escapeHtml(data.topQuestion.text)} (${data.topQuestion.votes})` : "No votes yet")}
+                    ${row("Most popular category", data.topCategory ? `${escapeHtml(data.topCategory.name)} (${data.topCategory.votes} votes)` : "N/A")}
                     ${row("Active streaks", data.activeStreaks)}
                     ${row("Total badge holders", data.badgesAwarded)}
                     ${row("SMS delivery rate", `${data.sms.rate} (${data.sms.delivered}/${data.sms.sent})`)}
