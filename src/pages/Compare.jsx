@@ -117,10 +117,14 @@ export default function Compare() {
 
   useEffect(() => {
     async function load() {
+      // As of migration 079, comparison_tokens has zero standing grants —
+      // a direct select() here used to also let a caller list EVERY
+      // pending token at once by omitting the .eq() filter (RLS can't
+      // tell "filtered by one known token" from "no filter" at the row
+      // level). Requiring the token as an RPC argument is what actually
+      // enforces "you must already know the exact token".
       const { data: tr } = await supabase
-        .from('comparison_tokens')
-        .select('*')
-        .eq('token', token)
+        .rpc('get_comparison_token', { p_token: token })
         .maybeSingle()
 
       if (!tr) {
@@ -191,13 +195,31 @@ export default function Compare() {
 
   async function handleDecline() {
     setProcessing(true)
-    const { error } = await supabase
-      .from('comparison_tokens')
-      .update({ status: 'declined' })
-      .eq('id', tokenRow.id)
+    // Was a raw table update with no ownership check at all (migration
+    // 079 found it let ANY authenticated user — not just this link's
+    // holder — decline a stranger's pending invite). decline_comparison_token
+    // enforces the same not-found/already-processed/expired checks and
+    // rate limit as accept_comparison_token (074), for the same "return
+    // normally with rejected_reason instead of raising" reason: a raised
+    // exception would roll back the rate-limit cooldown's timestamp
+    // write right along with it.
+    const { data, error } = await supabase.rpc('decline_comparison_token', { p_token: token }).single()
 
     if (error) {
       alert('Something went wrong — please try again.')
+      setProcessing(false)
+      return
+    }
+
+    const REJECTION_MESSAGES = {
+      rate_limited: "You're trying that a little too fast — give it a second and try again.",
+      not_found: 'This comparison link could not be found.',
+      already_processed: 'This comparison link is no longer pending.',
+      expired: 'This comparison link has expired.',
+    }
+
+    if (data?.rejected_reason && REJECTION_MESSAGES[data.rejected_reason]) {
+      alert(REJECTION_MESSAGES[data.rejected_reason])
       setProcessing(false)
       return
     }
@@ -207,11 +229,11 @@ export default function Compare() {
   }
 
   async function startNewComparison() {
-    const { data, error } = await supabase
-      .from('comparison_tokens')
-      .insert({ sender_id: user.id })
-      .select('token')
-      .single()
+    // As of migration 079, comparison_tokens has zero standing grants —
+    // create_comparison_token() sets sender_id from auth.uid() server-side
+    // (never a client parameter) and returns the same { token } shape a
+    // direct insert().select('token') used to.
+    const { data, error } = await supabase.rpc('create_comparison_token').single()
 
     if (error || !data) {
       alert('Something went wrong creating your link.')
