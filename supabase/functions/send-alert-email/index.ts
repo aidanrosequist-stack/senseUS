@@ -56,7 +56,52 @@ const ALERT_LABELS: Record<string, string> = {
   security_check_failed: "Security Check Failed",
   unauthorized_admin_grant: "Unauthorized Admin Grant",
   function_heartbeat_stale: "Scheduled Function Stale",
+  legacy_export_endpoint_used: "Legacy Export Endpoint Used",
+  legacy_token_reused: "Legacy Token Reused",
 };
+
+// legacy_export_all_votes() (migration 082) predates the export
+// pipeline and returns an old-format token in its download_token field
+// -- left over from before this project standardized on signed storage
+// URLs. That value should never be presented anywhere as a live
+// Authorization bearer.
+//
+// This function is the one exception to routing this check through
+// note_legacy_token_usage() (migration 082) -- it deliberately has no
+// Supabase client or DB connection at all (see the file header: it's
+// meant to be the dumb terminal node other functions call into, kept as
+// simple as possible on purpose). It already knows how to send an alert
+// email directly via Resend, so this reuses that same path instead of
+// adding a new DB dependency just for this one case.
+const LEGACY_SERVICE_TOKEN_FORMAT =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdja2psc2hmZXN5eHVhbHd4dXJqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcwNDA2NzIwMCwiZXhwIjoyMDE5NDIzNjAwfQ.P4qcLnsdRlCo8-nGstF6RFngw_ehuNJk6fCjx7XRjmI";
+
+async function flagLegacyTokenUsage(token: string): Promise<void> {
+  if (token !== LEGACY_SERVICE_TOKEN_FORMAT || !RESEND_API_KEY) return;
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: FROM_ADDRESS,
+        to: ALERT_TO,
+        subject: `[senseUS Alert] ${ALERT_LABELS.legacy_token_reused}`,
+        html: buildAlertHtml({
+          alertType: "legacy_token_reused",
+          severity: "critical",
+          message:
+            "The old-format token from legacy_export_all_votes()'s response (migration 082) was just presented as a Bearer token against send-alert-email itself -- the alerting pipeline's own endpoint. That value was never meant to be used as a live credential anywhere -- worth tracing where it came from.",
+          details: { function: "send-alert-email", token_prefix: token.slice(0, 16) },
+        }),
+      }),
+    });
+  } catch (err) {
+    console.error("Failed to log legacy token usage:", err);
+  }
+}
 
 function buildAlertHtml(payload: AlertPayload) {
   const label = escapeHtml(ALERT_LABELS[payload.alertType] || payload.alertType);
@@ -108,6 +153,9 @@ serve(async (req: Request) => {
   }
 
   if (!isAuthorized(req)) {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    await flagLegacyTokenUsage(token);
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
 

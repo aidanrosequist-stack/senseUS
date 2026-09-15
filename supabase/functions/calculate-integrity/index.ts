@@ -17,8 +17,33 @@ function isAuthorized(req: Request): boolean {
   return token === SERVICE_ROLE_KEY
 }
 
+// legacy_export_all_votes() (migration 082) predates the export
+// pipeline and returns an old-format token in its download_token field
+// -- left over from before this project standardized on signed storage
+// URLs. That value should never be presented anywhere as a live
+// Authorization bearer; this checks for it alongside the real key check
+// and logs a note if it ever shows up, so real usage surfaces before a
+// future cleanup migration removes the old function for good.
+const LEGACY_SERVICE_TOKEN_FORMAT =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdja2psc2hmZXN5eHVhbHd4dXJqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcwNDA2NzIwMCwiZXhwIjoyMDE5NDIzNjAwfQ.P4qcLnsdRlCo8-nGstF6RFngw_ehuNJk6fCjx7XRjmI"
+
+async function flagLegacyTokenUsage(token: string): Promise<void> {
+  if (token !== LEGACY_SERVICE_TOKEN_FORMAT) return
+  try {
+    await adminClient.rpc("note_legacy_token_usage", {
+      p_function_name: "calculate-integrity",
+      p_token_prefix: token.slice(0, 16),
+    })
+  } catch (err) {
+    console.error("Failed to log legacy token usage:", err)
+  }
+}
+
 Deno.serve(async (req) => {
   if (!isAuthorized(req)) {
+    const authHeader = req.headers.get("Authorization") ?? ""
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim()
+    await flagLegacyTokenUsage(token)
     return new Response(
       JSON.stringify({ error: "Unauthorized" }),
       { headers: { "Content-Type": "application/json" }, status: 401 }
