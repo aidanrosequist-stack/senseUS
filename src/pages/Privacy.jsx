@@ -62,7 +62,7 @@ export default function Privacy() {
               bullets: [
                 'Votes — your responses to questions are stored permanently and cannot be deleted. Votes are linked to an internal anonymous account ID, never to your name or phone number in any exported form.',
                 'Replies — if you participate in discussion threads, your replies are stored and displayed publicly under your chosen display name.',
-                'Usage data — standard server logs including IP address, device type, browser, and timestamps.',
+                'Usage data — standard request timestamps, generated as part of normal server operation. We do not log or retain IP addresses.',
               ]
             },
             {
@@ -75,6 +75,7 @@ export default function Privacy() {
                 'Race or ethnicity',
                 'Nationality or citizenship',
                 'Email address',
+                'IP addresses',
                 'Location beyond country of residence',
                 'Contacts, camera, microphone, or any device sensors',
               ]

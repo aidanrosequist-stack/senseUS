@@ -27,31 +27,6 @@ function getDisplayName(profile: { first_name?: string; last_initial?: string; d
   return profile.first_name ? `${profile.first_name} ${profile.last_initial || ""}.`.trim() : "Someone"
 }
 
-// Best-effort client IP for the rate limiter below. Supabase Edge
-// Functions run behind a proxy that sets x-forwarded-for; take the
-// left-most entry (the original client) when there's a chain. No header
-// present just means check_og_preview_rate_limit() gets a null ip_hash,
-// which it's designed to fail open on rather than block every request
-// behind a proxy that doesn't forward one.
-function getClientIp(req: Request): string | null {
-  const xff = req.headers.get("x-forwarded-for")
-  if (xff) {
-    const first = xff.split(",")[0]?.trim()
-    if (first) return first
-  }
-  return req.headers.get("x-real-ip")
-}
-
-// SHA-256 the IP before it ever reaches Postgres — the rate-limit table
-// only needs a stable per-caller key, not the raw address, and Deno's Web
-// Crypto gives us that with no pgcrypto dependency (same reasoning
-// generate_short_token used to avoid pgcrypto, migration 074).
-async function hashIp(ip: string): Promise<string> {
-  const bytes = new TextEncoder().encode(ip)
-  const digest = await crypto.subtle.digest("SHA-256", bytes)
-  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("")
-}
-
 function buildHtml(opts: {
   title: string
   description: string
@@ -160,19 +135,23 @@ async function handleQuestionPreview(number: string, isCrawler: boolean): Promis
 //
 // This is inherently an unauthenticated 200-vs-404 oracle on a secret
 // token — a crawler generating a preview has no session, so there's no
-// auth check to add here, unlike the RPC-side fixes in 074/079. What this
-// function CAN and now does add: a per-IP-hash rate limit
-// (check_og_preview_rate_limit, migration 081) so a scripted sweep can't
-// guess at unlimited speed, and a log_anomaly_only() entry on every miss
-// (same 'comparison_token_guess_blocked'-style pattern as
-// accept_comparison_token, 074) so a sweep leaves a queryable trail
-// instead of zero trace.
-async function handleComparePreview(token: string, isCrawler: boolean, ipHash: string | null): Promise<Response> {
-  const { data: allowed } = await adminClient.rpc("check_og_preview_rate_limit", { p_ip_hash: ipHash })
-  if (allowed === false) {
-    return new Response("Too many requests", { status: 429, headers: { "Retry-After": "60" } })
-  }
-
+// auth check to add here, unlike the RPC-side fixes in 074/079. What
+// protects it is the same thing that protects accept_comparison_token()
+// on the RPC side: token entropy. comparison_tokens.token is a
+// 10-character string from generate_short_token() (074) — ~59.5 bits
+// (log2(62) * 10) — and every token expires within 48 hours (079), so a
+// guessing campaign has to land on one specific live token out of
+// roughly 62^10 possible values inside a 48-hour window. Migration 081
+// originally added a per-IP-hash rate limit and IP-hash logging here on
+// top of that; migration 084 removed both — the entropy above was
+// already carrying the real security weight, and per-IP capture was the
+// one place in this codebase touching IP addresses at all, which wasn't
+// something this app wants to do even in hashed, narrowly-scoped form.
+// A wrong guess is still logged (same 'comparison_token_guess_blocked'-
+// style pattern as accept_comparison_token, 074) so a scripted sweep
+// still leaves a queryable trail in anomaly_log — just without an IP
+// attached to it.
+async function handleComparePreview(token: string, isCrawler: boolean): Promise<Response> {
   const { data: tokenRow } = await adminClient
     .from("comparison_tokens")
     .select("sender_id")
@@ -183,7 +162,7 @@ async function handleComparePreview(token: string, isCrawler: boolean, ipHash: s
     await adminClient.rpc("log_anomaly_only", {
       p_alert_type: "og_preview_token_probe",
       p_severity: "low",
-      p_details: { ip_hash: ipHash, attempted_token: token },
+      p_details: { attempted_token: token },
     })
     return new Response("Comparison link not found", { status: 404 })
   }
@@ -224,9 +203,7 @@ Deno.serve(async (req) => {
 
   try {
     if (token) {
-      const ip = getClientIp(req)
-      const ipHash = ip ? await hashIp(ip) : null
-      return await handleComparePreview(token, isCrawler, ipHash)
+      return await handleComparePreview(token, isCrawler)
     }
     return await handleQuestionPreview(number!, isCrawler)
   } catch (error) {

@@ -1,0 +1,33 @@
+-- senseUS: remove IP capture from og-preview, rely on token entropy
+--
+-- Migration 081 added a per-IP-hash rate limit (og_preview_rate_limits)
+-- and logged a hashed IP on every wrong-token guess against
+-- handleComparePreview, to throttle scripted enumeration of
+-- comparison_tokens. That made og-preview the one place in this
+-- codebase that captured IP at all -- even hashed, even used narrowly
+-- for anti-abuse purposes -- which put the application code at odds
+-- with what this app tells people elsewhere (Transparency.jsx: "No IP
+-- addresses logged" / "IP addresses" listed under what senseUS does
+-- not retain).
+--
+-- Removing it rather than trying to reconcile the wording, because the
+-- protection it added wasn't actually load-bearing. comparison_tokens.
+-- token is a 10-character string from generate_short_token() (074),
+-- ~59.5 bits of entropy (log2(62) * 10), and every token expires within
+-- 48 hours (079). A guessing campaign has to land on one specific live
+-- token out of roughly 62^10 (~8.4 x 10^17) possible values inside a
+-- 48-hour window -- the odds of a hit stay astronomically small even at
+-- a sustained high request rate, with no throttling at all. The
+-- RPC-side accept path (accept_comparison_token, 074/079) already
+-- relies on this same entropy without any IP-based throttle; this
+-- brings the unauthenticated compare-preview path in line with that,
+-- rather than being the one exception that needed IP to stay safe.
+--
+-- What stays: a wrong guess is still logged to anomaly_log under
+-- og_preview_token_probe (see the edge function), so a scripted sweep
+-- still leaves a visible, queryable trail -- just without an IP hash
+-- attached to it. What goes: the per-IP-hash counter table and its RPC.
+-- ============================================================
+
+drop function if exists public.check_og_preview_rate_limit(text, integer, interval);
+drop table if exists public.og_preview_rate_limits;
