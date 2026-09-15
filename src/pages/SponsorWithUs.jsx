@@ -1,7 +1,16 @@
 import { Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { supabase } from '../lib/supabase'
+import TurnstileWidget from '../components/ui/TurnstileWidget'
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
+
+// Mirrors the DB CHECK constraints in migration 083 and the same limits
+// enforced server-side by submit-sponsorship-inquiry -- these are just
+// the UX layer (stop typing before you hit the wall), not the actual
+// security boundary.
+const MAX_LENGTHS = { name: 200, email: 320, company: 200, message: 5000 }
 
 // NOTE: this page is intentionally NOT linked from navigation anywhere.
 // It's reachable directly at /sponsor for sending to potential sponsors
@@ -114,6 +123,8 @@ export default function SponsorWithUs() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState(null)
   const [submitted, setSubmitted] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState(null)
+  const turnstileRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -150,26 +161,39 @@ export default function SponsorWithUs() {
       setSubmitError('Name and email are required.')
       return
     }
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setSubmitError('Please complete the verification check.')
+      return
+    }
     setSubmitting(true)
-    const { error } = await supabase.from('sponsorship_inquiries').insert({
-      name: form.name.trim(),
-      email: form.email.trim(),
-      company: form.company.trim() || null,
-      tier,
-      region: tier === 'region' ? region : null,
-      // A region is always a sub-selection within a country (see
-      // REGIONS_BY_COUNTRY above), so a region-tier inquiry should carry
-      // its country too, not just the region name — otherwise a future
-      // country with its own regions would make a stored "Northeast"
-      // ambiguous about which country it belongs to.
-      country_code: (tier === 'country' || tier === 'region') ? countryCode : null,
-      category: form.category,
-      wants_custom_content: wantsCustomContent,
-      message: form.message.trim() || null,
+    // Routed through an edge function rather than a direct table insert
+    // (see 083_sponsorship_inquiry_length_limits_and_edge_function.sql)
+    // -- it verifies the Turnstile token server-side and inserts via the
+    // service role, since the direct anon INSERT policy no longer exists.
+    const { data, error } = await supabase.functions.invoke('submit-sponsorship-inquiry', {
+      body: {
+        turnstileToken,
+        name: form.name.trim(),
+        email: form.email.trim(),
+        company: form.company.trim() || null,
+        tier,
+        region: tier === 'region' ? region : null,
+        // A region is always a sub-selection within a country (see
+        // REGIONS_BY_COUNTRY above), so a region-tier inquiry should carry
+        // its country too, not just the region name — otherwise a future
+        // country with its own regions would make a stored "Northeast"
+        // ambiguous about which country it belongs to.
+        country_code: (tier === 'country' || tier === 'region') ? countryCode : null,
+        category: form.category,
+        wants_custom_content: wantsCustomContent,
+        message: form.message.trim() || null,
+      },
     })
     setSubmitting(false)
-    if (error) {
-      setSubmitError('Something went wrong submitting this — ' + error.message)
+    if (error || data?.error) {
+      setSubmitError('Something went wrong submitting this — ' + (data?.error || error.message))
+      turnstileRef.current?.reset()
+      setTurnstileToken(null)
       return
     }
     setSubmitted(true)
@@ -383,17 +407,17 @@ export default function SponsorWithUs() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <div>
                 <label style={labelStyle}>Name</label>
-                <input style={inputStyle} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
+                <input style={inputStyle} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} maxLength={MAX_LENGTHS.name} required />
               </div>
               <div>
                 <label style={labelStyle}>Email</label>
-                <input type="email" style={inputStyle} value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required />
+                <input type="email" style={inputStyle} value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} maxLength={MAX_LENGTHS.email} required />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <div>
                 <label style={labelStyle}>Company (optional)</label>
-                <input style={inputStyle} value={form.company} onChange={e => setForm(p => ({ ...p, company: e.target.value }))} />
+                <input style={inputStyle} value={form.company} onChange={e => setForm(p => ({ ...p, company: e.target.value }))} maxLength={MAX_LENGTHS.company} />
               </div>
               <div>
                 <label style={labelStyle}>Category</label>
@@ -409,14 +433,24 @@ export default function SponsorWithUs() {
                 value={form.message}
                 onChange={e => setForm(p => ({ ...p, message: e.target.value }))}
                 placeholder="What's the question you'd like to sponsor?"
+                maxLength={MAX_LENGTHS.message}
               />
             </div>
+            {TURNSTILE_SITE_KEY && (
+              <TurnstileWidget
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                onVerify={setTurnstileToken}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => setTurnstileToken(null)}
+              />
+            )}
             {submitError && (
               <p style={{ fontSize: '13px', color: '#B91C1C', marginBottom: '10px' }}>{submitError}</p>
             )}
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
               style={{ background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: 700, cursor: submitting ? 'default' : 'pointer', opacity: submitting ? 0.7 : 1 }}
             >
               {submitting ? 'Submitting…' : `Submit interest — ${tier === 'region' ? region : tier === 'country' ? COUNTRIES.find(c => c.code === countryCode)?.name : 'Global'}, ${weeks} week${weeks > 1 ? 's' : ''} (${formatUSD(total)})`}
