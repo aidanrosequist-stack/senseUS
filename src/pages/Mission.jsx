@@ -48,6 +48,34 @@ export default function Mission() {
           <span style={{ color: '#1A1A1A', fontStyle: 'normal' }}>Aidan and Claude</span>
         </p>
 
+        <div style={{ borderTop: '0.5px solid #E5E7EB', marginTop: '3rem', paddingTop: '2rem' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', marginBottom: '1rem' }}>
+            Our Core Pillars
+          </h2>
+
+          <p style={{ fontSize: '15px', color: '#6B7280', fontStyle: 'italic', marginBottom: '1.5rem' }}>
+            I asked Claude, in multiple separate threads, what he thought the core values of senseUS are, based on what we've built together. Independently, he kept landing on the same five:
+          </p>
+
+          <ol style={{ paddingLeft: '1.25rem', margin: 0 }}>
+            <li style={{ marginBottom: '1.1rem' }}>
+              <strong>Verified humanity, one person, one voice.</strong> Every account is a real, phone-verified human — everything else here depends on that being true.
+            </li>
+            <li style={{ marginBottom: '1.1rem' }}>
+              <strong>Privacy and anonymity as the mechanism for honesty.</strong> We collect almost nothing, because minimal collection is what makes honest participation possible.
+            </li>
+            <li style={{ marginBottom: '1.1rem' }}>
+              <strong>Transparency as an actual practice, not a policy document.</strong> If we can't explain a decision publicly, we reconsider the decision.
+            </li>
+            <li style={{ marginBottom: '1.1rem' }}>
+              <strong>Structural independence.</strong> No advertisers, no investor seats, no government influence — a commitment we're formalizing as we complete our Delaware Public Benefit Corporation formation.
+            </li>
+            <li style={{ marginBottom: 0 }}>
+              <strong>A level playing field, even in the business model.</strong> No algorithm decides whose voice surfaces, and no one gets to buy outsized influence over what people see.
+            </li>
+          </ol>
+        </div>
+
       </div>
 
       <div style={{ borderTop: '0.5px solid #E5E7EB', marginTop: '3rem', paddingTop: '1.5rem', display: 'flex', gap: '1.5rem' }}>
