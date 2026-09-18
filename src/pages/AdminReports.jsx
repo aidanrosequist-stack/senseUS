@@ -223,6 +223,7 @@ export default function AdminReports({ supabase }) {
   const [trendQuestion, setTrendQuestion] = useState(null);
   const [trendSnapshots, setTrendSnapshots] = useState([]);
   const [trendMode, setTrendMode] = useState("4"); // "4" = all stances, "2" = yes+ly vs ln+no
+  const [trendUnit, setTrendUnit] = useState("pct"); // "pct" = % of day's votes, "count" = raw vote counts
   const [trendLoading, setTrendLoading] = useState(false);
   const [trendError, setTrendError] = useState(null);
 
@@ -361,12 +362,25 @@ export default function AdminReports({ supabase }) {
       setTrendSnapshots(
         (data || []).map((s) => ({
           date: s.snapshot_date,
-          yes: pctOf(s.yes_votes, s.total_votes),
-          ly: pctOf(s.ly_votes, s.total_votes),
-          ln: pctOf(s.ln_votes, s.total_votes),
-          no: pctOf(s.no_votes, s.total_votes),
-          pct_yes: s.pct_yes,
-          pct_no: s.pct_no,
+          // Percentage of that day's votes, per stance.
+          yesPct: pctOf(s.yes_votes, s.total_votes),
+          lyPct: pctOf(s.ly_votes, s.total_votes),
+          lnPct: pctOf(s.ln_votes, s.total_votes),
+          noPct: pctOf(s.no_votes, s.total_votes),
+          // Raw vote counts, per stance — straight from the snapshot row.
+          yesCount: Number(s.yes_votes) || 0,
+          lyCount: Number(s.ly_votes) || 0,
+          lnCount: Number(s.ln_votes) || 0,
+          noCount: Number(s.no_votes) || 0,
+          // Combined yes+ly vs ln+no, both units. Percentage uses the
+          // already-rounded pct_yes/pct_no columns (same values
+          // Activity.jsx's trend indicator uses); count is summed here
+          // since question_snapshots only stores the combined percentage,
+          // not a combined count column.
+          combinedYesPct: s.pct_yes,
+          combinedNoPct: s.pct_no,
+          combinedYesCount: (Number(s.yes_votes) || 0) + (Number(s.ly_votes) || 0),
+          combinedNoCount: (Number(s.ln_votes) || 0) + (Number(s.no_votes) || 0),
           total_votes: s.total_votes,
         }))
       );
@@ -670,18 +684,50 @@ async function reviewIntegrityEvent(id) {
 
         {trendQuestion && (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a", maxWidth: 480 }}>
-                {trendQuestion.text}
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a", marginBottom: 12 }}>
+              {trendQuestion.text}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+              {/* Primary toggle: percentage of that day's votes, or raw
+                  vote counts. */}
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  onClick={() => setTrendUnit("pct")}
+                  style={{
+                    fontSize: 11, padding: "4px 10px", borderRadius: 6, cursor: "pointer",
+                    border: "1px solid #2D3DCA",
+                    background: trendUnit === "pct" ? "#2D3DCA" : "white",
+                    color: trendUnit === "pct" ? "white" : "#2D3DCA",
+                    fontWeight: 600,
+                  }}
+                >
+                  Percentage
+                </button>
+                <button
+                  onClick={() => setTrendUnit("count")}
+                  style={{
+                    fontSize: 11, padding: "4px 10px", borderRadius: 6, cursor: "pointer",
+                    border: "1px solid #2D3DCA",
+                    background: trendUnit === "count" ? "#2D3DCA" : "white",
+                    color: trendUnit === "count" ? "white" : "#2D3DCA",
+                    fontWeight: 600,
+                  }}
+                >
+                  Vote Count
+                </button>
               </div>
-              <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+
+              {/* Secondary toggle: all 4 stances, or the combined 2-line
+                  view — applies under either unit above. */}
+              <div style={{ display: "flex", gap: 4 }}>
                 <button
                   onClick={() => setTrendMode("4")}
                   style={{
                     fontSize: 11, padding: "4px 10px", borderRadius: 6, cursor: "pointer",
-                    border: "1px solid #2D3DCA",
-                    background: trendMode === "4" ? "#2D3DCA" : "white",
-                    color: trendMode === "4" ? "white" : "#2D3DCA",
+                    border: "1px solid #6B7280",
+                    background: trendMode === "4" ? "#6B7280" : "white",
+                    color: trendMode === "4" ? "white" : "#6B7280",
                     fontWeight: 600,
                   }}
                 >
@@ -691,9 +737,9 @@ async function reviewIntegrityEvent(id) {
                   onClick={() => setTrendMode("2")}
                   style={{
                     fontSize: 11, padding: "4px 10px", borderRadius: 6, cursor: "pointer",
-                    border: "1px solid #2D3DCA",
-                    background: trendMode === "2" ? "#2D3DCA" : "white",
-                    color: trendMode === "2" ? "white" : "#2D3DCA",
+                    border: "1px solid #6B7280",
+                    background: trendMode === "2" ? "#6B7280" : "white",
+                    color: trendMode === "2" ? "white" : "#6B7280",
                     fontWeight: 600,
                   }}
                 >
@@ -713,20 +759,24 @@ async function reviewIntegrityEvent(id) {
                 <LineChart data={trendSnapshots}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} unit="%" domain={[0, 100]} />
-                  <Tooltip formatter={(value) => `${value}%`} />
+                  {trendUnit === "pct" ? (
+                    <YAxis tick={{ fontSize: 10 }} unit="%" domain={[0, 100]} />
+                  ) : (
+                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                  )}
+                  <Tooltip formatter={(value) => (trendUnit === "pct" ? `${value}%` : value)} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   {trendMode === "4" ? (
                     <>
-                      <Line type="monotone" dataKey="yes" name="Yes" stroke={STANCE_COLORS.yes} strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="ly" name="Leaning yes" stroke={STANCE_COLORS.ly} strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="ln" name="Leaning no" stroke={STANCE_COLORS.ln} strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="no" name="No" stroke={STANCE_COLORS.no} strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey={trendUnit === "pct" ? "yesPct" : "yesCount"} name="Yes" stroke={STANCE_COLORS.yes} strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey={trendUnit === "pct" ? "lyPct" : "lyCount"} name="Leaning yes" stroke={STANCE_COLORS.ly} strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey={trendUnit === "pct" ? "lnPct" : "lnCount"} name="Leaning no" stroke={STANCE_COLORS.ln} strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey={trendUnit === "pct" ? "noPct" : "noCount"} name="No" stroke={STANCE_COLORS.no} strokeWidth={2} dot={false} />
                     </>
                   ) : (
                     <>
-                      <Line type="monotone" dataKey="pct_yes" name="Yes + Leaning yes" stroke={COMBINED_COLORS.yes} strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="pct_no" name="No + Leaning no" stroke={COMBINED_COLORS.no} strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey={trendUnit === "pct" ? "combinedYesPct" : "combinedYesCount"} name="Yes + Leaning yes" stroke={COMBINED_COLORS.yes} strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey={trendUnit === "pct" ? "combinedNoPct" : "combinedNoCount"} name="No + Leaning no" stroke={COMBINED_COLORS.no} strokeWidth={2} dot={false} />
                     </>
                   )}
                 </LineChart>
