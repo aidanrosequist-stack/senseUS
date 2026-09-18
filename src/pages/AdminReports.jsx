@@ -26,7 +26,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import "jspdf-autotable"; // side-effect import: patches doc.autoTable(...) onto jsPDF's prototype
 import * as XLSX from "xlsx";
 
 // Same palette Activity.jsx uses for the 4 vote choices (VOTE_COLORS), so
@@ -628,7 +628,7 @@ export default function AdminReports({ supabase }) {
       cursorY += 8;
     }
 
-    autoTable(doc, {
+    doc.autoTable({
       startY: cursorY,
       margin: { left: margin, right: margin },
       head: [["Stance", "Votes", "% of total"]],
