@@ -1,0 +1,5 @@
+Add Merriweather font files for PDF export
+
+Static TTFs (Regular 400, Bold 700) from Google Fonts, used by
+AdminReports.jsx's PDF export to embed the site's real typeface
+instead of falling back to jsPDF's built-in Times.
