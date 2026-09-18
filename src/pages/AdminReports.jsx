@@ -25,6 +25,9 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 // Same palette Activity.jsx uses for the 4 vote choices (VOTE_COLORS), so
 // a stance reads the same color here as it does on the voting UI itself.
@@ -226,6 +229,8 @@ export default function AdminReports({ supabase }) {
   const [trendUnit, setTrendUnit] = useState("pct"); // "pct" = % of day's votes, "count" = raw vote counts
   const [trendLoading, setTrendLoading] = useState(false);
   const [trendError, setTrendError] = useState(null);
+  const [exportFormat, setExportFormat] = useState("xlsx"); // "xlsx" | "pdf"
+  const [exportLoading, setExportLoading] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -329,7 +334,7 @@ export default function AdminReports({ supabase }) {
     const handle = setTimeout(async () => {
       const { data, error: searchErr } = await supabase
         .from("questions")
-        .select("id, text, domain, published_at")
+        .select("id, text, domain, category, question_number, created_at, published_at, human_moderation_required, is_sponsored")
         .not("published_at", "is", null)
         .ilike("text", `%${q}%`)
         .order("published_at", { ascending: false })
@@ -388,6 +393,274 @@ export default function AdminReports({ supabase }) {
     setTrendLoading(false);
   }
 
+  // Converts a "#rrggbb" string (all the STANCE_COLORS/COMBINED_COLORS
+  // values already use this format) into the [r, g, b] triple
+  // jsPDF's setDrawColor/setFillColor/setTextColor expect.
+  function hexToRgb(hex) {
+    const clean = hex.replace("#", "");
+    return [
+      parseInt(clean.slice(0, 2), 16),
+      parseInt(clean.slice(2, 4), 16),
+      parseInt(clean.slice(4, 6), 16),
+    ];
+  }
+
+  // Draws the same trend line(s) currently shown on screen directly
+  // into the PDF with jsPDF's own vector line-drawing primitives —
+  // deliberately not a rasterized snapshot of the on-screen recharts
+  // SVG (no html2canvas dependency, no tainted-canvas/CORS surface,
+  // and the output stays crisp at any zoom since it's real vector
+  // content, not a bitmap).
+  function drawTrendChartOnPdf(doc, x, y, width, height, snapshots, mode, unit) {
+    const series =
+      mode === "4"
+        ? [
+            { key: unit === "pct" ? "yesPct" : "yesCount", name: "Yes", color: STANCE_COLORS.yes },
+            { key: unit === "pct" ? "lyPct" : "lyCount", name: "Leaning yes", color: STANCE_COLORS.ly },
+            { key: unit === "pct" ? "lnPct" : "lnCount", name: "Leaning no", color: STANCE_COLORS.ln },
+            { key: unit === "pct" ? "noPct" : "noCount", name: "No", color: STANCE_COLORS.no },
+          ]
+        : [
+            { key: unit === "pct" ? "combinedYesPct" : "combinedYesCount", name: "Yes + Leaning yes", color: COMBINED_COLORS.yes },
+            { key: unit === "pct" ? "combinedNoPct" : "combinedNoCount", name: "No + Leaning no", color: COMBINED_COLORS.no },
+          ];
+
+    const chartH = height - 14; // reserve room for the legend row below the plot
+    const allValues = series.flatMap((s) => snapshots.map((p) => Number(p[s.key]) || 0));
+    const maxVal = unit === "pct" ? 100 : Math.max(1, ...allValues);
+    const minVal = 0;
+
+    const plotX = (i) => x + (snapshots.length <= 1 ? 0 : (i / (snapshots.length - 1)) * width);
+    const plotY = (v) => y + chartH - ((v - minVal) / (maxVal - minVal || 1)) * chartH;
+
+    // Axes
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
+    doc.line(x, y, x, y + chartH);
+    doc.line(x, y + chartH, x + width, y + chartH);
+
+    // Y-axis ticks (min/mid/max)
+    doc.setFontSize(7);
+    doc.setTextColor(140, 140, 140);
+    [minVal, (minVal + maxVal) / 2, maxVal].forEach((v) => {
+      const yy = plotY(v);
+      doc.text(`${Math.round(v)}${unit === "pct" ? "%" : ""}`, x - 2, yy, { align: "right", baseline: "middle" });
+    });
+
+    // X-axis ticks — first, middle, last date, so a dense history doesn't overlap
+    const tickIdxs = snapshots.length <= 1 ? [0] : [0, Math.floor((snapshots.length - 1) / 2), snapshots.length - 1];
+    [...new Set(tickIdxs)].forEach((i) => {
+      doc.text(String(snapshots[i]?.date ?? ""), plotX(i), y + chartH + 5, { align: "center" });
+    });
+
+    // One polyline per series
+    series.forEach((s) => {
+      const [r, g, b] = hexToRgb(s.color);
+      doc.setDrawColor(r, g, b);
+      doc.setLineWidth(0.5);
+      for (let i = 1; i < snapshots.length; i++) {
+        const v0 = Number(snapshots[i - 1][s.key]) || 0;
+        const v1 = Number(snapshots[i][s.key]) || 0;
+        doc.line(plotX(i - 1), plotY(v0), plotX(i), plotY(v1));
+      }
+    });
+
+    // Legend row, wrapped left-to-right beneath the plot
+    let legendX = x;
+    const legendY = y + height - 3;
+    doc.setFontSize(8);
+    series.forEach((s) => {
+      const [r, g, b] = hexToRgb(s.color);
+      doc.setFillColor(r, g, b);
+      doc.rect(legendX, legendY - 2.5, 3, 3, "F");
+      doc.setTextColor(60, 60, 60);
+      doc.text(s.name, legendX + 4.5, legendY);
+      legendX += doc.getTextWidth(s.name) + 14;
+    });
+  }
+
+  // Pulls the two pieces of data the Question Trend screen doesn't
+  // already have loaded: live, exact vote tallies by choice (the
+  // snapshot history is daily and by stance percentage/count, not a
+  // single up-to-the-second total) and comment counts. Both are simple
+  // client queries against tables every signed-in user can already
+  // read a scoped slice of — nothing new needed at the database layer.
+  async function fetchExportExtras(questionId) {
+    const [{ data: voteRows, error: voteErr }, { count: commentCount, error: commentErr }, { count: flaggedCount, error: flagErr }] =
+      await Promise.all([
+        supabase.from("votes").select("choice").eq("question_id", questionId),
+        supabase.from("comments").select("*", { count: "exact", head: true }).eq("question_id", questionId).eq("is_deleted", false),
+        supabase.from("comments").select("*", { count: "exact", head: true }).eq("question_id", questionId).eq("is_deleted", false).eq("is_flagged", true),
+      ]);
+    if (voteErr || commentErr || flagErr) {
+      throw new Error((voteErr || commentErr || flagErr).message);
+    }
+    const tallies = { yes: 0, ly: 0, ln: 0, no: 0, dec: 0 };
+    (voteRows || []).forEach((v) => {
+      if (tallies[v.choice] !== undefined) tallies[v.choice] += 1;
+    });
+    const totalVotes = (voteRows || []).length;
+    return { tallies, totalVotes, commentCount: commentCount || 0, flaggedCount: flaggedCount || 0 };
+  }
+
+  async function exportQuestionReport() {
+    if (!trendQuestion) return;
+    setExportLoading(true);
+    setTrendError(null);
+    try {
+      const extras = await fetchExportExtras(trendQuestion.id);
+      if (exportFormat === "xlsx") {
+        exportQuestionXlsx(trendQuestion, trendSnapshots, extras);
+      } else {
+        exportQuestionPdf(trendQuestion, trendSnapshots, extras, trendMode, trendUnit);
+      }
+    } catch (err) {
+      setTrendError("Couldn't build export: " + err.message);
+    } finally {
+      setExportLoading(false);
+    }
+  }
+
+  function questionFileBase(question) {
+    const numberPart = question.question_number != null ? `q${question.question_number}` : question.id.slice(0, 8);
+    return `senseus-${numberPart}`;
+  }
+
+  function exportQuestionXlsx(question, snapshots, extras) {
+    const summaryRows = [
+      ["Question", question.text],
+      ["Question #", question.question_number ?? "—"],
+      ["Category", question.category ?? "—"],
+      ["Domain", question.domain ?? "—"],
+      ["Created", question.created_at ? new Date(question.created_at).toLocaleString() : "—"],
+      ["Published", question.published_at ? new Date(question.published_at).toLocaleString() : "—"],
+      ["Human moderation required", question.human_moderation_required ? "Yes" : "No"],
+      ["Sponsored", question.is_sponsored ? "Yes" : "No"],
+      [],
+      ["Total votes (live)", extras.totalVotes],
+      ["Yes", extras.tallies.yes],
+      ["Leaning yes", extras.tallies.ly],
+      ["Leaning no", extras.tallies.ln],
+      ["No", extras.tallies.no],
+      ["Declined to answer", extras.tallies.dec],
+      [],
+      ["Total comments", extras.commentCount],
+      ["Flagged comments", extras.flaggedCount],
+      [],
+      ["Exported", new Date().toLocaleString()],
+    ];
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+    summarySheet["!cols"] = [{ wch: 28 }, { wch: 60 }];
+
+    const historyHeader = [
+      "Date",
+      "Yes votes",
+      "Leaning-yes votes",
+      "Leaning-no votes",
+      "No votes",
+      "Total votes",
+      "Yes %",
+      "Leaning-yes %",
+      "Leaning-no %",
+      "No %",
+      "Combined Yes+LY %",
+      "Combined No+LN %",
+    ];
+    const historyRows = snapshots.map((s) => [
+      s.date,
+      s.yesCount,
+      s.lyCount,
+      s.lnCount,
+      s.noCount,
+      s.total_votes,
+      s.yesPct,
+      s.lyPct,
+      s.lnPct,
+      s.noPct,
+      s.combinedYesPct,
+      s.combinedNoPct,
+    ]);
+    const historySheet = XLSX.utils.aoa_to_sheet([historyHeader, ...historyRows]);
+    historySheet["!cols"] = historyHeader.map(() => ({ wch: 14 }));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+    XLSX.utils.book_append_sheet(workbook, historySheet, "Daily History");
+    XLSX.writeFile(workbook, `${questionFileBase(question)}.xlsx`);
+  }
+
+  function exportQuestionPdf(question, snapshots, extras, mode, unit) {
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+
+    doc.setFontSize(11);
+    doc.setTextColor(109, 166, 39); // senseUS green, matches the "US" in the wordmark elsewhere in the app
+    doc.text("senseUS", margin, 15);
+    doc.setTextColor(30, 30, 30);
+    doc.setFontSize(14);
+    const titleLines = doc.splitTextToSize(question.text, pageWidth - margin * 2);
+    doc.text(titleLines, margin, 24);
+    let cursorY = 24 + titleLines.length * 6 + 4;
+
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    const meta = [
+      question.category ? `Category: ${question.category}` : null,
+      question.domain ? `Domain: ${question.domain}` : null,
+      question.question_number != null ? `Question #${question.question_number}` : null,
+      question.published_at ? `Published: ${new Date(question.published_at).toLocaleDateString()}` : null,
+    ].filter(Boolean).join("   ·   ");
+    doc.text(meta, margin, cursorY);
+    cursorY += 8;
+
+    if (snapshots.length > 0) {
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Vote trend (${mode === "4" ? "4 stances" : "Yes vs No"}, ${unit === "pct" ? "% of day's votes" : "vote count"})`, margin, cursorY);
+      cursorY += 3;
+      drawTrendChartOnPdf(doc, margin + 10, cursorY, pageWidth - margin * 2 - 10, 55, snapshots, mode, unit);
+      cursorY += 55 + 8;
+    } else {
+      doc.setFontSize(9);
+      doc.setTextColor(150, 150, 150);
+      doc.text("No snapshot history yet for this question.", margin, cursorY);
+      cursorY += 8;
+    }
+
+    autoTable(doc, {
+      startY: cursorY,
+      margin: { left: margin, right: margin },
+      head: [["Stance", "Votes", "% of total"]],
+      body: [
+        ["Yes", extras.tallies.yes, pctOf(extras.tallies.yes, extras.totalVotes) + "%"],
+        ["Leaning yes", extras.tallies.ly, pctOf(extras.tallies.ly, extras.totalVotes) + "%"],
+        ["Leaning no", extras.tallies.ln, pctOf(extras.tallies.ln, extras.totalVotes) + "%"],
+        ["No", extras.tallies.no, pctOf(extras.tallies.no, extras.totalVotes) + "%"],
+        ["Declined to answer", extras.tallies.dec, pctOf(extras.tallies.dec, extras.totalVotes) + "%"],
+      ],
+      foot: [["Total", extras.totalVotes, "—"]],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [45, 61, 202] },
+      theme: "striped",
+    });
+
+    const afterTableY = doc.lastAutoTable.finalY + 8;
+    doc.setFontSize(9);
+    doc.setTextColor(60, 60, 60);
+    doc.text(`Total comments: ${extras.commentCount}  (${extras.flaggedCount} flagged)`, margin, afterTableY);
+
+    doc.setFontSize(7);
+    doc.setTextColor(160, 160, 160);
+    doc.text(
+      `Exported ${new Date().toLocaleString()} · full daily history available in the spreadsheet export`,
+      margin,
+      doc.internal.pageSize.getHeight() - 10
+    );
+
+    doc.save(`${questionFileBase(question)}.pdf`);
+  }
+
 async function resolveAnomaly(id) {
   const { error } = await supabase
     .from('anomaly_log')
@@ -398,6 +671,34 @@ async function resolveAnomaly(id) {
     return
   }
   setAnomalies((prev) => prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)))
+}
+
+async function deleteAnomaly(id) {
+  if (!window.confirm('Delete this anomaly log entry? This cannot be undone.')) return
+  const { error } = await supabase
+    .from('anomaly_log')
+    .delete()
+    .eq('id', id)
+  if (error) {
+    alert('Something went wrong: ' + error.message)
+    return
+  }
+  setAnomalies((prev) => prev.filter((a) => a.id !== id))
+}
+
+async function clearResolvedAnomalies() {
+  const resolvedIds = anomalies.filter((a) => a.resolved).map((a) => a.id)
+  if (resolvedIds.length === 0) return
+  if (!window.confirm(`Delete all ${resolvedIds.length} resolved anomaly log entries? This cannot be undone.`)) return
+  const { error } = await supabase
+    .from('anomaly_log')
+    .delete()
+    .in('id', resolvedIds)
+  if (error) {
+    alert('Something went wrong: ' + error.message)
+    return
+  }
+  setAnomalies((prev) => prev.filter((a) => !a.resolved))
 }
 
 async function reviewIntegrityEvent(id) {
@@ -481,7 +782,17 @@ async function reviewIntegrityEvent(id) {
 
       {/* Anomaly log */}
       <div style={{ background: "#fff", borderRadius: 8, padding: 20, border: "1px solid #eee", marginBottom: 32 }}>
-        <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>Anomaly Log (most recent 25)</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ fontSize: 13, color: "#888" }}>Anomaly Log (most recent 25)</div>
+          {anomalies.some((a) => a.resolved) && (
+            <button
+              onClick={clearResolvedAnomalies}
+              style={{ fontSize: "11px", padding: "3px 8px", borderRadius: "6px", border: "1px solid #c21f1f", background: "white", color: "#c21f1f", cursor: "pointer" }}
+            >
+              Clear resolved
+            </button>
+          )}
+        </div>
         {anomalies.length === 0 ? (
           <div style={{ color: "#999", fontSize: 13 }}>No anomalies logged.</div>
         ) : (
@@ -493,6 +804,7 @@ async function reviewIntegrityEvent(id) {
                 <th style={{ padding: "6px 8px" }}>Severity</th>
                 <th style={{ padding: "6px 8px" }}>Triggered</th>
                 <th style={{ padding: "6px 8px" }}>Resolved</th>
+                <th style={{ padding: "6px 8px" }}></th>
               </tr>
             </thead>
             <tbody>
@@ -520,6 +832,15 @@ async function reviewIntegrityEvent(id) {
     </button>
   )}
 </td>
+                  <td style={{ padding: "6px 8px" }}>
+                    <button
+                      onClick={() => deleteAnomaly(a.id)}
+                      title="Delete this entry"
+                      style={{ fontSize: "11px", padding: "3px 8px", borderRadius: "6px", border: "1px solid #999", background: "white", color: "#999", cursor: "pointer" }}
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -746,6 +1067,34 @@ async function reviewIntegrityEvent(id) {
                   Yes vs No
                 </button>
               </div>
+            </div>
+
+            {/* Export — pulls this question's full report (metadata, live
+                vote tallies, comment counts, and the daily history above)
+                into a downloadable file. The spreadsheet always includes
+                the full daily history; the PDF mirrors whatever unit/mode
+                toggle is currently selected for its chart. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, paddingTop: 12, borderTop: "1px solid #f5f5f5" }}>
+              <span style={{ fontSize: 12, color: "#888" }}>Export this question:</span>
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value)}
+                style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid #ddd" }}
+              >
+                <option value="xlsx">Spreadsheet (.xlsx)</option>
+                <option value="pdf">PDF report</option>
+              </select>
+              <button
+                onClick={exportQuestionReport}
+                disabled={exportLoading || trendSnapshots.length === 0 && trendLoading}
+                style={{
+                  fontSize: 11, padding: "5px 12px", borderRadius: 6, cursor: exportLoading ? "default" : "pointer",
+                  border: "1px solid #52B788", background: exportLoading ? "#eee" : "#52B788", color: exportLoading ? "#999" : "white",
+                  fontWeight: 600,
+                }}
+              >
+                {exportLoading ? "Building…" : "Export"}
+              </button>
             </div>
 
             {trendLoading ? (

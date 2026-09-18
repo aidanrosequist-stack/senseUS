@@ -1,0 +1,42 @@
+Add question export (PDF/XLSX) and Anomaly Log delete/clear-resolved
+
+Question Trend export (Reports tab):
+- New "Export this question" control next to the existing trend chart:
+  admin picks Spreadsheet (.xlsx) or PDF report at export time, then
+  clicks Export.
+- XLSX: two sheets -- "Summary" (question text, category, question
+  number, published/created dates, live vote tallies by choice,
+  total votes, comment count, flagged-comment count) and "Daily
+  History" (one row per question_snapshots day, raw counts + computed
+  percentages, matching whatever unit/mode the trend chart is
+  currently showing).
+- PDF: one-page A4 report -- senseUS wordmark, question text, metadata
+  line, the trend chart redrawn as native vector lines (not a
+  screenshot of the on-screen chart, to avoid rasterization/CORS
+  issues), a vote-tally table, and a comment-count line. Falls back to
+  a "no snapshot history" message if the question has none yet.
+- Comment export is counts only (total + flagged) -- no comment text or
+  commenter identities leave the database, per your call on this.
+- New deps: jspdf, jspdf-autotable, xlsx. Run `npm install` after
+  pulling this before the app will build.
+
+Anomaly Log cleanup (Reports tab):
+- Per-row "Delete" button on every anomaly log entry.
+- "Clear resolved" button in the panel header, shown only when at
+  least one entry is marked resolved -- deletes all resolved rows in
+  one batch.
+- Both confirm before deleting; both require migration 086 below
+  (RLS has never allowed deleting anomaly_log rows until now).
+
+Migration 086_anomaly_log_delete_policy.sql:
+- Adds an admin-gated DELETE policy on anomaly_log. Migration 013
+  deliberately shipped this table with no insert/delete policy at all
+  ("editing any of them should be a deliberate act") since nothing in
+  the app needed to delete rows at the time. There's a UI need now, so
+  this adds one DELETE policy using the same admin-check predicate as
+  the table's existing select/update policies. Verified locally
+  (Postgres 16): admin delete succeeds, non-admin delete is silently
+  blocked by RLS, both with and without a WHERE clause.
+- Remember: `git push` alone does not apply this. Run
+  `supabase db push` separately to apply it to production, or the
+  Delete/Clear resolved buttons will fail with a permissions error.

@@ -59,16 +59,16 @@ export default function Mission() {
 
           <ol style={{ paddingLeft: '1.25rem', margin: 0 }}>
             <li style={{ marginBottom: '1.1rem' }}>
-              <strong>Verified humanity, one person, one voice.</strong> Every account is a real, phone-verified human — everything else here depends on that being true.
+              <strong>Verified humanity, one person, one voice.</strong> Every account is a real, phone-verified human.
             </li>
             <li style={{ marginBottom: '1.1rem' }}>
-              <strong>Privacy and anonymity as the mechanism for honesty.</strong> We collect almost nothing, because minimal collection is what makes honest participation possible.
+              <strong>Privacy and anonymity as the mechanism for honesty.</strong> We collect very little personal information, because minimal collection is what makes honest participation possible.
             </li>
             <li style={{ marginBottom: '1.1rem' }}>
               <strong>Transparency as an actual practice, not a policy document.</strong> If we can't explain a decision publicly, we reconsider the decision.
             </li>
             <li style={{ marginBottom: '1.1rem' }}>
-              <strong>Structural independence.</strong> No advertisers, no investor seats, no government influence — a commitment we're formalizing as we complete our Delaware Public Benefit Corporation formation.
+              <strong>Structural independence.</strong> No advertisers, no investor seats, no government influence — written into our legal charter, not just asserted in our copy.
             </li>
             <li style={{ marginBottom: 0 }}>
               <strong>A level playing field, even in the business model.</strong> No algorithm decides whose voice surfaces, and no one gets to buy outsized influence over what people see.
