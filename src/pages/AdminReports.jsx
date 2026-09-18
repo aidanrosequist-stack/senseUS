@@ -22,8 +22,33 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from "recharts";
+
+// Same palette Activity.jsx uses for the 4 vote choices (VOTE_COLORS), so
+// a stance reads the same color here as it does on the voting UI itself.
+const STANCE_COLORS = {
+  yes: "#6d8a1c",
+  ly: "#d9c01a",
+  ln: "#c2731f",
+  no: "#c21f1f",
+};
+// Combined-mode colors: same green/red family as the individual yes/no
+// stances above, just for the merged (yes+ly) vs (ln+no) split.
+const COMBINED_COLORS = {
+  yes: "#4d621d",
+  no: "#7a1313",
+};
+
+// question_snapshots stores yes_votes/ly_votes/ln_votes/no_votes as raw
+// counts (see take_question_snapshots() in migration 000) — this turns a
+// day's raw counts into a percentage of that day's total, matching how
+// pct_yes/pct_no are already computed server-side.
+function pctOf(count, total) {
+  if (!total) return 0;
+  return Math.round((Number(count) / Number(total)) * 1000) / 10; // 1 decimal
+}
 
 // Every alert_type call_alert_function() has ever been called with, across
 // migrations 000-052 and the process-account-deletions edge function.
@@ -189,6 +214,18 @@ export default function AdminReports({ supabase }) {
   const [questions, setQuestions] = useState([]);
   const [error, setError] = useState(null);
 
+  // Question Trend report state — separate from the auto-refreshing
+  // dashboard above, since this is an on-demand lookup for one question
+  // at a time rather than something to re-poll every 60s.
+  const [trendSearch, setTrendSearch] = useState("");
+  const [trendResults, setTrendResults] = useState([]);
+  const [trendSearching, setTrendSearching] = useState(false);
+  const [trendQuestion, setTrendQuestion] = useState(null);
+  const [trendSnapshots, setTrendSnapshots] = useState([]);
+  const [trendMode, setTrendMode] = useState("4"); // "4" = all stances, "2" = yes+ly vs ln+no
+  const [trendLoading, setTrendLoading] = useState(false);
+  const [trendError, setTrendError] = useState(null);
+
   const loadDashboard = useCallback(async () => {
     try {
       setError(null);
@@ -273,6 +310,69 @@ export default function AdminReports({ supabase }) {
     const interval = setInterval(loadDashboard, 60000);
     return () => clearInterval(interval);
   }, [loadDashboard]);
+
+  // Debounced question search for the trend report below — queries
+  // `questions` directly (same "Authenticated users can view published
+  // questions" / "Admins can do everything" policies every other page
+  // already relies on) rather than a dedicated search RPC, since none of
+  // the ones referenced elsewhere in the schema (admin_search_questions,
+  // search_questions) are actually called from anywhere in src/ today and
+  // this dashboard is already admin-only.
+  useEffect(() => {
+    const q = trendSearch.trim();
+    if (q.length < 2) {
+      setTrendResults([]);
+      return;
+    }
+    setTrendSearching(true);
+    const handle = setTimeout(async () => {
+      const { data, error: searchErr } = await supabase
+        .from("questions")
+        .select("id, text, domain, published_at")
+        .not("published_at", "is", null)
+        .ilike("text", `%${q}%`)
+        .order("published_at", { ascending: false })
+        .limit(15);
+      if (!searchErr) setTrendResults(data || []);
+      setTrendSearching(false);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [trendSearch, supabase]);
+
+  async function selectTrendQuestion(question) {
+    setTrendQuestion(question);
+    setTrendResults([]);
+    setTrendSearch("");
+    setTrendError(null);
+    setTrendLoading(true);
+    // Full un-pruned history for this one question, oldest first — daily
+    // snapshots have accumulated since its publish date (see
+    // take_question_snapshots() in migration 000; nothing here is ever
+    // pruned).
+    const { data, error: snapErr } = await supabase
+      .from("question_snapshots")
+      .select("snapshot_date, pct_yes, pct_no, total_votes, yes_votes, ly_votes, ln_votes, no_votes")
+      .eq("question_id", question.id)
+      .order("snapshot_date", { ascending: true });
+    if (snapErr) {
+      setTrendError("Couldn't load snapshot history: " + snapErr.message);
+      setTrendSnapshots([]);
+    } else {
+      setTrendSnapshots(
+        (data || []).map((s) => ({
+          date: s.snapshot_date,
+          yes: pctOf(s.yes_votes, s.total_votes),
+          ly: pctOf(s.ly_votes, s.total_votes),
+          ln: pctOf(s.ln_votes, s.total_votes),
+          no: pctOf(s.no_votes, s.total_votes),
+          pct_yes: s.pct_yes,
+          pct_no: s.pct_no,
+          total_votes: s.total_votes,
+        }))
+      );
+    }
+    setTrendLoading(false);
+  }
 
 async function resolveAnomaly(id) {
   const { error } = await supabase
@@ -498,6 +598,142 @@ async function reviewIntegrityEvent(id) {
               ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Question Trend report — per-question vote-stance history, from
+          publication to today, in either a 4-line (yes/ly/ln/no) or
+          2-line (yes+ly vs ln+no) view. Backed by question_snapshots,
+          which take_question_snapshots() populates daily and never
+          prunes (see migration 000). */}
+      <div style={{ background: "#fff", borderRadius: 8, padding: 20, border: "1px solid #eee", marginTop: 32 }}>
+        <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>Question Trend</div>
+
+        <div style={{ position: "relative", marginBottom: 16 }}>
+          <input
+            type="text"
+            value={trendSearch}
+            onChange={(e) => setTrendSearch(e.target.value)}
+            placeholder="Search a published question by text…"
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              fontSize: 13,
+              border: "1px solid #ddd",
+              borderRadius: 6,
+              boxSizing: "border-box",
+              fontFamily: "Merriweather, Georgia, serif",
+            }}
+          />
+          {trendSearch.trim().length >= 2 && (trendResults.length > 0 || trendSearching) && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                left: 0,
+                right: 0,
+                background: "#fff",
+                border: "1px solid #ddd",
+                borderRadius: 6,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                zIndex: 5,
+                maxHeight: 280,
+                overflowY: "auto",
+              }}
+            >
+              {trendSearching ? (
+                <div style={{ padding: "8px 12px", fontSize: 12, color: "#999" }}>Searching…</div>
+              ) : (
+                trendResults.map((q) => (
+                  <div
+                    key={q.id}
+                    onClick={() => selectTrendQuestion(q)}
+                    style={{
+                      padding: "8px 12px",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      borderBottom: "1px solid #f5f5f5",
+                    }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    {q.text}
+                    {q.domain && <span style={{ color: "#999", fontSize: 11 }}> — {q.domain}</span>}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        {!trendQuestion && (
+          <div style={{ color: "#999", fontSize: 13 }}>Search for a question above to see its vote trend.</div>
+        )}
+
+        {trendQuestion && (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a", maxWidth: 480 }}>
+                {trendQuestion.text}
+              </div>
+              <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                <button
+                  onClick={() => setTrendMode("4")}
+                  style={{
+                    fontSize: 11, padding: "4px 10px", borderRadius: 6, cursor: "pointer",
+                    border: "1px solid #2D3DCA",
+                    background: trendMode === "4" ? "#2D3DCA" : "white",
+                    color: trendMode === "4" ? "white" : "#2D3DCA",
+                    fontWeight: 600,
+                  }}
+                >
+                  4 stances
+                </button>
+                <button
+                  onClick={() => setTrendMode("2")}
+                  style={{
+                    fontSize: 11, padding: "4px 10px", borderRadius: 6, cursor: "pointer",
+                    border: "1px solid #2D3DCA",
+                    background: trendMode === "2" ? "#2D3DCA" : "white",
+                    color: trendMode === "2" ? "white" : "#2D3DCA",
+                    fontWeight: 600,
+                  }}
+                >
+                  Yes vs No
+                </button>
+              </div>
+            </div>
+
+            {trendLoading ? (
+              <div style={{ color: "#999", fontSize: 13 }}>Loading history…</div>
+            ) : trendError ? (
+              <div style={{ color: "#c21f1f", fontSize: 13 }}>{trendError}</div>
+            ) : trendSnapshots.length === 0 ? (
+              <div style={{ color: "#999", fontSize: 13 }}>No snapshot history yet for this question.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={trendSnapshots}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} unit="%" domain={[0, 100]} />
+                  <Tooltip formatter={(value) => `${value}%`} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  {trendMode === "4" ? (
+                    <>
+                      <Line type="monotone" dataKey="yes" name="Yes" stroke={STANCE_COLORS.yes} strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="ly" name="Leaning yes" stroke={STANCE_COLORS.ly} strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="ln" name="Leaning no" stroke={STANCE_COLORS.ln} strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="no" name="No" stroke={STANCE_COLORS.no} strokeWidth={2} dot={false} />
+                    </>
+                  ) : (
+                    <>
+                      <Line type="monotone" dataKey="pct_yes" name="Yes + Leaning yes" stroke={COMBINED_COLORS.yes} strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="pct_no" name="No + Leaning no" stroke={COMBINED_COLORS.no} strokeWidth={2} dot={false} />
+                    </>
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
