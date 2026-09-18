@@ -231,6 +231,13 @@ export default function AdminReports({ supabase }) {
   const [trendError, setTrendError] = useState(null);
   const [exportFormat, setExportFormat] = useState("xlsx"); // "xlsx" | "pdf"
   const [exportLoading, setExportLoading] = useState(false);
+  // "all" | "7d" | "30d" | "365d" | "custom" — scopes both the daily
+  // history rows/chart and the live vote/comment totals (as-of the
+  // range's end date) to a window, so a report can match "since last
+  // month" instead of always being a lifetime snapshot.
+  const [exportRangePreset, setExportRangePreset] = useState("all");
+  const [exportCustomStart, setExportCustomStart] = useState("");
+  const [exportCustomEnd, setExportCustomEnd] = useState("");
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -411,7 +418,8 @@ export default function AdminReports({ supabase }) {
   // SVG (no html2canvas dependency, no tainted-canvas/CORS surface,
   // and the output stays crisp at any zoom since it's real vector
   // content, not a bitmap).
-  function drawTrendChartOnPdf(doc, x, y, width, height, snapshots, mode, unit) {
+  function drawTrendChartOnPdf(doc, x, y, width, height, snapshots, mode, unit, font) {
+    if (font) doc.setFont(font, "normal");
     const series =
       mode === "4"
         ? [
@@ -479,19 +487,142 @@ export default function AdminReports({ supabase }) {
     });
   }
 
+  // Turns the export range control into either null ("all time" — no
+  // filtering at all, the original behavior) or a concrete
+  // { start, end, label } window. "end" always gets pushed to the last
+  // millisecond of its day so an inclusive day-granularity pick (e.g.
+  // "custom end = 2026-09-18") doesn't clip that day's own snapshot/
+  // votes/comments.
+  function resolveExportRange() {
+    const now = new Date();
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    function daysBack(n) {
+      const start = new Date(endOfToday);
+      start.setDate(start.getDate() - (n - 1));
+      start.setHours(0, 0, 0, 0);
+      return start;
+    }
+
+    switch (exportRangePreset) {
+      case "7d":
+        return { start: daysBack(7), end: endOfToday, label: "Last 7 days" };
+      case "30d":
+        return { start: daysBack(30), end: endOfToday, label: "Last 30 days" };
+      case "365d":
+        return { start: daysBack(365), end: endOfToday, label: "Last year" };
+      case "custom": {
+        if (!exportCustomStart || !exportCustomEnd) return "invalid";
+        const start = new Date(exportCustomStart + "T00:00:00");
+        const end = new Date(exportCustomEnd + "T23:59:59.999");
+        if (end < start) return "invalid";
+        return { start, end, label: `${exportCustomStart} to ${exportCustomEnd}` };
+      }
+      default:
+        return null; // "all"
+    }
+  }
+
+  function filterSnapshotsByRange(snapshots, range) {
+    if (!range) return snapshots;
+    return snapshots.filter((s) => {
+      const d = new Date(s.date + "T00:00:00");
+      return d >= range.start && d <= range.end;
+    });
+  }
+
+  // Filesystem-safe slug for a range label, used in export filenames.
+  function rangeFileSuffix(range) {
+    if (!range) return "";
+    if (range.label === "Last 7 days") return "-last-7-days";
+    if (range.label === "Last 30 days") return "-last-30-days";
+    if (range.label === "Last year") return "-last-year";
+    return `-${exportCustomStart}_to_${exportCustomEnd}`;
+  }
+
+  // Converts a fetched Response's body into a base64 string — used for
+  // both the logo image and the two Merriweather font files, all pulled
+  // in as same-origin static assets (no external network call, so this
+  // works the same in dev, in this sandbox's build, and in prod).
+  async function fetchAsBase64(url) {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`${url} responded ${resp.status}`);
+    const buf = await resp.arrayBuffer();
+    let binary = "";
+    const bytes = new Uint8Array(buf);
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  }
+
+  // Registers Merriweather (regular + bold) on this jsPDF instance from
+  // two static font files, so the exported PDF's type matches the rest
+  // of the app instead of jsPDF's default Helvetica. jsPDF's font
+  // embedding only accepts raw TrueType/OpenType data, not the woff2
+  // Google Fonts serves browsers by default, so this reads two local
+  // .ttf files under public/fonts/ rather than fetching Google's CDN —
+  // see the delivery notes for how to add them. Falls back to jsPDF's
+  // built-in "times" (a serif, so still closer to Merriweather than the
+  // Helvetica default) if those files aren't there yet; either way this
+  // never throws, so a missing font file can't break the export.
+  async function loadPdfFont(doc) {
+    try {
+      const [regular, bold] = await Promise.all([
+        fetchAsBase64("/fonts/Merriweather-Regular.ttf"),
+        fetchAsBase64("/fonts/Merriweather-Bold.ttf"),
+      ]);
+      doc.addFileToVFS("Merriweather-Regular.ttf", regular);
+      doc.addFileToVFS("Merriweather-Bold.ttf", bold);
+      doc.addFont("Merriweather-Regular.ttf", "Merriweather", "normal");
+      doc.addFont("Merriweather-Bold.ttf", "Merriweather", "bold");
+      return "Merriweather";
+    } catch (err) {
+      console.warn(
+        "senseUS PDF export: couldn't load Merriweather from /fonts (" + err.message + ") — falling back to Times."
+      );
+      return "times";
+    }
+  }
+
   // Pulls the two pieces of data the Question Trend screen doesn't
   // already have loaded: live, exact vote tallies by choice (the
   // snapshot history is daily and by stance percentage/count, not a
   // single up-to-the-second total) and comment counts. Both are simple
   // client queries against tables every signed-in user can already
   // read a scoped slice of — nothing new needed at the database layer.
-  async function fetchExportExtras(questionId) {
+  // "asOf", when given, caps both to rows created by that instant, so a
+  // scoped export (e.g. "last month") reads as of that window's end
+  // rather than always pulling today's live totals.
+  async function fetchExportExtras(questionId, asOf) {
+    // Each of these is its own independent query-builder chain (not
+    // reused/derived from another) on purpose — postgrest-js's filter
+    // methods mutate and return `this`, so branching off a shared
+    // builder (e.g. adding is_flagged onto a copy of the comment-count
+    // query) would silently mutate the original too.
+    const asOfIso = asOf ? asOf.toISOString() : null;
+
+    let voteQuery = supabase.from("votes").select("choice").eq("question_id", questionId);
+    if (asOfIso) voteQuery = voteQuery.lte("created_at", asOfIso);
+
+    let commentQuery = supabase
+      .from("comments")
+      .select("*", { count: "exact", head: true })
+      .eq("question_id", questionId)
+      .eq("is_deleted", false);
+    if (asOfIso) commentQuery = commentQuery.lte("created_at", asOfIso);
+
+    let flaggedQuery = supabase
+      .from("comments")
+      .select("*", { count: "exact", head: true })
+      .eq("question_id", questionId)
+      .eq("is_deleted", false)
+      .eq("is_flagged", true);
+    if (asOfIso) flaggedQuery = flaggedQuery.lte("created_at", asOfIso);
+
     const [{ data: voteRows, error: voteErr }, { count: commentCount, error: commentErr }, { count: flaggedCount, error: flagErr }] =
-      await Promise.all([
-        supabase.from("votes").select("choice").eq("question_id", questionId),
-        supabase.from("comments").select("*", { count: "exact", head: true }).eq("question_id", questionId).eq("is_deleted", false),
-        supabase.from("comments").select("*", { count: "exact", head: true }).eq("question_id", questionId).eq("is_deleted", false).eq("is_flagged", true),
-      ]);
+      await Promise.all([voteQuery, commentQuery, flaggedQuery]);
     if (voteErr || commentErr || flagErr) {
       throw new Error((voteErr || commentErr || flagErr).message);
     }
@@ -505,14 +636,20 @@ export default function AdminReports({ supabase }) {
 
   async function exportQuestionReport() {
     if (!trendQuestion) return;
+    const range = resolveExportRange();
+    if (range === "invalid") {
+      setTrendError("Pick both a start and end date for a custom range (end can't be before start).");
+      return;
+    }
     setExportLoading(true);
     setTrendError(null);
     try {
-      const extras = await fetchExportExtras(trendQuestion.id);
+      const scopedSnapshots = filterSnapshotsByRange(trendSnapshots, range);
+      const extras = await fetchExportExtras(trendQuestion.id, range ? range.end : null);
       if (exportFormat === "xlsx") {
-        exportQuestionXlsx(trendQuestion, trendSnapshots, extras);
+        exportQuestionXlsx(trendQuestion, scopedSnapshots, extras, range);
       } else {
-        exportQuestionPdf(trendQuestion, trendSnapshots, extras, trendMode, trendUnit);
+        await exportQuestionPdf(trendQuestion, scopedSnapshots, extras, trendMode, trendUnit, range);
       }
     } catch (err) {
       setTrendError("Couldn't build export: " + err.message);
@@ -521,12 +658,12 @@ export default function AdminReports({ supabase }) {
     }
   }
 
-  function questionFileBase(question) {
+  function questionFileBase(question, range) {
     const numberPart = question.question_number != null ? `q${question.question_number}` : question.id.slice(0, 8);
-    return `senseus-${numberPart}`;
+    return `senseus-${numberPart}${rangeFileSuffix(range)}`;
   }
 
-  function exportQuestionXlsx(question, snapshots, extras) {
+  function exportQuestionXlsx(question, snapshots, extras, range) {
     const summaryRows = [
       ["Question", question.text],
       ["Question #", question.question_number ?? "—"],
@@ -536,8 +673,9 @@ export default function AdminReports({ supabase }) {
       ["Published", question.published_at ? new Date(question.published_at).toLocaleString() : "—"],
       ["Human moderation required", question.human_moderation_required ? "Yes" : "No"],
       ["Sponsored", question.is_sponsored ? "Yes" : "No"],
+      ["Range", range ? range.label : "All time"],
       [],
-      ["Total votes (live)", extras.totalVotes],
+      [range ? `Total votes (as of ${range.label})` : "Total votes (live)", extras.totalVotes],
       ["Yes", extras.tallies.yes],
       ["Leaning yes", extras.tallies.ly],
       ["Leaning no", extras.tallies.ln],
@@ -586,23 +724,59 @@ export default function AdminReports({ supabase }) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
     XLSX.utils.book_append_sheet(workbook, historySheet, "Daily History");
-    XLSX.writeFile(workbook, `${questionFileBase(question)}.xlsx`);
+    XLSX.writeFile(workbook, `${questionFileBase(question, range)}.xlsx`);
   }
 
-  function exportQuestionPdf(question, snapshots, extras, mode, unit) {
+  async function exportQuestionPdf(question, snapshots, extras, mode, unit, range) {
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
 
-    doc.setFontSize(11);
-    doc.setTextColor(109, 166, 39); // senseUS green, matches the "US" in the wordmark elsewhere in the app
-    doc.text("senseUS", margin, 15);
-    doc.setTextColor(30, 30, 30);
-    doc.setFontSize(14);
-    const titleLines = doc.splitTextToSize(question.text, pageWidth - margin * 2);
-    doc.text(titleLines, margin, 24);
-    let cursorY = 24 + titleLines.length * 6 + 4;
+    // "Merriweather" if the two font files are present under public/fonts
+    // (see delivery notes), else jsPDF's built-in "times" as a serif
+    // fallback that never fails.
+    const font = await loadPdfFont(doc);
+    doc.setFont(font, "normal");
 
+    // Header: logo top-left, "sense"/"US" in the site's real two colors
+    // (black "sense", green "US" — matches Header.jsx; the export used to
+    // render the whole wordmark in green).
+    const logoTop = 8;
+    const logoSize = 16;
+    let wordmarkX = margin;
+    try {
+      const logoDataUrl = "data:image/png;base64," + (await fetchAsBase64("/senseUS-logo.png"));
+      doc.addImage(logoDataUrl, "PNG", margin, logoTop, logoSize, logoSize);
+      wordmarkX = margin + logoSize + 4;
+    } catch (err) {
+      console.warn("senseUS PDF export: couldn't load the logo image (" + err.message + ")");
+    }
+
+    const wordmarkBaseline = logoTop + logoSize / 2 + 2;
+    doc.setFontSize(15);
+    doc.setFont(font, "normal");
+    doc.setTextColor(26, 26, 26); // #1A1A1A — matches Header.jsx's "sense"
+    doc.text("sense", wordmarkX, wordmarkBaseline);
+    const senseWidth = doc.getTextWidth("sense");
+    doc.setFont(font, "bold");
+    doc.setTextColor(109, 166, 39); // #6da627 — matches Header.jsx's "US"
+    doc.text("US", wordmarkX + senseWidth, wordmarkBaseline);
+
+    doc.setFont(font, "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(107, 114, 128); // #6B7280 — same gray as Header.jsx's tagline
+    doc.text("THE societal media platform", wordmarkX, wordmarkBaseline + 5);
+
+    let cursorY = logoTop + logoSize + 8;
+
+    doc.setFont(font, "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(30, 30, 30);
+    const titleLines = doc.splitTextToSize(question.text, pageWidth - margin * 2);
+    doc.text(titleLines, margin, cursorY);
+    cursorY += titleLines.length * 6 + 4;
+
+    doc.setFont(font, "normal");
     doc.setFontSize(9);
     doc.setTextColor(120, 120, 120);
     const meta = [
@@ -610,6 +784,7 @@ export default function AdminReports({ supabase }) {
       question.domain ? `Domain: ${question.domain}` : null,
       question.question_number != null ? `Question #${question.question_number}` : null,
       question.published_at ? `Published: ${new Date(question.published_at).toLocaleDateString()}` : null,
+      range ? `Range: ${range.label}` : null,
     ].filter(Boolean).join("   ·   ");
     doc.text(meta, margin, cursorY);
     cursorY += 8;
@@ -619,7 +794,7 @@ export default function AdminReports({ supabase }) {
       doc.setTextColor(120, 120, 120);
       doc.text(`Vote trend (${mode === "4" ? "4 stances" : "Yes vs No"}, ${unit === "pct" ? "% of day's votes" : "vote count"})`, margin, cursorY);
       cursorY += 3;
-      drawTrendChartOnPdf(doc, margin + 10, cursorY, pageWidth - margin * 2 - 10, 55, snapshots, mode, unit);
+      drawTrendChartOnPdf(doc, margin + 10, cursorY, pageWidth - margin * 2 - 10, 55, snapshots, mode, unit, font);
       cursorY += 55 + 8;
     } else {
       doc.setFontSize(9);
@@ -628,6 +803,7 @@ export default function AdminReports({ supabase }) {
       cursorY += 8;
     }
 
+    doc.setFont(font, "normal");
     doc.autoTable({
       startY: cursorY,
       margin: { left: margin, right: margin },
@@ -640,12 +816,13 @@ export default function AdminReports({ supabase }) {
         ["Declined to answer", extras.tallies.dec, pctOf(extras.tallies.dec, extras.totalVotes) + "%"],
       ],
       foot: [["Total", extras.totalVotes, "—"]],
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [45, 61, 202] },
+      styles: { fontSize: 9, font },
+      headStyles: { fillColor: [45, 61, 202], font, fontStyle: "bold" },
       theme: "striped",
     });
 
     const afterTableY = doc.lastAutoTable.finalY + 8;
+    doc.setFont(font, "normal");
     doc.setFontSize(9);
     doc.setTextColor(60, 60, 60);
     doc.text(`Total comments: ${extras.commentCount}  (${extras.flaggedCount} flagged)`, margin, afterTableY);
@@ -658,7 +835,7 @@ export default function AdminReports({ supabase }) {
       doc.internal.pageSize.getHeight() - 10
     );
 
-    doc.save(`${questionFileBase(question)}.pdf`);
+    doc.save(`${questionFileBase(question, range)}.pdf`);
   }
 
 async function resolveAnomaly(id) {
@@ -1073,8 +1250,11 @@ async function reviewIntegrityEvent(id) {
                 vote tallies, comment counts, and the daily history above)
                 into a downloadable file. The spreadsheet always includes
                 the full daily history; the PDF mirrors whatever unit/mode
-                toggle is currently selected for its chart. */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, paddingTop: 12, borderTop: "1px solid #f5f5f5" }}>
+                toggle is currently selected for its chart. The range
+                picker scopes the daily-history rows/chart and the vote/
+                comment totals (as-of the range's end) to a window instead
+                of always exporting the question's full lifetime. */}
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 16, paddingTop: 12, borderTop: "1px solid #f5f5f5" }}>
               <span style={{ fontSize: 12, color: "#888" }}>Export this question:</span>
               <select
                 value={exportFormat}
@@ -1084,6 +1264,34 @@ async function reviewIntegrityEvent(id) {
                 <option value="xlsx">Spreadsheet (.xlsx)</option>
                 <option value="pdf">PDF report</option>
               </select>
+              <select
+                value={exportRangePreset}
+                onChange={(e) => setExportRangePreset(e.target.value)}
+                style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid #ddd" }}
+              >
+                <option value="all">All time</option>
+                <option value="7d">Last week</option>
+                <option value="30d">Last month</option>
+                <option value="365d">Last year</option>
+                <option value="custom">Custom range…</option>
+              </select>
+              {exportRangePreset === "custom" && (
+                <>
+                  <input
+                    type="date"
+                    value={exportCustomStart}
+                    onChange={(e) => setExportCustomStart(e.target.value)}
+                    style={{ fontSize: 12, padding: "3px 6px", borderRadius: 6, border: "1px solid #ddd" }}
+                  />
+                  <span style={{ fontSize: 12, color: "#888" }}>to</span>
+                  <input
+                    type="date"
+                    value={exportCustomEnd}
+                    onChange={(e) => setExportCustomEnd(e.target.value)}
+                    style={{ fontSize: 12, padding: "3px 6px", borderRadius: 6, border: "1px solid #ddd" }}
+                  />
+                </>
+              )}
               <button
                 onClick={exportQuestionReport}
                 disabled={exportLoading || trendSnapshots.length === 0 && trendLoading}

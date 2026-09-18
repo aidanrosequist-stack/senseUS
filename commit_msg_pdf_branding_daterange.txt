@@ -1,0 +1,39 @@
+Question export: PDF branding (logo/colors/font) + date range option
+
+PDF report:
+- senseUS logo now renders top-left, pulled from the existing
+  public/senseUS-logo.png (same file Header.jsx already serves), instead
+  of no image at all.
+- Wordmark now splits into "sense" (black, #1A1A1A) and "US" (green,
+  #6da627) to match the real site wordmark in Header.jsx -- previously
+  the whole word was rendered green.
+- Switches from jsPDF's default Helvetica to Merriweather (site's real
+  font, same as Header.jsx's `fontFamily: 'Merriweather, serif'`) for
+  every text element -- title, metadata, chart labels, table, footer.
+  Requires two font files under public/fonts/ (see below); falls back
+  cleanly to jsPDF's built-in Times if they're not there yet, so export
+  still works either way.
+
+Both formats:
+- New date-range control next to the format picker: All time / Last
+  week / Last month / Last year / Custom range (two date inputs).
+  Scopes the daily-history rows and chart to that window, and caps the
+  live vote/comment totals to "as of" the range's end date instead of
+  always pulling today's numbers -- so a "last month" export reads as a
+  report about that month, not today's totals with a shorter chart.
+  Filenames pick up a matching suffix, e.g. senseus-q42-last-30-days.pdf.
+
+No new npm dependencies, no migration -- pure AdminReports.jsx change.
+
+ONE-TIME SETUP NEEDED for the Merriweather font in the PDF:
+  1. Go to https://fonts.google.com/specimen/Merriweather
+  2. Click "Download family" (downloads Merriweather.zip)
+  3. Unzip it, grab static/Merriweather-Regular.ttf and
+     static/Merriweather-Bold.ttf
+  4. Create the folder public/fonts/ in the project if it doesn't exist
+     yet, and put both files in there with those exact names:
+       public/fonts/Merriweather-Regular.ttf
+       public/fonts/Merriweather-Bold.ttf
+  5. git add/commit/push those two files along with everything else.
+Until that's done, PDF exports still work -- they'll just use Times
+instead of Merriweather.
