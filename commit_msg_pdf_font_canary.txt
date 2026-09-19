@@ -1,0 +1,18 @@
+Guard PDF export against jsPDF's custom-font widths crash
+
+"Couldn't build export: Cannot read properties of undefined (reading
+'widths')" -- happened testing a Last year export after the Merriweather/
+logo/date-range update. jsPDF's addFont() accepted the two Merriweather
+files without error, but something deeper in this jsPDF build's font-
+metrics code can't actually use a custom embedded font once autoTable
+or getTextWidth tries to measure text with it -- addFont succeeding
+isn't proof the font is safe to use.
+
+Fix: loadPdfFont() now exercises both weights right after registering
+them (setFont + getTextWidth, the same thing autoTable does later) and
+falls back to Times if that throws, instead of only checking whether
+the font files loaded. Same never-breaks-the-export guarantee as
+before, just checking the right thing.
+
+No new files, no npm install, no migration -- one function in
+AdminReports.jsx.

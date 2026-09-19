@@ -565,8 +565,16 @@ export default function AdminReports({ supabase }) {
   // .ttf files under public/fonts/ rather than fetching Google's CDN —
   // see the delivery notes for how to add them. Falls back to jsPDF's
   // built-in "times" (a serif, so still closer to Merriweather than the
-  // Helvetica default) if those files aren't there yet; either way this
-  // never throws, so a missing font file can't break the export.
+  // Helvetica default) if either the files are missing OR jsPDF can't
+  // actually use them once registered — some jsPDF builds throw deep
+  // inside their own font-metrics code ("Cannot read properties of
+  // undefined (reading 'widths')") for a custom embedded font that
+  // addFont() accepted without error, so registering successfully isn't
+  // proof the font is safe to hand to autoTable/getTextWidth. The canary
+  // below actually exercises both weights the same way the real export
+  // will, right after loading, so that failure mode gets caught here —
+  // in a spot with an obvious fallback — instead of mid-export with a
+  // half-drawn PDF. Either way this function never throws.
   async function loadPdfFont(doc) {
     try {
       const [regular, bold] = await Promise.all([
@@ -577,10 +585,21 @@ export default function AdminReports({ supabase }) {
       doc.addFileToVFS("Merriweather-Bold.ttf", bold);
       doc.addFont("Merriweather-Regular.ttf", "Merriweather", "normal");
       doc.addFont("Merriweather-Bold.ttf", "Merriweather", "bold");
+
+      // Canary: do the same thing autoTable/getTextWidth will do later
+      // (measure text in both weights) right now, while a failure is
+      // still cheap to recover from.
+      doc.setFont("Merriweather", "normal");
+      doc.getTextWidth("senseUS export canary 0123456789");
+      doc.setFont("Merriweather", "bold");
+      doc.getTextWidth("senseUS export canary 0123456789");
+
       return "Merriweather";
     } catch (err) {
       console.warn(
-        "senseUS PDF export: couldn't load Merriweather from /fonts (" + err.message + ") — falling back to Times."
+        "senseUS PDF export: Merriweather isn't usable in this build of jsPDF (" +
+          err.message +
+          ") — falling back to Times."
       );
       return "times";
     }
