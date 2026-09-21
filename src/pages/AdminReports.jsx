@@ -197,6 +197,12 @@ function integrityEventSubjectName(profile) {
   return profile.anon_name || "Unknown user";
 }
 
+// How many rows the "Most Commented Questions" report shows — Aidan's
+// ask was "top 10", kept as a named constant rather than a magic number
+// since it's passed to the RPC call below and echoed in the section
+// heading.
+const MOST_COMMENTED_LIMIT = 10;
+
 function StatCard({ label, value }) {
   return (
     <div style={{ background: "#fff", borderRadius: 8, padding: "16px 20px", border: "1px solid #eee" }}>
@@ -215,6 +221,13 @@ export default function AdminReports({ supabase }) {
   const [integrityEvents, setIntegrityEvents] = useState([]);
   const [questionSort, setQuestionSort] = useState({ field: "votes", dir: "desc" });
   const [questions, setQuestions] = useState([]);
+  // Top-10 (configurable via MOST_COMMENTED_LIMIT below) questions by
+  // real comment count -- separate from `questions` above, which ranks
+  // by vote count. No client-side sort needed here the way `questions`
+  // has toggleSort()/sortedQuestions() for: this list is already exactly
+  // what get_top_questions_by_comments() ranked, in that order, same
+  // pattern as the vote-ranked table's underlying RPC.
+  const [mostCommentedQuestions, setMostCommentedQuestions] = useState([]);
   const [error, setError] = useState(null);
 
   // Question Trend report state — separate from the auto-refreshing
@@ -265,6 +278,7 @@ export default function AdminReports({ supabase }) {
         { data: anomalyRows },
         { data: integrityEventRows },
         { data: topQuestions },
+        { data: topCommentedQuestions },
       ] = await Promise.all([
         supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", since24h),
         supabase.from("votes").select("*", { count: "exact", head: true }).gte("created_at", since24h),
@@ -286,6 +300,10 @@ export default function AdminReports({ supabase }) {
           .order("created_at", { ascending: false })
           .limit(25),
         supabase.rpc("get_top_questions_by_votes", { p_limit: 20 }),
+        // Most Commented Questions (migration 089) — same "rank
+        // everything in Postgres, don't sort/count a client-side page in
+        // JS" reasoning as get_top_questions_by_votes just above.
+        supabase.rpc("get_top_questions_by_comments", { p_limit: MOST_COMMENTED_LIMIT }),
       ]);
 
       setStats({
@@ -306,6 +324,12 @@ export default function AdminReports({ supabase }) {
         (topQuestions || []).map((q) => ({
           ...q,
           voteCount: Number(q.vote_count),
+        }))
+      );
+      setMostCommentedQuestions(
+        (topCommentedQuestions || []).map((q) => ({
+          ...q,
+          commentCount: Number(q.comment_count),
         }))
       );
     } catch (err) {
@@ -1129,6 +1153,48 @@ async function reviewIntegrityEvent(id) {
               ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Most Commented Questions — ranked by real comment count via
+          get_top_questions_by_comments() (migration 089), same
+          "aggregate in Postgres, not in a client-side page of rows"
+          reasoning as the vote-ranked table above. Aidan's ask: a top-10
+          list next to the existing vote-engagement one. No client-side
+          sort here (unlike sortedQuestions()/toggleSort() above) —
+          mostCommentedQuestions is already exactly what the RPC ranked,
+          in that order. */}
+      <div style={{ background: "#fff", borderRadius: 8, padding: 20, border: "1px solid #eee", marginTop: 32 }}>
+        <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>
+          Most Commented Questions (top {MOST_COMMENTED_LIMIT})
+        </div>
+        {mostCommentedQuestions.length === 0 ? (
+          <div style={{ color: "#999", fontSize: 13 }}>No comments yet.</div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ textAlign: "left", color: "#888", borderBottom: "1px solid #eee" }}>
+                <th style={{ padding: "6px 8px" }}>Question</th>
+                <th style={{ padding: "6px 8px" }}>Comments</th>
+                <th style={{ padding: "6px 8px" }}>Created</th>
+                <th style={{ padding: "6px 8px" }}>Flagged</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mostCommentedQuestions.map((q) => (
+                <tr key={q.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
+                  <td style={{ padding: "6px 8px", maxWidth: 320 }}>{q.text}</td>
+                  <td style={{ padding: "6px 8px" }}>{q.commentCount}</td>
+                  <td style={{ padding: "6px 8px", color: "#666" }}>
+                    {new Date(q.created_at).toLocaleDateString()}
+                  </td>
+                  <td style={{ padding: "6px 8px" }}>
+                    {q.human_moderation_required ? <span style={{ color: "#c21f1f" }}>Yes</span> : "No"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Question Trend report — per-question vote-stance history, from
