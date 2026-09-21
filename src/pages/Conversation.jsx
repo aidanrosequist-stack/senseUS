@@ -380,9 +380,13 @@ function CommentCard({
           // different") — Aidan's ask, in this order: resonate, flag,
           // share, reply, then edit/delete for your own comment last.
           // The old marginLeft:'auto' sub-grouping that pushed Share/Flag
-          // to the right of the row is gone too — everything just flows
-          // left-to-right in the order below now.
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          // to the right of the row is gone too. justifyContent:
+          // 'space-between' (instead of a fixed gap) is what actually
+          // spreads the items evenly across the card's full width rather
+          // than leaving them clumped on the left — `gap` here is now
+          // just a minimum floor so items don't touch if the row ever
+          // wraps onto a second line on a narrow screen.
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
             <button
               onClick={() => !isOwn && toggleResonate(comment.id)}
               disabled={!canParticipate || isOwn}
@@ -412,6 +416,7 @@ function CommentCard({
                 title="Flag this comment"
               >
                 <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>⚑</span>
+                <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>Flag</span>
               </button>
             )}
 
@@ -430,7 +435,7 @@ function CommentCard({
                 style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', fontSize: '12px', fontFamily: 'Merriweather, serif' }}
               >
                 <IconCornerDownRight size={14} />
-                {replies.length > 0 ? `${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}` : 'reply'}
+                {replies.length > 0 ? `${replies.length} ${replies.length === 1 ? 'Reply' : 'Replies'}` : 'Reply'}
               </button>
             )}
 
@@ -820,15 +825,42 @@ export default function Conversation() {
     const hasResonated = userResonances.has(commentId)
 
     if (hasResonated) {
-      const { error } = await supabase.from('comment_resonances').delete()
+      // .select('id') after delete() is the only way to find out whether a
+      // row actually got removed -- a DELETE that matches zero rows is NOT
+      // an error in Postgres/PostgREST, it's a normal success with nothing
+      // to show for it. That distinction matters here: two overlapping
+      // un-resonate requests for the same comment (a fast double-click/
+      // double-tap before the first one's state update lands, both still
+      // reading the same hasResonated=true from this closure) used to both
+      // sail through this old `if (error)` check with no error either way
+      // and both optimistically decrement resonance_count -- even though
+      // only the FIRST one actually deleted anything server-side (the
+      // second matched zero rows). The real database trigger only ever
+      // fires once for the one real deletion, but the client's local count
+      // dropped twice, landing one lower than the server -- this is what
+      // produced Aidan's count going to -1. Now: only decrement if `data`
+      // actually contains the deleted row.
+      const { data, error } = await supabase.from('comment_resonances').delete()
         .eq('comment_id', commentId).eq('user_id', user.id)
+        .select('id')
       if (error) {
         alert('Something went wrong — please try again.')
         return
       }
       setUserResonances(prev => { const s = new Set(prev); s.delete(commentId); return s })
-      setComments(prev => prev.map(c => c.id === commentId ? { ...c, resonance_count: c.resonance_count - 1 } : c))
+      if (data && data.length > 0) {
+        // Math.max(0, ...) is a client-side mirror of the same defensive
+        // floor migration 088's DB trigger already applies server-side --
+        // belt and suspenders, so a stray edge case here can never again
+        // show a negative count even if this exact race is somehow not
+        // fully closed by the data.length check above.
+        setComments(prev => prev.map(c => c.id === commentId ? { ...c, resonance_count: Math.max(0, c.resonance_count - 1) } : c))
+      }
     } else {
+      // No equivalent gap on the insert side: a genuine double-insert
+      // always fails on comment_resonances' real UNIQUE (comment_id,
+      // user_id) constraint with a real error (caught below), so a second
+      // overlapping insert never reaches the optimistic increment at all.
       const { error } = await supabase.from('comment_resonances').insert({ comment_id: commentId, user_id: user.id })
       if (error) {
         alert('Something went wrong — please try again.')
