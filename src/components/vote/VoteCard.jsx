@@ -526,7 +526,20 @@ useEffect(() => {
       )}
 <div
         style={{
-          height: '60%',
+          // Used to be a hard `height: '60%'` — a fixed split of the
+          // card's total height with no give, regardless of how much
+          // room the question text and the actions zone below actually
+          // needed. On a short viewport (or with a long question), that
+          // rigid split left too little room for one or the other, and
+          // since neither this element nor the card itself scrolls, the
+          // overflow was silently clipped instead of resized. flex: '1 1
+          // auto' + minHeight: 0 lets this zone take whatever's left over
+          // after the actions zone below claims its own natural height
+          // (see that zone's flex: '0 0 auto'), so it shrinks first
+          // instead of the two zones fighting over a fixed percentage.
+          flex: '1 1 auto',
+          minHeight: 0,
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -615,7 +628,15 @@ useEffect(() => {
 
       </div>
 
-      <div style={{ height: '40%', padding: '0 1rem 1rem', borderTop: '0.5px solid rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px' }}>
+      {/* flex: '0 0 auto' — this zone (the vote buttons, "Make Up My
+          Mind", "View the Conversation", and the hide-question link)
+          always gets its full natural height and never shrinks, unlike
+          the question zone above. This is the part that was actually
+          getting reported as "cut off": with the old fixed 40% height,
+          these buttons could be squeezed into less room than they
+          needed on a short screen. Guaranteeing this zone its real size
+          means the question zone above absorbs any shortfall instead. */}
+      <div style={{ flex: '0 0 auto', padding: '0 1rem 1rem', borderTop: '0.5px solid rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px' }}>
 <div
           role="group"
           aria-label="Cast your vote"

@@ -1,0 +1,31 @@
+Fix vote card content getting cut off on shorter phone screens
+
+Aidan noticed content clipped at the bottom of vote cards on his
+girlfriend's phone, with extra unused space below the card on his own.
+Two real causes, both in the vote card's own layout:
+
+1. Vote.jsx's card container added a flat `paddingBottom: 74px` on top
+   of a height calc that already subtracts the header and bottom nav's
+   real heights. That padding predates BottomNav switching to
+   `position: sticky` -- when it was `fixed`, extra bottom padding was
+   needed to hold content clear of it; sticky already reserves its own
+   space in the document flow, so this had become 74px of pure dead
+   space, and -- more importantly -- 74px *less* height for the card
+   itself on every device. Removed.
+
+2. VoteCard.jsx split its two zones (question text, and the vote
+   buttons/actions below it) with a hard `height: 60%` / `height: 40%`,
+   both with `overflow: hidden` and no scrolling anywhere. That's fine
+   only when content happens to fit that exact ratio -- a longer
+   question or a shorter screen had no give, and the overflow was
+   silently clipped instead of resized. Switched to flex: the actions
+   zone (vote buttons, "Make Up My Mind", "View the Conversation", the
+   hide-question link) now gets `flex: '0 0 auto'` -- its full natural
+   height, guaranteed, since that's the functionally important part
+   (this is what was actually getting cut off). The question-text zone
+   above it gets `flex: '1 1 auto'` + `minHeight: 0` -- it takes
+   whatever's left over and shrinks first if space is tight, instead of
+   the two zones fighting over a fixed percentage.
+
+No behavior/gesture changes -- the swipe/hold-to-vote code is untouched,
+this is purely the static layout sizing.

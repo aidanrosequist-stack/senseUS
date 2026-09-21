@@ -177,7 +177,17 @@ export default function Vote() {
         alignItems: 'center',
         justifyContent: 'flex-start',
         padding: '0',
-        paddingBottom: '74px',
+        // No paddingBottom here anymore — this height calc already
+        // subtracts BottomNav's real height above, so there's nothing left
+        // for extra bottom padding to clear. The 74px that used to be here
+        // predates BottomNav switching to `position: sticky` (see its own
+        // comment): back when it was `fixed`, it could overlap this page's
+        // content, so padding was needed to hold content clear of it.
+        // Sticky already reserves its own space in the document flow, so
+        // this had become 74px of pure dead space under the vote card —
+        // and, worse, 74px *less* height for the card itself to work with,
+        // which is what was contributing to content getting clipped at the
+        // bottom of some cards.
         boxSizing: 'border-box',
         position: 'relative',
       }}
