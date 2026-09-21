@@ -374,35 +374,55 @@ function CommentCard({
         )}
 
         {!comment.is_removed && !isEditing && (
+          // One flat row, one consistent 12px/Merriweather text size for
+          // every label in it (was a mix of 11px/12px/button-default
+          // before, which is what read as "Share and Reply look
+          // different") — Aidan's ask, in this order: resonate, flag,
+          // share, reply, then edit/delete for your own comment last.
+          // The old marginLeft:'auto' sub-grouping that pushed Share/Flag
+          // to the right of the row is gone too — everything just flows
+          // left-to-right in the order below now.
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
             <button
               onClick={() => !isOwn && toggleResonate(comment.id)}
               disabled={!canParticipate || isOwn}
+              // The wave-sine icon isn't a self-explanatory affordance the
+              // way a heart or thumbs-up would be, and senseUS is used
+              // mostly on phones -- a hover-only tooltip would never reach
+              // most people tapping around on a touchscreen. So this gets
+              // BOTH a permanent visible "Resonate" label (same pattern
+              // the Share button already uses: icon + text, not icon
+              // alone) for every user, plus title/aria-label for desktop
+              // hover and screen readers -- matching Share's and Flag's
+              // existing title attributes below.
+              title={hasResonated ? "Un-resonate with this comment" : "Resonate with this comment — let others know it reflects your own view"}
+              aria-label={hasResonated ? "Un-resonate with this comment" : "Resonate with this comment"}
+              aria-pressed={hasResonated}
               style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: (canParticipate && !isOwn) ? 'pointer' : 'default', color: hasResonated ? '#2D3DCA' : '#6B7280', opacity: (canParticipate && !isOwn) ? 1 : 0.5 }}
             >
               <IconWaveSine size={14} />
-              <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>{comment.resonance_count}</span>
+              <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>Resonate</span>
+              <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif', fontWeight: hasResonated ? 700 : 400 }}>{comment.resonance_count}</span>
             </button>
 
-            <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+            {canParticipate && !isOwn && (
               <button
-                onClick={() => shareComment(comment.id)}
+                onClick={() => flagComment(comment.id)}
                 style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}
-                title="Share this comment"
+                title="Flag this comment"
               >
-                <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⤴</span>
-                <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Share</span>
+                <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>⚑</span>
               </button>
-              {canParticipate && !isOwn && (
-                <button
-                  onClick={() => flagComment(comment.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}
-                  title="Flag this comment"
-                >
-                  <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>⚑</span>
-                </button>
-              )}
-            </div>
+            )}
+
+            <button
+              onClick={() => shareComment(comment.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}
+              title="Share this comment"
+            >
+              <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>⤴</span>
+              <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>Share</span>
+            </button>
 
             {depth < MAX_REPLY_DEPTH && canParticipate && !isOwn && (
               <button
@@ -430,14 +450,14 @@ function CommentCard({
                   style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: canEdit ? 'pointer' : 'default', color: '#6B7280', opacity: canEdit ? 1 : 0.4 }}
                   title={canEdit ? 'Edit this comment' : "You've already edited this comment twice"}
                 >
-                  <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Edit</span>
+                  <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>Edit</span>
                 </button>
                 <button
                   onClick={() => deleteComment(comment.id)}
                   style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}
                   title="Delete this comment"
                 >
-                  <span style={{ fontSize: '11px', fontFamily: 'Merriweather, serif' }}>Delete</span>
+                  <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>Delete</span>
                 </button>
               </>
             )}
