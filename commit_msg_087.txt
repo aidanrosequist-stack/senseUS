@@ -1,0 +1,40 @@
+Fix comment auto-moderation false-flagging ordinary words
+
+Aidan flagged a completely benign comment (a teacher describing their
+school's no-phone policy) that got auto-flagged for review with no
+obvious reason. Traced to moderate_comment(): its keyword filter used a
+bare substring check (`normalized like '%ass%'`), which matches "ass"
+anywhere in the text, not just as a standalone word -- the comment's
+"...during passing or lunch" contains "ass" inside "passing". Classic
+Scunthorpe-problem bug. Several other words on the same list collide
+with ordinary words the same way (hell/hello, ass/assignment/assembly/
+class, crap/scrapbook, cock/cockpit) -- not a one-off.
+
+Also found and fixed two related bugs in the same normalization step
+while rewriting it:
+- Non-matching characters were stripped BEFORE lowercasing, and the
+  character class only recognized lowercase a-z -- so every uppercase
+  letter was silently deleted rather than case-folded. "IDIOT"/"FUCK"
+  in all caps normalized to nothing, completely bypassing the filter.
+- Punctuation (hyphens, apostrophes) was stripped to nothing rather
+  than replaced with a space, which glued adjacent words together
+  ("bull-shit" -> "bullshit"). Harmless for the old substring check,
+  but would've let hyphenated profanity slip past the new word-
+  boundary check undetected.
+
+Fix: lowercase first, replace runs of non-alphanumeric characters with
+a single space (fixes both of the above in one pass), and match with
+Postgres's word-boundary regex anchor (`~ '\yword\y'`) instead of a
+bare substring LIKE, for both the banned-word (blocks outright) and
+review-word (flags for review) lists.
+
+Verified against a local Postgres 16 instance, including an end-to-end
+trigger test on a scratch table: the actual flagged comment now inserts
+cleanly with is_flagged = false; "passing", "hello", "grasshopper",
+"assignment", and "assembly" alone don't trip anything; "bull-shit"
+(hyphenated) still correctly flags via "shit"; "IDIOT"/"RETARD" in all
+caps now correctly flag/block instead of being silently stripped to
+nothing; genuine matches ("go to hell", "what an ass move") still work.
+
+Remember: `git push` alone does not apply this -- run
+`supabase db push` separately to apply it to production.
