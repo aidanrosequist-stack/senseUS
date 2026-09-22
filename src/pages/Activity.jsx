@@ -447,11 +447,14 @@ export default function Activity() {
 
   async function startComparison() {
     setComparisonLinkError(null)
-    const { data, error } = await supabase
-      .from('comparison_tokens')
-      .insert({ sender_id: user.id })
-      .select('token')
-      .single()
+
+    // As of migration 079, comparison_tokens has zero standing grants —
+    // a direct insert() here 403s unconditionally now (this call site
+    // was missed when Compare.jsx's own startNewComparison() was moved
+    // over to the RPC at the time). create_comparison_token() sets
+    // sender_id from auth.uid() server-side and returns the same
+    // { token } shape a direct insert().select('token') used to.
+    const { data, error } = await supabase.rpc('create_comparison_token').single()
 
     if (error || !data) {
       setComparisonLinkError('Something went wrong creating your link. Please try again.')
