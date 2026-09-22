@@ -28,3 +28,18 @@ dist-ssr
 # Flagged in the security hardening handoff (2026-08-18); ungitignored
 # until now.
 supabase/.temp/
+
+# Local scratch/reference files Claude drops in the repo folder while
+# working — commit messages meant to be copy-pasted (not committed
+# themselves), pentest reports, and the honeypot's real file-location
+# notes (senseUS-honeypot-notes.md explicitly says this stays out of
+# the repo, and it's referenced by name in commit_msg_078.txt-era
+# history too). Ignoring these means a future `git add -A`/`git add .`
+# can't accidentally sweep any of them into a commit -- important for
+# the honeypot notes and pentest reports specifically, since the repo
+# has been public since 2026-08-31. Added 2026-09-22 during a cleanup
+# pass; nothing here was previously tracked except stray one-off
+# commit_msg_*.txt files, which this also stops from recurring.
+commit_msg_*.txt
+Claude outputs/honeypot-locations.md
+PENETRATION_TEST_ROUND*.md
