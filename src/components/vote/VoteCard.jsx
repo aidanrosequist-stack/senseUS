@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { IconThumbUp, IconThumbDown, IconBulb, IconMessageCircle, IconShare } from '@tabler/icons-react'
+import PinButton from '../ui/PinButton'
 
 // Tier 2 ("wash") — updated 2026-09-03 (second pass) to reuse the vote
 // buttons' own backfill colors below (see `bg` in the button styles further
@@ -113,7 +114,7 @@ function ProgressRing({ progress }) {
   )
 }
 
-export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, submittingLabel = 'Saving your vote...', voteError = null, onDismissError, enterFromAbove = false }) {
+export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, submittingLabel = 'Saving your vote...', voteError = null, onDismissError, enterFromAbove = false, pinned = false, onTogglePin }) {
   const [zone, setZone] = useState(initialZone)
 
   // One-shot "settle in" entrance for the swipe-down-to-recover gesture
@@ -492,6 +493,14 @@ useEffect(() => {
       }}
       onTouchEnd={() => { cancelHold(); handleEnd() }}
     >
+      {onTogglePin && (
+        <PinButton
+          pinned={pinned}
+          onToggle={onTogglePin}
+          size={16}
+          style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 3 }}
+        />
+      )}
       {hintSide === 'left' && (
         <div
           style={{
@@ -635,8 +644,22 @@ useEffect(() => {
           getting reported as "cut off": with the old fixed 40% height,
           these buttons could be squeezed into less room than they
           needed on a short screen. Guaranteeing this zone its real size
-          means the question zone above absorbs any shortfall instead. */}
-      <div style={{ flex: '0 0 auto', padding: '0 1rem 1rem', borderTop: '0.5px solid rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px' }}>
+          means the question zone above absorbs any shortfall instead.
+
+          minHeight: '40%' is a floor, not a fixed split — on a short
+          question this zone still only grows as tall as it needs to,
+          but on a normal-length one it now claims roughly the 60/40
+          share the card was originally meant to have (previously this
+          zone's real height, in practice, tended to end up closer to
+          30% — its content just wasn't tall enough on its own to reach
+          40%). Centered via justifyContent below, so the extra room
+          lifts the buttons up off the bottom edge instead of just
+          padding out underneath them. The divider line that used to
+          separate this zone from the question above is gone — removed
+          per Aidan's request 2026-09-22, it read as visual clutter
+          rather than a needed boundary now that the two zones already
+          read as distinct via the color/content difference alone. */}
+      <div style={{ flex: '0 0 auto', minHeight: '40%', padding: '0 1rem 1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '8px' }}>
 <div
           role="group"
           aria-label="Cast your vote"

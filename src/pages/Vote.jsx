@@ -35,7 +35,43 @@ export default function Vote() {
   const location = useLocation()
   const from = location.state?.from || '/vote'
   const [targetQuestion, setTargetQuestion] = useState(null)
-  
+  const [pinnedQuestions, setPinnedQuestions] = useState(new Set())
+
+  // Same fetch-once-per-user shape as Explore.jsx's pinnedQuestions —
+  // loaded independently here rather than threaded in from Explore since
+  // this page can be reached directly (bottom nav, a deep link) without
+  // ever visiting Explore first.
+  useEffect(() => {
+    if (!user) {
+      setPinnedQuestions(new Set())
+      return
+    }
+    let cancelled = false
+    async function fetchPinned() {
+      const { data } = await supabase.from('pinned_questions').select('question_id').eq('user_id', user.id)
+      if (!cancelled) setPinnedQuestions(new Set((data || []).map(row => row.question_id)))
+    }
+    fetchPinned()
+    return () => { cancelled = true }
+  }, [user?.id])
+
+  // Optimistic toggle, same shape as Explore.jsx's togglePinQuestion.
+  async function togglePinQuestion(questionId) {
+    if (!user) return
+    const isPinned = pinnedQuestions.has(questionId)
+
+    if (isPinned) {
+      const { error } = await supabase.from('pinned_questions').delete()
+        .eq('question_id', questionId).eq('user_id', user.id)
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPinnedQuestions(prev => { const s = new Set(prev); s.delete(questionId); return s })
+    } else {
+      const { error } = await supabase.from('pinned_questions').insert({ question_id: questionId, user_id: user.id })
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPinnedQuestions(prev => new Set([...prev, questionId]))
+    }
+  }
+
   useEffect(() => {
     if (!targetQuestionId || !user) return
 
@@ -258,6 +294,8 @@ export default function Vote() {
           targetQuestionId={targetQuestionId}
           targetQuestion={targetQuestion}
           initialVoteForTarget={currentVoteParam}
+          pinnedQuestions={pinnedQuestions}
+          onTogglePinQuestion={togglePinQuestion}
         />
       </div>
     </div>

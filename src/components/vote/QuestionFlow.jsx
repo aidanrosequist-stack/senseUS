@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import VoteCard from './VoteCard'
 import ResultsCard from './ResultsCard'
 
-export default function QuestionFlow({ questions, onVote, onHideQuestion, targetQuestionId, targetQuestion, initialVoteForTarget }) {
+export default function QuestionFlow({ questions, onVote, onHideQuestion, targetQuestionId, targetQuestion, initialVoteForTarget, pinnedQuestions, onTogglePinQuestion }) {
   const navigate = useNavigate()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [extraQuestion, setExtraQuestion] = useState(null)
@@ -252,6 +252,8 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
           submittingLabel={submittingLabel}
           voteError={voteError}
           onDismissError={() => setVoteError(null)}
+          pinned={pinnedQuestions?.has(currentQuestion.id) || false}
+          onTogglePin={onTogglePinQuestion ? () => onTogglePinQuestion(currentQuestion.id) : undefined}
         />
       )}
       {view === 'results' && (
