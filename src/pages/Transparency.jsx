@@ -105,7 +105,7 @@ export default function Transparency() {
 
       {/* Section 2 */}
       <Section title="2. Who We Are">
-        {p("senseUS is operated by Gudboi Enterprises, LLC, a Pennsylvania limited liability company. We are in the process of forming senseUS as a Delaware Public Benefit Corporation — a legal structure that formally commits the company to a public mission, not just profit.")}
+        {p("senseUS is a Delaware Public Benefit Corporation — a legal structure that formally commits the company to a public mission, not just profit.")}
         {p("Our mission: to create a trusted, bot-free source of truth for public opinion, independent of advertisers, investors, and governments.")}
         {p("We are a small team. senseUS was founded by Aidan Rosequist and built with the assistance of Claude, Anthropic's AI system — a collaboration we're transparent about because honesty about how we operate is fundamental to what senseUS is.")}
       </Section>
@@ -239,7 +239,7 @@ export default function Transparency() {
         </p>
         {p("We also run regular adversarial security testing using Claude, Anthropic's AI system — deliberately trying to break authentication, escalate privileges, read or alter another user's data, forge votes, or bypass content moderation, against a private replica of our database. We're transparent that this testing is AI-assisted and internal, not a substitute for the independent third-party audit described below — it's a complement to it, run more often and used to catch and fix issues as the codebase evolves. The most recent passes found no way to bypass authorization or forge data; the one real issue they turned up — two content-moderation word lists that had quietly drifted out of sync — is already fixed. Fixes found this way are folded into the hardening history documented in our repository's SECURITY.md.")}
         {p("We plan to conduct our first independent, professional third-party security audit within 12 months of launch. Results will be summarized in our next transparency report.")}
-        {p("Our authentication provider, Supabase, retains phone numbers solely to enable user login. In the event of a legal demand directed at either Gudboi Enterprises LLC or Supabase, both our application data and authentication data (including phone numbers) may be subject to disclosure. We are evaluating additional architectural separations in a future platform version to further protect user privacy.")}
+        {p("Our authentication provider, Supabase, retains phone numbers solely to enable user login. In the event of a legal demand directed at either senseUS or Supabase, both our application data and authentication data (including phone numbers) may be subject to disclosure. We are evaluating additional architectural separations in a future platform version to further protect user privacy.")}
         {p("To report a security vulnerability: security@senseus.app")}
       </Section>
 

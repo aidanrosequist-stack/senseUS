@@ -58,7 +58,7 @@ export default function Home() {
             real humans. real opinions. real truth.
           </div>
           <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '12px' }}>
-            Operated by Gudboi Enterprises, LLC
+            A Delaware Public Benefit Corporation
           </div>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <a href="/how-it-works" style={{ fontSize: '12px', color: '#2D3DCA', textDecoration: 'none', fontWeight: 500 }}>How It Works</a>
@@ -85,7 +85,7 @@ export default function Home() {
             What do people actually think?
           </p>
           <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.7, margin: '0 0 10px' }}>
-            senseUS is a verified opinion platform operated by Gudboi Enterprises, LLC. One account per real human. No bots. No manipulation. Just honest Yes/No answers to the questions that matter, for the best humankind data we can provide.
+            senseUS is a verified opinion platform, operated as a Delaware Public Benefit Corporation. One account per real human. No bots. No manipulation. Just honest Yes/No answers to the questions that matter, for the best humankind data we can provide.
           </p>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '4px' }}>
             <Link to="/how-it-works" style={{ fontSize: '13px', color: '#2D3DCA', fontWeight: 500, textDecoration: 'none', border: '1.5px solid #2D3DCA', borderRadius: '8px', padding: '7px 14px' }}>

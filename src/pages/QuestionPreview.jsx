@@ -336,7 +336,7 @@ export default function QuestionPreview() {
       {/* Footer — never re-renders */}
       <div style={{ background: '#FFFFFF', padding: '0.85rem 1.25rem', borderTop: '0.5px solid #E5E7EB', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: '10px', color: '#6B7280' }}>© Gudboi Enterprises, LLC</div>
+          <div style={{ fontSize: '10px', color: '#6B7280' }}>© senseUS, PBC</div>
          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
             <Link to="/privacy" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Privacy</Link>
             <Link to="/terms" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Terms</Link>
