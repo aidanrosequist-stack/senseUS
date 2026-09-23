@@ -1,15 +1,29 @@
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function Mission() {
   usePageTitle('Our Mission')
+  const navigate = useNavigate()
+
+  // See Privacy.jsx's identical comment -- was a hardcoded <Link to="/">,
+  // which always dropped a logged-in user on /vote regardless of where
+  // they actually came from. Real browser-history back instead, with a
+  // fallback for a direct/external link straight to this page.
+  function goBack() {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1)
+    } else {
+      navigate('/')
+    }
+  }
+
   return (
     <div style={{ maxWidth: '680px', margin: '0 auto', padding: '3rem 1.5rem', boxSizing: 'border-box' }}>
 
       <div style={{ marginBottom: '2.5rem' }}>
-        <Link to="/" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', }}>
+        <button onClick={goBack} style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit' }}>
           ← back
-        </Link>
+        </button>
       </div>
 
       <div style={{ marginBottom: '2rem' }}>

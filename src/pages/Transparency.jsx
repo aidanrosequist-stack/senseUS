@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { usePageTitle } from '../hooks/usePageTitle'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 function Section({ title, children }) {
@@ -30,6 +30,20 @@ function p(text, style = {}) {
 
 export default function Transparency() {
   usePageTitle('Transparency')
+  const navigate = useNavigate()
+
+  // See Privacy.jsx's identical comment -- was a hardcoded <Link to="/">,
+  // which always dropped a logged-in user on /vote regardless of where
+  // they actually came from. Real browser-history back instead, with a
+  // fallback for a direct/external link straight to this page.
+  function goBack() {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1)
+    } else {
+      navigate('/')
+    }
+  }
+
   const [stats, setStats] = useState({
     userCount: null,
     questionCount: null,
@@ -78,7 +92,7 @@ export default function Transparency() {
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: '3rem 1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box' }}>
 
       <div style={{ marginBottom: '2rem' }}>
-        <Link to="/" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none' }}>← back</Link>
+        <button onClick={goBack} style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit' }}>← back</button>
       </div>
 
       <div style={{ marginBottom: '2.5rem' }}>
