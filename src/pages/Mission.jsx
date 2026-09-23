@@ -23,7 +23,7 @@ export default function Mission() {
 
       <div style={{ fontSize: '16px', lineHeight: 1.8, color: '#1A1A1A' }}>
 
-        <p>senseUS was founded because we were tired of not knowing the truth.  And it is being founded as a PBC (Public Benefit Corporation), because we believed that senseUS could and <em>would</em> be of immense value to society.</p>
+        <p>senseUS was founded because we were tired of not knowing the truth.  And it was founded as a PBC (Public Benefit Corporation), because we believed that senseUS could and <em>would</em> be of immense value to society.</p>
             
         <p>We're under the impression that we're living in an era of manufactured consensus. We think that some of the division of humanity doesn't really exist, and perhaps that contention that is driven intentionally. Bots have infected social media. Algorithms amplify outrage. Poll numbers get spun before the ink is dry.</p>
 

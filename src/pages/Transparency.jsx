@@ -333,7 +333,6 @@ export default function Transparency() {
       {/* Section 11 */}
       <Section title="11. What's Coming">
         <ul style={{ paddingLeft: '1.5rem', fontSize: '14px', lineHeight: 1.8, color: '#374151' }}>
-          <li>Delaware Public Benefit Corporation formation — in progress</li>
           <li>Trademark registration for "senseUS" — in progress</li>
           <li>B Corp certification — planned approximately 1 year post-launch</li>
           <li>First third-party security audit — planned within 12 months of launch</li>
