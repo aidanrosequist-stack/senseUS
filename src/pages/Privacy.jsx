@@ -1,15 +1,34 @@
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function Privacy() {
   usePageTitle('Privacy Policy')
+  const navigate = useNavigate()
+
+  // Was a hardcoded <Link to="/">, which meant "back" always dropped you
+  // on the homepage regardless of where you actually came from -- and
+  // since Home.jsx redirects a logged-in user straight to /vote, in
+  // practice "back" from here always landed on /vote no matter which page
+  // (Settings, a share link, another info page, etc.) you'd actually come
+  // from. Real browser-history back instead, same pattern Conversation.jsx
+  // already uses -- falls back to "/" only when there's no in-app history
+  // to go back to, e.g. a direct/external link straight to this page,
+  // which is a realistic way to land on a Privacy Policy specifically.
+  function goBack() {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1)
+    } else {
+      navigate('/')
+    }
+  }
+
   return (
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: '3rem 1.5rem', fontFamily: 'Merriweather, serif' }}>
-      
+
       <div style={{ marginBottom: '1.5rem' }}>
-        <Link to="/" style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none' }}>
+        <button onClick={goBack} style={{ fontSize: '13px', color: '#2D3DCA', textDecoration: 'none', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit' }}>
           ← back
-        </Link>
+        </button>
       </div>
 
       <div style={{ marginBottom: '2rem' }}>
