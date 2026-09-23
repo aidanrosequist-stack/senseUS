@@ -6,7 +6,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": ".*(facebookexternalhit|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|iMessage|Pinterestbot|Googlebot).*"
+          "value": ".*(facebookexternalhit|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|iMessage|Pinterestbot|Googlebot|GoogleMessages|Applebot).*"
         }
       ],
       "destination": "https://gckjlshfesyxualwxurj.supabase.co/functions/v1/og-preview?number=:number"
@@ -17,7 +17,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": ".*(facebookexternalhit|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|iMessage|Pinterestbot|Googlebot).*"
+          "value": ".*(facebookexternalhit|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|iMessage|Pinterestbot|Googlebot|GoogleMessages|Applebot).*"
         }
       ],
       "destination": "https://gckjlshfesyxualwxurj.supabase.co/functions/v1/og-preview?token=:token"

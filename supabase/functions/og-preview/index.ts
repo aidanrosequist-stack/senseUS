@@ -195,7 +195,17 @@ Deno.serve(async (req) => {
   const number = url.searchParams.get("number")
   const token = url.searchParams.get("token")
   const userAgent = req.headers.get("user-agent") || ""
-  const isCrawler = /facebookexternalhit|Twitterbot|Slackbot|LinkedInBot|WhatsApp|Discordbot|TelegramBot|Applebot|Googlebot/i.test(userAgent)
+  // Kept in sync by hand with vercel.json's rewrite "has" condition, which is
+  // the real gate deciding whether a request ever reaches this function at
+  // all -- this regex only controls whether the meta-refresh redirect is
+  // skipped once we're already here. GoogleMessages added 2026-09-23: Aidan
+  // reported a compare-link text sent between two Android phones showed no
+  // preview at all. Google's RCS/Chat-features link-preview fetcher turned
+  // out to identify itself as the literal string "GoogleMessages", not
+  // "Googlebot" -- a distinct, newer crawler UA, confirmed via Google's own
+  // documentation. It wasn't in either list, so those requests fell straight
+  // through vercel.json's catch-all to the SPA instead of this function.
+  const isCrawler = /facebookexternalhit|Twitterbot|Slackbot|LinkedInBot|WhatsApp|Discordbot|TelegramBot|Pinterestbot|Applebot|Googlebot|GoogleMessages/i.test(userAgent)
 
   if (!number && !token) {
     return new Response("Missing question number or comparison token", { status: 400 })
