@@ -33,6 +33,12 @@ const NOTIFICATION_TYPE_ICONS = {
   admin_broadcast: '📣',
   welcome: '👋',
   urgent: '🚨',
+  // Migration 090 (2026-09-23) -- comparison_accepted is a new type value,
+  // fired by accept_comparison_token() once someone accepts a comparison
+  // invite. Without an entry here it would just fall back to the generic
+  // 💬 below, which reads fine but doesn't match this list's existing
+  // one-icon-per-event-type pattern.
+  comparison_accepted: '🤝',
 }
 
 export default function Profile() {
