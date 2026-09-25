@@ -169,7 +169,12 @@ async function openIntegrityInfo() {
     if (!p) return ''
     if (p.display_preference === 'anon') return p.anon_name || 'Anonymous'
     if (p.display_preference === 'first_only') return p.first_name
-    return `${p.first_name} ${p.last_initial}.`
+    // Was `${p.first_name} ${p.last_initial}.` unconditionally -- when
+    // last_initial is genuinely null (a 'full'-preference account with no
+    // last name on file), a template literal stringifies JS null as the
+    // literal text "null", rendering as "Debman null." instead of just
+    // "Debman". Matches the guard AdminReports.jsx already had.
+    return `${p.first_name}${p.last_initial ? ` ${p.last_initial}.` : ''}`
   }
 
   function getMemberSince(p) {

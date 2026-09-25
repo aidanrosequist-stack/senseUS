@@ -359,7 +359,16 @@ if (checkingStatus) {
                   lastName,
                   country,
                 })}
-                disabled={loading || !isOver18 || !dataConsent || (displayPreference !== 'anon' && !firstName) || !country}
+                // 'full' display preference used to let someone submit with
+                // no last name at all -- the Last Name field only ever
+                // *appeared* for that choice, nothing actually required it.
+                // useRegistration.js correctly stored a real SQL null for
+                // last_initial in that case, but every display site that
+                // built "First Last." out of it stringified that null as
+                // the literal word "null" (a classic JS template-literal
+                // gotcha), rendering real accounts as e.g. "Debman null."
+                // .trim() so a lone space doesn't count as a real last name.
+                disabled={loading || !isOver18 || !dataConsent || (displayPreference !== 'anon' && !firstName) || (displayPreference === 'full' && !lastName.trim()) || !country}
                 style={{ width: '100%', padding: '11px', borderRadius: '8px', background: '#52B788', color: 'white', border: 'none', fontSize: '14px', fontWeight: 500, cursor: 'pointer', opacity: (loading || !isOver18 || !dataConsent || (displayPreference !== 'anon' && !firstName)) ? 0.5 : 1 }}
               >
                 {loading ? 'Creating account...' : 'Complete registration'}

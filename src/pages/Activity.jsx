@@ -248,7 +248,14 @@ function getDisplayName(row) {
   if (!row) return 'Anonymous'
   if (row.display_preference === 'anon') return row.anon_name || 'Anonymous'
   if (row.display_preference === 'first_only') return row.first_name
-  return `${row.first_name} ${row.last_initial}.`
+  // Was `${row.first_name} ${row.last_initial}.` unconditionally -- when
+  // last_initial is genuinely null (a 'full'-preference account with no
+  // last name on file, e.g. one that slipped through before Register.jsx
+  // required it), a template literal stringifies JS null as the literal
+  // text "null", rendering as "Debman null." instead of just "Debman".
+  // Matches the guard AdminReports.jsx already had in the one place that
+  // got this right.
+  return `${row.first_name}${row.last_initial ? ` ${row.last_initial}.` : ''}`
 }
 
 // A pinned question — bold question text as the main content (this is

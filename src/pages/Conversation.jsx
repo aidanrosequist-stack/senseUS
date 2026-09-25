@@ -63,7 +63,12 @@ function getDisplayName(profile) {
   if (!profile) return 'Anonymous'
   if (profile.display_preference === 'anon') return profile.anon_name || 'Anonymous'
   if (profile.display_preference === 'first_only') return profile.first_name
-  return `${profile.first_name} ${profile.last_initial}.`
+  // Was `${profile.first_name} ${profile.last_initial}.` unconditionally --
+  // when last_initial is genuinely null (a 'full'-preference account with
+  // no last name on file), a template literal stringifies JS null as the
+  // literal text "null", rendering as "Debman null." instead of just
+  // "Debman". Matches the guard AdminReports.jsx already had.
+  return `${profile.first_name}${profile.last_initial ? ` ${profile.last_initial}.` : ''}`
 }
 
 function getVoteColor(comment) {
