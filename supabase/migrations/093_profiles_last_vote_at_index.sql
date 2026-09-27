@@ -1,0 +1,47 @@
+-- senseUS: index profiles.last_vote_at for the new /admin Dashboard tab.
+--
+-- CONTEXT: the Dashboard tab (replacing the old "Reports" tab) adds four
+-- "active users" counts -- last 24h / 7d / 30d / 365d -- plus a DAU/MAU
+-- stickiness ratio computed from two of them. Aidan's call: activity is
+-- defined purely by profiles.last_vote_at (set on every cast_vote() call,
+-- migrations 055/073) -- NOT any login/session signal, since none exists
+-- in this schema and votes are what actually matter here.
+--
+-- Each count is a plain `.gte('last_vote_at', ...)` head-count query
+-- (see loadDashboard() in the old AdminReports.jsx for the identical
+-- pattern already used for newRegistrations/totalVotes24h), not a new
+-- RPC -- these are simple filtered counts, not the kind of cross-row
+-- aggregation/ranking get_daily_activity/get_top_questions_by_votes
+-- exist for.
+--
+-- The Dashboard polls every 60s (setInterval, same as the old Reports
+-- tab), so this adds 4 new `profiles` count queries per poll on top of
+-- the existing ones. profiles.last_vote_at has never been indexed --
+-- confirmed by grepping every prior migration -- so each of those 4
+-- queries would otherwise be a full sequential scan of the whole
+-- profiles table, every 60 seconds, indefinitely. This index is what
+-- makes that cheap.
+--
+-- Verified against a local Postgres 16 instance before shipping: EXPLAIN
+-- on `select count(*) from profiles where last_vote_at >= now() - interval
+-- '1 day'` switches from Seq Scan to Index Scan/Bitmap Index Scan on
+-- idx_profiles_last_vote_at once the table has enough rows for the planner
+-- to prefer it; correctness unaffected either way (same row counts with
+-- and without the index).
+-- ============================================================
+
+CREATE INDEX IF NOT EXISTS idx_profiles_last_vote_at
+  ON public.profiles (last_vote_at);
+
+-- ============================================================
+-- One-time verification (SQL Editor, after applying):
+--
+-- 1. Confirm the index exists:
+--    select indexname, indexdef from pg_indexes
+--    where tablename = 'profiles' and indexname = 'idx_profiles_last_vote_at';
+--
+-- 2. Confirm the four Dashboard count queries still return sane numbers
+--    and (at production row counts) the planner is willing to use it:
+--    explain analyze select count(*) from public.profiles
+--      where last_vote_at >= now() - interval '1 day';
+-- ============================================================

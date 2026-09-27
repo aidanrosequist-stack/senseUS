@@ -3,7 +3,9 @@ import { usePageTitle } from '../hooks/usePageTitle'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAdmin } from '../hooks/useAdmin'
-import AdminReports from './AdminReports'
+import AdminDashboard from './AdminDashboard'
+import AdminLogs from './AdminLogs'
+import AdminQuestionTrend from './AdminQuestionTrend'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 const CATEGORIES = ['fun', 'hot take', 'deep', 'topical', 'sponsored', 'current events']
@@ -65,7 +67,7 @@ export default function Admin() {
   usePageTitle('Admin')
   const { isAdmin, loading } = useAdmin()
   const navigate = useNavigate()
-  const [tab, setTab] = useState('questions')
+  const [tab, setTab] = useState('dashboard')
   const [questions, setQuestions] = useState([])
   // Questions tab search (admin_search_questions RPC, migration 048).
   // Kept entirely separate from `questions` above -- that array is capped
@@ -643,6 +645,7 @@ async function toggleRegistration(open) {
 
       {/* Tabs */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '1.5rem', background: '#F3F4F6', padding: '4px', borderRadius: '10px' }}>
+        <Tab label="Dashboard" active={tab === 'dashboard'} onClick={() => setTab('dashboard')} />
         <Tab label="Questions" active={tab === 'questions'} onClick={() => setTab('questions')} />
         <Tab label="Add Question" active={tab === 'add'} onClick={() => setTab('add')} />
         <Tab label="Add Article" active={tab === 'articles'} onClick={() => setTab('articles')} />
@@ -650,13 +653,17 @@ async function toggleRegistration(open) {
         <Tab label="Review Queue" active={tab === 'review'} onClick={() => setTab('review')} />
         <Tab label="Flagged Comments" active={tab === 'comments'} onClick={() => setTab('comments')} />
         <Tab label="Broadcast" active={tab === 'broadcast'} onClick={() => setTab('broadcast')} />
-        <Tab label="Reports" active={tab === 'reports'} onClick={() => setTab('reports')} badge={unresolvedCount} />
+        <Tab label="Logs" active={tab === 'logs'} onClick={() => setTab('logs')} badge={unresolvedCount} />
         <Tab label="Sponsored" active={tab === 'sponsored'} onClick={() => setTab('sponsored')} />
       </div>
+
+      {/* Dashboard */}
+      {tab === 'dashboard' && <AdminDashboard supabase={supabase} />}
 
       {/* Questions list */}
       {tab === 'questions' && (
         <div>
+          <AdminQuestionTrend supabase={supabase} />
           <input
             type="text"
             value={questionSearchQuery}
@@ -1203,8 +1210,8 @@ async function toggleRegistration(open) {
         </div>
       )}
 
-      {/* Reports */}
-      {tab === 'reports' && <AdminReports supabase={supabase} />}
+      {/* Logs */}
+      {tab === 'logs' && <AdminLogs supabase={supabase} />}
 
       {tab === 'sponsored' && (
         <div>
