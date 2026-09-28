@@ -108,7 +108,40 @@ export default function Vote() {
           sponsorName = sponsor?.sponsor_name || null
         }
 
-        setTargetQuestion({ ...data, votes: counts, replyCount: 0, sponsor_name: sponsorName })
+        // This question missed the fresh useQuestions() batch above for
+        // one of two reasons: get_candidate_questions already excludes
+        // anything this user has voted on or skipped, OR it's a
+        // brand-new deep link (Explore, a share, /q/:number) to a
+        // question that batch just hasn't surfaced yet. Those two cases
+        // need different treatment below (already-voted vs. genuinely
+        // new), so look up whether a vote actually exists now rather
+        // than assuming from context. votes_user_id_question_id_key
+        // (migration 000) makes this a single indexed-row lookup, not a
+        // scan.
+        //
+        // This used to trust the URL's own ?currentVote= param instead
+        // (only set by Activity.jsx's "Change my vote" links) — which
+        // silently went stale the moment someone reached this same URL
+        // a second time after their vote had changed. Concretely: vote
+        // via a plain Explore/share link (/vote?question=<id>, no
+        // currentVote param at all) -> tap "Join the conversation" ->
+        // comment -> tap "< back" (Conversation.jsx's navigate(-1)) ->
+        // lands right back on that same /vote?question=<id> URL. The
+        // fresh batch correctly excludes the now-voted question, so this
+        // effect's fallback fetch runs again — and with no currentVote
+        // param to fall back on, the vote card rendered as if never
+        // voted at all (Aidan, 2026-09-28), even though the vote itself
+        // was recorded correctly (confirmed via /activity). A live
+        // lookup here is correct regardless of which link shape got the
+        // user here or how stale the URL in their history is.
+        const { data: myVoteRow } = await supabase
+          .from('votes')
+          .select('choice')
+          .eq('user_id', user.id)
+          .eq('question_id', targetQuestionId)
+          .maybeSingle()
+
+        setTargetQuestion({ ...data, votes: counts, replyCount: 0, sponsor_name: sponsorName, myVoteChoice: myVoteRow?.choice ?? null })
       }
     }
 
@@ -293,7 +326,15 @@ export default function Vote() {
           onHideQuestion={handleHideQuestion}
           targetQuestionId={targetQuestionId}
           targetQuestion={targetQuestion}
-          initialVoteForTarget={currentVoteParam}
+          // Once targetQuestion has loaded, its myVoteChoice (a live
+          // lookup — see the fetch above) is authoritative and always
+          // wins, including when it's null (confirmed no vote), which
+          // must be able to override a stale ?currentVote= left over
+          // from an earlier visit to this same URL. Falling back to the
+          // raw currentVoteParam before that fetch resolves is defensive
+          // only — QuestionFlow doesn't actually consume this prop until
+          // targetQuestion is set either way.
+          initialVoteForTarget={targetQuestion ? (targetQuestion.myVoteChoice ?? null) : currentVoteParam}
           pinnedQuestions={pinnedQuestions}
           onTogglePinQuestion={togglePinQuestion}
         />
