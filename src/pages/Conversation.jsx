@@ -899,7 +899,11 @@ export default function Conversation() {
   async function shareComment(commentId) {
     if (!question?.question_number) return
 
-    const url = `https://senseus.app/q/${question.question_number}#comment-${commentId}`
+    // ?ref=<your id> lets a resulting signup be attributed back to you —
+    // see useRegistration.js's completeRegistration() and migration
+    // 094_integrity_weight_sharing_and_comparing.sql.
+    const base = `https://senseus.app/q/${question.question_number}`
+    const url = user?.id ? `${base}?ref=${user.id}#comment-${commentId}` : `${base}#comment-${commentId}`
     const shareData = {
       title: 'senseUS',
       text: 'Join the conversation on senseUS',

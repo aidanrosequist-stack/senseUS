@@ -1,6 +1,7 @@
 import { IconMessageCircle } from '@tabler/icons-react'
 import { useRef, useEffect, useState } from 'react'
 import ConfettiBurst from '../ui/ConfettiBurst'
+import { useAuth } from '../../hooks/useAuth'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c',
@@ -37,6 +38,7 @@ const VOTE_WASH = {
 }
 
 export default function ResultsCard({ question, userVote, tally, onJoinConversation, onNext, onChangeVote, firstVote = false }) {
+  const { user } = useAuth()
   const total = tally.yes + tally.ly + tally.ln + tally.no
   const yesTrue = tally.yes + tally.ly
   const noTrue = tally.ln + tally.no
@@ -111,7 +113,12 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
 
   async function shareQuestion() {
     if (!question?.question_number) return
-    const url = `https://senseus.app/q/${question.question_number}`
+    // ?ref=<your id> lets a resulting signup be attributed back to you —
+    // see useRegistration.js's completeRegistration() and migration
+    // 094_integrity_weight_sharing_and_comparing.sql.
+    const url = user?.id
+      ? `https://senseus.app/q/${question.question_number}?ref=${user.id}`
+      : `https://senseus.app/q/${question.question_number}`
     const shareData = { title: 'senseUS', text: 'I just voted on this — what do you think?', url }
 
     if (navigator.share) {

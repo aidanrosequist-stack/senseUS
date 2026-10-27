@@ -121,19 +121,27 @@ export default function Profile() {
 
 async function openIntegrityInfo() {
     setShowIntegrityInfo(true)
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-    const [{ count: voteCount }, { count: commentCount }] = await Promise.all([
-      supabase.from('votes').select('*', { count: 'exact', head: true }).eq('user_id', profile.id).gte('updated_at', thirtyDaysAgo),
-      supabase.from('comments').select('*', { count: 'exact', head: true }).eq('user_id', profile.id).eq('is_deleted', false).gte('created_at', thirtyDaysAgo),
-    ])
+    // get_integrity_progress() (migration 094) mirrors
+    // calculate_all_integrity_weights()'s actual lifetime, all-time-count
+    // logic exactly -- previously this queried a rolling 30-day window
+    // and profiles.streak_days (consecutive-day streak) directly, which
+    // drifted from how the real weight is computed back when migration
+    // 025 decoupled the two, and made this checklist show nothing earned
+    // for plenty of people who'd already maxed their actual weight. One
+    // function now backs both, so they can't drift apart again.
+    const { data, error } = await supabase.rpc('get_integrity_progress').single()
+    if (error) console.error('Failed to load integrity progress:', error)
 
     setIntegrityStatus({
-      voteStarted: (voteCount || 0) >= 10,
-      voteMaxed: (voteCount || 0) >= 50,
-      commentStarted: (commentCount || 0) >= 5,
-      commentMaxed: (commentCount || 0) >= 10,
-      consistent: (profile.streak_days || 0) >= 7,
+      voteStarted: (data?.vote_count || 0) >= 10,
+      voteMaxed: (data?.vote_count || 0) >= 50,
+      commentStarted: (data?.comment_count || 0) >= 5,
+      commentMaxed: (data?.comment_count || 0) >= 10,
+      consistent: (data?.distinct_vote_days || 0) >= 7,
+      sustained: (data?.distinct_vote_months || 0) >= 3,
+      shared: (data?.verified_referral_count || 0) >= 1,
+      compared: (data?.verified_comparison_count || 0) >= 1,
     })
   }
 
@@ -528,7 +536,7 @@ async function openIntegrityInfo() {
               Your vote can be worth slightly more if you use the app regularly — it's one of the ways we help stop bots.
             </p>
             <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.7, marginBottom: '1rem' }}>
-              It reflects sustained, genuine participation, only ever moves up, and is based on your activity over the last 30 days.
+              It reflects sustained, genuine participation and only ever moves up — based on your activity over your whole time here, not just recently.
             </p>
             {!integrityStatus ? (
               <div style={{ padding: '0.5rem 0' }}><LoadingSpinner size={18} label={null} /></div>
@@ -538,6 +546,9 @@ async function openIntegrityInfo() {
                   { label: 'Vote more', done: integrityStatus.voteMaxed, started: integrityStatus.voteStarted },
                   { label: 'Interact more', done: integrityStatus.commentMaxed, started: integrityStatus.commentStarted },
                   { label: 'Be consistent', done: integrityStatus.consistent, started: integrityStatus.consistent },
+                  { label: 'Stay active over time', done: integrityStatus.sustained, started: integrityStatus.sustained },
+                  { label: 'Share senseUS', done: integrityStatus.shared, started: integrityStatus.shared },
+                  { label: 'Compare with a friend', done: integrityStatus.compared, started: integrityStatus.compared },
                 ].map(item => (
                   <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div

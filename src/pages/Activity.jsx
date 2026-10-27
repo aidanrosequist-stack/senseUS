@@ -432,7 +432,12 @@ export default function Activity() {
 
   function shareQuestion(question) {
     if (!question?.question_number) return
-    const url = `https://senseus.app/q/${question.question_number}`
+    // ?ref=<your id> lets a resulting signup be attributed back to you —
+    // see useRegistration.js's completeRegistration() and migration
+    // 094_integrity_weight_sharing_and_comparing.sql.
+    const url = user?.id
+      ? `https://senseus.app/q/${question.question_number}?ref=${user.id}`
+      : `https://senseus.app/q/${question.question_number}`
     const shareData = { title: 'senseUS', text: 'What do you think?', url }
     if (navigator.share) {
       navigator.share(shareData).catch(() => {})
@@ -443,7 +448,8 @@ export default function Activity() {
 
   function shareComment(comment) {
     if (!comment.questions?.question_number) return
-    const url = `https://senseus.app/q/${comment.questions.question_number}#comment-${comment.id}`
+    const base = `https://senseus.app/q/${comment.questions.question_number}`
+    const url = user?.id ? `${base}?ref=${user.id}#comment-${comment.id}` : `${base}#comment-${comment.id}`
     const shareData = { title: 'senseUS', text: 'Join the conversation on senseUS', url }
     if (navigator.share) {
       navigator.share(shareData).catch(() => {})

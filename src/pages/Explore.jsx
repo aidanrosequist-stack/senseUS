@@ -225,7 +225,15 @@ export default function Explore() {
 
   function shareQuestionCard(question) {
     if (!question?.question_number) return
-    const url = `https://senseus.app/q/${question.question_number}`
+    // ?ref=<your id> tags the link so a signup through it can be
+    // attributed back to you — see useRegistration.js's completeRegistration()
+    // and migration 094_integrity_weight_sharing_and_comparing.sql. Only
+    // added when signed in; an anonymous visitor's share just can't earn
+    // the bonus, which is fine since the bonus requires voting activity
+    // to ever accrue weight anyway.
+    const url = user?.id
+      ? `https://senseus.app/q/${question.question_number}?ref=${user.id}`
+      : `https://senseus.app/q/${question.question_number}`
     const shareData = { title: 'senseUS', text: 'What do you think?', url }
     if (navigator.share) {
       navigator.share(shareData).catch(() => {})
