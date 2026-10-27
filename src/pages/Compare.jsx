@@ -33,6 +33,32 @@ function agrees(mine, theirs, mode) {
   return SAME_SIDE[mine] === SAME_SIDE[theirs]
 }
 
+// Extracted from the inline map it used to live in so the agree/disagree
+// split below can render each group with the same markup without
+// duplicating it.
+function SharedQuestionCard({ s, isAgree }) {
+  return (
+    <div style={{ background: '#FFFFFF', border: isAgree ? '1px solid #eef3e0' : '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+      <div style={{ fontSize: '13px', color: '#1A1A1A', marginBottom: '8px', lineHeight: 1.4 }}>
+        {s.question.text}
+      </div>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#FFFFFF', border: `1.5px solid ${VOTE_COLORS[s.mine]}`, color: VOTE_BADGE_TEXT[s.mine], fontWeight: 700 }}>
+          You: {VOTE_LABELS[s.mine]}
+        </span>
+        <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#FFFFFF', border: `1.5px solid ${VOTE_COLORS[s.theirs]}`, color: VOTE_BADGE_TEXT[s.theirs], fontWeight: 700 }}>
+          Them: {VOTE_LABELS[s.theirs]}
+        </span>
+        {isAgree && (
+          <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#4d621d', fontWeight: 700 }}>
+            ✓ agree
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function getDisplayName(profile) {
   if (!profile) return 'Anonymous'
   if (profile.display_preference === 'anon') return profile.anon_name || 'Anonymous'
@@ -112,6 +138,23 @@ export default function Compare() {
     })
 
     return { agreementPct: pct, byDomain: domains }
+  }, [comparison, matchMode])
+
+  // Previously rendered in comparison.shared's raw order (whatever
+  // get_comparison()'s self-join happened to return -- effectively
+  // random, per the user's report). Partitioned here instead so
+  // agreeing questions group together above disagreeing ones, with
+  // each group keeping its original relative order. Recomputed when
+  // matchMode changes since "agree" itself depends on it (closely vs.
+  // exactly).
+  const { matchingShared, nonMatchingShared } = useMemo(() => {
+    const shared = comparison?.shared || []
+    const matching = []
+    const nonMatching = []
+    for (const s of shared) {
+      (agrees(s.mine, s.theirs, matchMode) ? matching : nonMatching).push(s)
+    }
+    return { matchingShared: matching, nonMatchingShared: nonMatching }
   }, [comparison, matchMode])
 
   const myBadges = comparison?.myProfile?.badges || []
@@ -480,35 +523,26 @@ export default function Compare() {
                     ))}
                   </div>
 
+                  {matchingShared.length > 0 && nonMatchingShared.length > 0 && (
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#4d621d', marginBottom: '8px' }}>
+                      Where you agree ({matchingShared.length})
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: nonMatchingShared.length > 0 ? '1.25rem' : 0 }}>
+                    {matchingShared.map(s => (
+                      <SharedQuestionCard key={s.questionId} s={s} isAgree={true} />
+                    ))}
+                  </div>
+
+                  {matchingShared.length > 0 && nonMatchingShared.length > 0 && (
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', marginBottom: '8px' }}>
+                      Where you differ ({nonMatchingShared.length})
+                    </div>
+                  )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {comparison.shared.map(s => {
-                      const isAgree = agrees(s.mine, s.theirs, matchMode)
-                      return (
-                        <div key={s.questionId} style={{ background: '#FFFFFF', border: isAgree ? '1px solid #eef3e0' : '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
-                          <div style={{ fontSize: '13px', color: '#1A1A1A', marginBottom: '8px', lineHeight: 1.4 }}>
-                            {s.question.text}
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            {/* White background + darker border, matching
-                                the voted-pill style now used everywhere
-                                else (Explore, Activity's History tab,
-                                Conversation's comment badge and filter
-                                pills) instead of the old flat tinted pill. */}
-                            <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#FFFFFF', border: `1.5px solid ${VOTE_COLORS[s.mine]}`, color: VOTE_BADGE_TEXT[s.mine], fontWeight: 700 }}>
-                              You: {VOTE_LABELS[s.mine]}
-                            </span>
-                            <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#FFFFFF', border: `1.5px solid ${VOTE_COLORS[s.theirs]}`, color: VOTE_BADGE_TEXT[s.theirs], fontWeight: 700 }}>
-                              Them: {VOTE_LABELS[s.theirs]}
-                            </span>
-                            {isAgree && (
-                              <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#4d621d', fontWeight: 700 }}>
-                                ✓ agree
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
+                    {nonMatchingShared.map(s => (
+                      <SharedQuestionCard key={s.questionId} s={s} isAgree={false} />
+                    ))}
                   </div>
                 </>
               )}

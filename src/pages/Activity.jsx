@@ -11,6 +11,7 @@ import { usePageTitle } from '../hooks/usePageTitle'
 import { useModalFocus } from '../hooks/useModalFocus'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
+import InviteFriendCard from '../components/ui/InviteFriendCard'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
@@ -1009,6 +1010,8 @@ export default function Activity() {
 
           {tab === 'history' && (
             <div>
+              {/* Above "Compare your vote history" per Aidan's request */}
+              <InviteFriendCard />
               <button
                 onClick={startComparison}
                 style={{ width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}

@@ -9,6 +9,7 @@ import { useModalFocus } from '../hooks/useModalFocus'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
 import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
+import InviteFriendCard from '../components/ui/InviteFriendCard'
 
 function timeAgo(dateString) {
   const now = new Date()
@@ -383,8 +384,15 @@ async function openIntegrityInfo() {
   )}
 </div>
 
-{/* Notifications */}
+{/* Invite a friend -- above Notifications per Aidan's request. Its own
+    marginBottom (matching the gap Notifications' marginTop otherwise
+    provides) spaces it from what follows, so this doesn't double up. */}
 <div style={{ marginTop: '1.5rem' }}>
+  <InviteFriendCard />
+</div>
+
+{/* Notifications */}
+<div>
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
     <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A' }}>Notifications</div>
     {notifications.length > 0 && (

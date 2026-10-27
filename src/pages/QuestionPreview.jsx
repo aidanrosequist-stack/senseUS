@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { usePageTitle } from '../hooks/usePageTitle'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -12,6 +12,17 @@ const VOTE_COLORS = {
 export default function QuestionPreview() {
   usePageTitle('Question Preview')
   const { number } = useParams()
+  // Carries a sharer's ?ref= through to /register -- this page previously
+  // rebuilt the register link from scratch (from/q only), silently
+  // dropping ref on every shared-question link (Explore.jsx, VoteCard.jsx,
+  // ResultsCard.jsx, Activity.jsx, Conversation.jsx all tag their share
+  // URLs with it -- see migration 094_integrity_weight_sharing_and_comparing.sql)
+  // before it ever reached useRegistration.js's completeRegistration(),
+  // which is the only place that actually reads it. Every referral
+  // through a shared question link was being lost here.
+  const [searchParams] = useSearchParams()
+  const ref = searchParams.get('ref')
+  const refSuffix = ref ? `ref=${encodeURIComponent(ref)}` : ''
   const originNumber = useRef(parseInt(number, 10))
   const [currentNum, setCurrentNum] = useState(parseInt(number, 10))
   const { user } = useAuth()
@@ -217,8 +228,8 @@ export default function QuestionPreview() {
                 : user
                 ? `/vote?question=${question?.id}`
                 : sharedComment
-                ? `/register?from=q&q=${currentNum}`
-                : `/register`
+                ? `/register?from=q&q=${currentNum}${refSuffix ? '&' + refSuffix : ''}`
+                : `/register${refSuffix ? '?' + refSuffix : ''}`
               }
           style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF', background: '#2D3DCA', padding: '6px 14px', borderRadius: '20px', textDecoration: 'none' }}
         >
@@ -279,9 +290,7 @@ export default function QuestionPreview() {
                 ? `/conversation/${question?.id}`
                 : user
                 ? `/vote?question=${question?.id}`
-                : sharedComment
-                ? `/register?from=q&q=${currentNum}`
-                : `/register?from=q&q=${currentNum}`
+                : `/register?from=q&q=${currentNum}${refSuffix ? '&' + refSuffix : ''}`
               }
               style={{ display: 'block', width: '100%', padding: '12px', background: '#2D3DCA', color: 'white', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', marginBottom: '8px' }}
             >
