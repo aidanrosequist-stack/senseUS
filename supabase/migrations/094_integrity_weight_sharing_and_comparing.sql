@@ -215,9 +215,9 @@ $function$;
 grant execute on function public.claim_referral(uuid) to authenticated;
 revoke execute on function public.claim_referral(uuid) from public;
 
-insert into intentionally_public_functions (function_name, reason)
+insert into intentionally_public_functions (function_name, note)
 values ('claim_referral', 'Lets a newly-registered user record who referred them (write-once, SECURITY DEFINER-guarded); backs the sharing bonus in migration 094.')
-on conflict (function_name) do update set reason = excluded.reason;
+on conflict (function_name) do update set note = excluded.note;
 
 -- ---- 2. Raise the per-vote weight ceiling ----
 alter table public.votes
@@ -388,9 +388,9 @@ revoke execute on function public.get_integrity_progress() from public;
 
 -- Track as an intentionally-public, authenticated-facing RPC (house
 -- convention — see migration 000 and every RPC migration since).
-insert into intentionally_public_functions (function_name, reason)
+insert into intentionally_public_functions (function_name, note)
 values ('get_integrity_progress', 'Returns only the calling user''s own lifetime progress toward integrity-weight bonuses (auth.uid()-scoped); backs the "Reach your full weight" popup on Profile.jsx.')
-on conflict (function_name) do update set reason = excluded.reason;
+on conflict (function_name) do update set note = excluded.note;
 
 -- ---- One-time verification ----
 do $$
