@@ -36,6 +36,7 @@ export default function Vote() {
   const from = location.state?.from || '/vote'
   const [targetQuestion, setTargetQuestion] = useState(null)
   const [pinnedQuestions, setPinnedQuestions] = useState(new Set())
+  const [partyQuestions, setPartyQuestions] = useState(new Set())
 
   // Same fetch-once-per-user shape as Explore.jsx's pinnedQuestions —
   // loaded independently here rather than threaded in from Explore since
@@ -44,14 +45,21 @@ export default function Vote() {
   useEffect(() => {
     if (!user) {
       setPinnedQuestions(new Set())
+      setPartyQuestions(new Set())
       return
     }
     let cancelled = false
-    async function fetchPinned() {
-      const { data } = await supabase.from('pinned_questions').select('question_id').eq('user_id', user.id)
-      if (!cancelled) setPinnedQuestions(new Set((data || []).map(row => row.question_id)))
+    async function fetchPinnedAndParty() {
+      const [{ data: pinned }, { data: party }] = await Promise.all([
+        supabase.from('pinned_questions').select('question_id').eq('user_id', user.id),
+        supabase.from('party_questions').select('question_id').eq('user_id', user.id),
+      ])
+      if (!cancelled) {
+        setPinnedQuestions(new Set((pinned || []).map(row => row.question_id)))
+        setPartyQuestions(new Set((party || []).map(row => row.question_id)))
+      }
     }
-    fetchPinned()
+    fetchPinnedAndParty()
     return () => { cancelled = true }
   }, [user?.id])
 
@@ -69,6 +77,28 @@ export default function Vote() {
       const { error } = await supabase.from('pinned_questions').insert({ question_id: questionId, user_id: user.id })
       if (error) { alert('Something went wrong — please try again.'); return }
       setPinnedQuestions(prev => new Set([...prev, questionId]))
+    }
+  }
+
+  // Same shape as togglePinQuestion, against party_questions (migration
+  // 095_question_parties.sql) — the standing "? Party" curation list.
+  // Capped at 10 by a server-side trigger; that rejection's own message
+  // ("You can curate up to 10 questions for a party.") is already
+  // friendly enough to show directly, unlike the generic fallback used
+  // for anything else going wrong.
+  async function togglePartyQuestion(questionId) {
+    if (!user) return
+    const isAdded = partyQuestions.has(questionId)
+
+    if (isAdded) {
+      const { error } = await supabase.from('party_questions').delete()
+        .eq('question_id', questionId).eq('user_id', user.id)
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPartyQuestions(prev => { const s = new Set(prev); s.delete(questionId); return s })
+    } else {
+      const { error } = await supabase.from('party_questions').insert({ question_id: questionId, user_id: user.id })
+      if (error) { alert(error.message || 'Something went wrong — please try again.'); return }
+      setPartyQuestions(prev => new Set([...prev, questionId]))
     }
   }
 
@@ -337,6 +367,8 @@ export default function Vote() {
           initialVoteForTarget={targetQuestion ? (targetQuestion.myVoteChoice ?? null) : currentVoteParam}
           pinnedQuestions={pinnedQuestions}
           onTogglePinQuestion={togglePinQuestion}
+          partyQuestions={partyQuestions}
+          onTogglePartyQuestion={togglePartyQuestion}
         />
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { IconThumbUp, IconThumbDown, IconBulb, IconMessageCircle, IconShare } from '@tabler/icons-react'
 import PinButton from '../ui/PinButton'
+import PartyAddButton from '../ui/PartyAddButton'
 import { useAuth } from '../../hooks/useAuth'
 
 // Tier 2 ("wash") — updated 2026-09-03 (second pass) to reuse the vote
@@ -115,7 +116,7 @@ function ProgressRing({ progress }) {
   )
 }
 
-export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, submittingLabel = 'Saving your vote...', voteError = null, onDismissError, enterFromAbove = false, pinned = false, onTogglePin }) {
+export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, submittingLabel = 'Saving your vote...', voteError = null, onDismissError, enterFromAbove = false, pinned = false, onTogglePin, partyAdded = false, onToggleParty }) {
   const { user } = useAuth()
   const [zone, setZone] = useState(initialZone)
 
@@ -500,13 +501,19 @@ useEffect(() => {
       }}
       onTouchEnd={() => { cancelHold(); handleEnd() }}
     >
-      {onTogglePin && (
-        <PinButton
-          pinned={pinned}
-          onToggle={onTogglePin}
-          size={16}
-          style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 3 }}
-        />
+      {/* Per Aidan's request (2026-10-27): the add-to-"? Party" control
+          takes the very top-right corner, with the pre-existing pin
+          toggle sitting just to its left — a plain flex row, rightmost
+          child wins the corner. */}
+      {(onTogglePin || onToggleParty) && (
+        <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 3, display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {onTogglePin && (
+            <PinButton pinned={pinned} onToggle={onTogglePin} size={16} />
+          )}
+          {onToggleParty && (
+            <PartyAddButton added={partyAdded} onToggle={onToggleParty} size={16} />
+          )}
+        </div>
       )}
       {hintSide === 'left' && (
         <div

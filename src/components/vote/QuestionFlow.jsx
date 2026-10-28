@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import VoteCard from './VoteCard'
 import ResultsCard from './ResultsCard'
 
-export default function QuestionFlow({ questions, onVote, onHideQuestion, targetQuestionId, targetQuestion, initialVoteForTarget, pinnedQuestions, onTogglePinQuestion }) {
+export default function QuestionFlow({ questions, onVote, onHideQuestion, targetQuestionId, targetQuestion, initialVoteForTarget, pinnedQuestions, onTogglePinQuestion, partyQuestions, onTogglePartyQuestion }) {
   const navigate = useNavigate()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [extraQuestion, setExtraQuestion] = useState(null)
@@ -254,6 +254,8 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
           onDismissError={() => setVoteError(null)}
           pinned={pinnedQuestions?.has(currentQuestion.id) || false}
           onTogglePin={onTogglePinQuestion ? () => onTogglePinQuestion(currentQuestion.id) : undefined}
+          partyAdded={partyQuestions?.has(currentQuestion.id) || false}
+          onToggleParty={onTogglePartyQuestion ? () => onTogglePartyQuestion(currentQuestion.id) : undefined}
         />
       )}
       {view === 'results' && (
@@ -265,6 +267,8 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
           onNext={advance}
           firstVote={firstVoteToShow}
           onChangeVote={() => { setChangingVote(true); setView('voting') }}
+          partyAdded={partyQuestions?.has(currentQuestion.id) || false}
+          onToggleParty={onTogglePartyQuestion ? () => onTogglePartyQuestion(currentQuestion.id) : undefined}
         />
       )}
     </div>

@@ -12,6 +12,7 @@ const Home = lazy(() => import('./pages/Home'))
 const Vote = lazy(() => import('./pages/Vote'))
 const Profile = lazy(() => import('./pages/Profile'))
 const Compare = lazy(() => import('./pages/Compare'))
+const Party = lazy(() => import('./pages/Party'))
 const Register = lazy(() => import('./pages/Register'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Login = lazy(() => import('./pages/Login'))
@@ -153,6 +154,7 @@ function AppRoutes() {
               file itself is still on disk; delete it whenever you get a
               chance since nothing here can remove files on your machine. */}
           <Route path="/compare/:token" element={<Compare />} />
+          <Route path="/party/:token" element={<Party />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

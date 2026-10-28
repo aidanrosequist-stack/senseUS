@@ -1,6 +1,7 @@
 import { IconMessageCircle } from '@tabler/icons-react'
 import { useRef, useEffect, useState } from 'react'
 import ConfettiBurst from '../ui/ConfettiBurst'
+import PartyAddButton from '../ui/PartyAddButton'
 import { useAuth } from '../../hooks/useAuth'
 
 const VOTE_COLORS = {
@@ -37,7 +38,7 @@ const VOTE_WASH = {
   dec: '#FFFFFF',
 }
 
-export default function ResultsCard({ question, userVote, tally, onJoinConversation, onNext, onChangeVote, firstVote = false }) {
+export default function ResultsCard({ question, userVote, tally, onJoinConversation, onNext, onChangeVote, firstVote = false, partyAdded = false, onToggleParty }) {
   const { user } = useAuth()
   const total = tally.yes + tally.ly + tally.ln + tally.no
   const yesTrue = tally.yes + tally.ly
@@ -182,8 +183,17 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
         overflowY: 'auto',
         background: VOTE_WASH[userVote] || '#FFFFFF',
         transition: 'background 0.4s ease',
+        position: 'relative',
       }}
     >
+      {/* No pre-existing pin button on this card to sit left of, unlike
+          VoteCard — just the add-to-"? Party" control alone in the
+          corner. Per Aidan's request (2026-10-27). */}
+      {onToggleParty && (
+        <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 3 }}>
+          <PartyAddButton added={partyAdded} onToggle={onToggleParty} size={16} />
+        </div>
+      )}
       {firstVote && (
         <div style={{ position: 'relative', marginBottom: '0.75rem', width: '100%' }}>
           <div

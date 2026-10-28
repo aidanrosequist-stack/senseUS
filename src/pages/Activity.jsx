@@ -6,6 +6,7 @@ import { Skeleton, SkeletonCard } from '../components/ui/Skeleton'
 import { useLongPress, LONG_PRESS_NO_SELECT } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
 import PinButton from '../components/ui/PinButton'
+import PartyAddButton from '../components/ui/PartyAddButton'
 import { IconThumbUp, IconThumbDown } from '@tabler/icons-react'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useModalFocus } from '../hooks/useModalFocus'
@@ -69,6 +70,20 @@ function timeAgo(dateString) {
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
   return `${Math.floor(diff / 86400)}d ago`
+}
+
+// timeAgo's counterpart for a FUTURE timestamp — used for an open party's
+// expires_at. A straight reuse of timeAgo would silently misreport this
+// (its diff is always negative for a future date, which every one of its
+// branches treats as "under 60 seconds").
+function timeUntil(dateString) {
+  const now = new Date()
+  const date = new Date(dateString)
+  const diff = Math.floor((date - now) / 1000)
+  if (diff <= 0) return 'expiring soon'
+  if (diff < 3600) return `expires in ${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `expires in ${Math.floor(diff / 3600)}h`
+  return `expires in ${Math.floor(diff / 86400)}d`
 }
 
 function formatVoteTimestamp(dateString) {
@@ -294,6 +309,41 @@ function PinnedQuestionCard({ pin, navigate, onTogglePin, onLongPress }) {
   )
 }
 
+// One row in the "? Party" tab's own curated-list view — same shape as
+// PinnedQuestionCard just above (standing per-user lists over the same
+// kind of row), swapping PinButton for PartyAddButton since this list is
+// party_questions, not pinned_questions (migration 095_question_parties.sql).
+// "added" is always true here — this card only ever renders for a
+// question already in the list, tapping the button removes it.
+function PartyQuestionCard({ item, navigate, onToggleParty, onLongPress }) {
+  const longPress = useLongPress(() => onLongPress(item))
+  return (
+    <div
+      onClick={() => { if (!longPress.wasLongPress()) navigate(item.userVoteChoice ? `/conversation/${item.question_id}` : `/vote?question=${item.question_id}`) }}
+      {...longPress}
+      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', position: 'relative', ...LONG_PRESS_NO_SELECT }}
+    >
+      <PartyAddButton added onToggle={onToggleParty} size={15} style={{ position: 'absolute', top: '10px', right: '10px' }} />
+      <div style={{ fontSize: '11px', color: '#0C447C', background: '#E6F1FB', display: 'inline-block', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
+        {item.category}
+      </div>
+      <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A1A', lineHeight: 1.4, marginBottom: '8px', paddingRight: '22px' }}>
+        {item.text}
+      </div>
+      {item.userVoteChoice ? (
+        <span style={{
+          fontSize: '10px', padding: '2px 8px', borderRadius: '20px', fontWeight: 700,
+          background: '#FFFFFF', border: `1.5px solid ${VOTE_COLORS[item.userVoteChoice]}`, color: VOTE_PILL_STYLES[item.userVoteChoice]?.color,
+        }}>
+          You voted {VOTE_LABELS[item.userVoteChoice]}
+        </span>
+      ) : (
+        <span style={{ fontSize: '11px', fontWeight: 500, color: '#2D3DCA' }}>Not voted yet</span>
+      )}
+    </div>
+  )
+}
+
 // A pinned comment — the question it belongs to bold at the top for
 // context (you need to know what this was about before the comment makes
 // sense), the comment itself below it, quick info (who said it, when,
@@ -358,6 +408,27 @@ export default function Activity() {
   const [pinnedCommentsList, setPinnedCommentsList] = useState([])
   const [pinnedView, setPinnedView] = useState('questions')
 
+  // "? Party" state (migration 095_question_parties.sql). partyQuestionIds
+  // is eager, same reasoning as pinnedQuestionIds above — every one of the
+  // longpress sheets below needs an accurate Add/Remove label regardless
+  // of whether the Party tab itself has been opened yet. partyCurationList
+  // (the full card data for the Party tab's own list) and myParties (every
+  // party the user hosts or has joined, via get_my_parties()) are both
+  // lazy, loaded only once the tab is actually opened, same as the Pinned
+  // tab's own lists.
+  const [partyQuestionIds, setPartyQuestionIds] = useState(new Set())
+  const [partyCurationList, setPartyCurationList] = useState([])
+  const [myParties, setMyParties] = useState([])
+  const [creatingParty, setCreatingParty] = useState(false)
+  const [partyCreateError, setPartyCreateError] = useState(null)
+  // Same one-time dismissible callout pattern as Explore.jsx's own
+  // longpress hint (senseus_seen_longpress_hint_explore) — Aidan's own
+  // near-final copy, lightly wordsmithed to name the actual UI (the +
+  // icon / longpress menu) rather than the more abstract "select it".
+  const [showPartyTooltip, setShowPartyTooltip] = useState(
+    localStorage.getItem('senseus_seen_party_tab_tooltip') !== 'true'
+  )
+
   // Comparison-link modal: startComparison() used to rely entirely on
   // navigator.share() / navigator.clipboard succeeding, with nothing
   // rendered if both silently failed or were unavailable (the reported
@@ -386,10 +457,12 @@ export default function Activity() {
     Promise.all([
       supabase.from('pinned_comments').select('comment_id').eq('user_id', user.id),
       supabase.from('pinned_questions').select('question_id').eq('user_id', user.id),
-    ]).then(([{ data: comments }, { data: questions }]) => {
+      supabase.from('party_questions').select('question_id').eq('user_id', user.id),
+    ]).then(([{ data: comments }, { data: questions }, { data: partyQ }]) => {
       if (cancelled) return
       setPinnedCommentIds(new Set((comments || []).map(c => c.comment_id)))
       setPinnedQuestionIds(new Set((questions || []).map(q => q.question_id)))
+      setPartyQuestionIds(new Set((partyQ || []).map(q => q.question_id)))
     }).catch(err => console.error(err))
 
     return () => { cancelled = true }
@@ -428,6 +501,26 @@ export default function Activity() {
       const { error } = await supabase.from('pinned_questions').insert({ question_id: questionId, user_id: user.id })
       if (error) { alert('Something went wrong — please try again.'); return }
       setPinnedQuestionIds(prev => new Set([...prev, questionId]))
+    }
+  }
+
+  // Same shape, against party_questions — capped at 10 server-side
+  // (migration 095_question_parties.sql); that rejection's own message is
+  // already friendly enough to show directly, unlike the generic fallback
+  // used for anything else going wrong.
+  async function togglePartyQuestion(questionId) {
+    if (!user) return
+    const isAdded = partyQuestionIds.has(questionId)
+    if (isAdded) {
+      const { error } = await supabase.from('party_questions').delete()
+        .eq('question_id', questionId).eq('user_id', user.id)
+      if (error) { alert('Something went wrong — please try again.'); return }
+      setPartyQuestionIds(prev => { const s = new Set(prev); s.delete(questionId); return s })
+      setPartyCurationList(prev => prev.filter(q => q.question_id !== questionId))
+    } else {
+      const { error } = await supabase.from('party_questions').insert({ question_id: questionId, user_id: user.id })
+      if (error) { alert(error.message || 'Something went wrong — please try again.'); return }
+      setPartyQuestionIds(prev => new Set([...prev, questionId]))
     }
   }
 
@@ -771,12 +864,97 @@ export default function Activity() {
     await Promise.all([fetchPinnedQuestions(), fetchPinnedComments()])
   }
 
+  // Same shape as fetchPinnedQuestions above, against party_questions —
+  // the standing curation list, plus each curated question's own
+  // userVoteChoice (useful here specifically: it's how someone curating a
+  // list sees at a glance which of their own picks they still need to
+  // vote on before a party they start can ever complete).
+  async function fetchPartyCurationList() {
+    const { data: curatedData } = await supabase
+      .from('party_questions')
+      .select('question_id, created_at, questions (id, text, category, question_number)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    const questionIds = (curatedData || []).map(p => p.question_id)
+    const voteMap = {}
+    if (questionIds.length > 0) {
+      const { data: votesData } = await supabase
+        .from('votes')
+        .select('question_id, choice')
+        .eq('user_id', user.id)
+        .in('question_id', questionIds)
+      ;(votesData || []).forEach(v => { voteMap[v.question_id] = v.choice })
+    }
+
+    setPartyCurationList(
+      (curatedData || [])
+        .filter(p => p.questions)
+        .map(p => ({
+          question_id: p.question_id,
+          text: p.questions.text,
+          category: p.questions.category,
+          question_number: p.questions.question_number,
+          userVoteChoice: voteMap[p.question_id] || null,
+        }))
+    )
+  }
+
+  async function fetchMyParties() {
+    const { data } = await supabase.rpc('get_my_parties')
+    setMyParties(data || [])
+  }
+
+  async function fetchParty() {
+    await Promise.all([fetchPartyCurationList(), fetchMyParties()])
+  }
+
+  // Creates a new party from the current curation list (create_party()
+  // snapshots whatever's in party_questions for this user server-side —
+  // see migration 095) and immediately offers the resulting invite link
+  // via the same share()/clipboard-fallback idiom every other share
+  // button in this app already uses (InviteFriendCard, shareQuestion,
+  // startComparison's own link is the one exception, via a dedicated
+  // modal — not duplicated here for a first pass).
+  async function handleRequestParty() {
+    setPartyCreateError(null)
+    setCreatingParty(true)
+    const { data, error } = await supabase.rpc('create_party').single()
+    setCreatingParty(false)
+
+    if (error || !data) {
+      setPartyCreateError(error?.message || 'Something went wrong creating your party. Please try again.')
+      return
+    }
+
+    const url = `https://senseus.app/party/${data.invite_token}`
+    const shareData = { title: 'senseUS', text: 'Join my ? Party on senseUS — vote on a few questions and see how we compare.', url }
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData)
+      } catch {
+        // User cancelled the share sheet — not an error, the party was still created
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url)
+        alert('Party invite link copied to clipboard!')
+      } catch {
+        prompt('Copy this link:', url)
+      }
+    }
+
+    fetchMyParties()
+  }
+
   const FETCHERS = {
     comments: fetchComments,
     shifts: fetchShifts,
     revisit: fetchRevisit,
     history: fetchHistory,
     pinned: fetchPinned,
+    party: fetchParty,
   }
 
   // Runs whenever the active tab changes (including the very first render,
@@ -819,6 +997,7 @@ export default function Activity() {
           { key: 'shifts', label: 'Shifts' },
           { key: 'revisit', label: 'Revisit' },
           { key: 'pinned', label: 'Pinned' },
+          { key: 'party', label: '? Party' },
         ].map(t => (
           <button
             key={t.key}
@@ -894,6 +1073,10 @@ export default function Activity() {
                             label: pinnedCommentIds.has(comment.id) ? 'Unpin this comment' : 'Pin this comment',
                             onClick: () => togglePinComment(comment.id),
                           },
+                          {
+                            label: partyQuestionIds.has(comment.questions?.id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                            onClick: () => togglePartyQuestion(comment.questions?.id),
+                          },
                         ],
                       })}
                     />
@@ -955,6 +1138,10 @@ export default function Activity() {
                             label: pinnedQuestionIds.has(s.questions?.id) ? 'Unpin this question' : 'Pin this question',
                             onClick: () => togglePinQuestion(s.questions?.id),
                           },
+                          {
+                            label: partyQuestionIds.has(s.questions?.id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                            onClick: () => togglePartyQuestion(s.questions?.id),
+                          },
                         ],
                       })}
                     />
@@ -989,6 +1176,10 @@ export default function Activity() {
                           {
                             label: pinnedQuestionIds.has(s.questions?.id) ? 'Unpin this question' : 'Pin this question',
                             onClick: () => togglePinQuestion(s.questions?.id),
+                          },
+                          {
+                            label: partyQuestionIds.has(s.questions?.id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                            onClick: () => togglePartyQuestion(s.questions?.id),
                           },
                         ],
                       })}
@@ -1050,6 +1241,10 @@ export default function Activity() {
                             label: pinnedQuestionIds.has(v.questions?.id) ? 'Unpin this question' : 'Pin this question',
                             onClick: () => togglePinQuestion(v.questions?.id),
                           },
+                          {
+                            label: partyQuestionIds.has(v.questions?.id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                            onClick: () => togglePartyQuestion(v.questions?.id),
+                          },
                         ],
                       })}
                     />
@@ -1106,6 +1301,10 @@ export default function Activity() {
                               : []),
                             { label: 'Share this question', onClick: () => shareQuestion({ question_number: p.question_number }) },
                             { label: 'Unpin this question', onClick: () => togglePinQuestion(p.question_id) },
+                            {
+                              label: partyQuestionIds.has(p.question_id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                              onClick: () => togglePartyQuestion(p.question_id),
+                            },
                           ],
                         })}
                       />
@@ -1145,6 +1344,10 @@ export default function Activity() {
                                 }]
                               : []),
                             { label: 'Unpin this comment', onClick: () => togglePinComment(p.comment_id) },
+                            {
+                              label: partyQuestionIds.has(p.question_id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                              onClick: () => togglePartyQuestion(p.question_id),
+                            },
                           ],
                         })}
                       />
@@ -1152,6 +1355,115 @@ export default function Activity() {
                   </div>
                 )
               )}
+            </div>
+          )}
+
+          {tab === 'party' && (
+            <div>
+              {showPartyTooltip && (
+                <div style={{ marginBottom: '1.25rem', background: '#E6F1FB', border: '1px solid #0C447C', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#0C447C', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', lineHeight: 1.5 }}>
+                  <span>Invite up to 5 people to vote on a list of up to 10 questions you curate yourself. Tap the + on any question's card (or use its long-press menu) to add it to your list.</span>
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('senseus_seen_party_tab_tooltip', 'true')
+                      setShowPartyTooltip(false)
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#0C447C', fontSize: '16px', cursor: 'pointer', flexShrink: 0, lineHeight: 1 }}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>
+                  Your curated list ({partyCurationList.length}/10)
+                </div>
+
+                {partyCurationList.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '13px', background: '#F9FAFB', borderRadius: '10px' }}>
+                    <div style={{ fontSize: '28px', marginBottom: '0.5rem' }}>❓</div>
+                    No questions yet. Tap the + on any question's card, or use its long-press menu, to add one here.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
+                    {partyCurationList.map(item => (
+                      <PartyQuestionCard
+                        key={item.question_id}
+                        item={item}
+                        navigate={navigate}
+                        onToggleParty={() => togglePartyQuestion(item.question_id)}
+                        onLongPress={(p) => setActionSheet({
+                          title: p.text,
+                          actions: [
+                            { label: 'View this question', onClick: () => navigate(`/conversation/${p.question_id}`) },
+                            ...(p.userVoteChoice
+                              ? [{ label: 'Change my vote', onClick: () => navigate(`/vote?question=${p.question_id}&currentVote=${p.userVoteChoice}`) }]
+                              : [{ label: 'Vote on this question', onClick: () => navigate(`/vote?question=${p.question_id}`) }]),
+                            { label: 'Share this question', onClick: () => shareQuestion({ question_number: p.question_number }) },
+                            { label: 'Remove from ? Party list', onClick: () => togglePartyQuestion(p.question_id) },
+                          ],
+                        })}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleRequestParty}
+                  disabled={partyCurationList.length === 0 || creatingParty}
+                  style={{
+                    width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none',
+                    borderRadius: '8px', fontSize: '13px', fontWeight: 700, fontFamily: 'Merriweather, serif',
+                    cursor: (partyCurationList.length === 0 || creatingParty) ? 'default' : 'pointer',
+                    opacity: (partyCurationList.length === 0 || creatingParty) ? 0.6 : 1,
+                  }}
+                >
+                  {creatingParty ? 'Creating your party…' : 'Request a ? Party'}
+                </button>
+                {partyCreateError && (
+                  <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '6px', marginBottom: 0 }}>{partyCreateError}</p>
+                )}
+              </div>
+
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>
+                  Your Parties
+                </div>
+                {myParties.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '13px', background: '#F9FAFB', borderRadius: '10px' }}>
+                    No parties yet — curate a list above, then request one.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {myParties.map(p => (
+                      <div
+                        key={p.party_id}
+                        onClick={() => navigate(`/party/${p.invite_token}`)}
+                        style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+                            {p.is_host ? 'You hosted' : 'You joined'} · {p.question_count} question{p.question_count === 1 ? '' : 's'}
+                          </span>
+                          <span style={{
+                            fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px',
+                            background: p.status === 'open' ? '#E6F1FB' : p.status === 'completed' ? '#eef3e0' : '#F3F4F6',
+                            color: p.status === 'open' ? '#0C447C' : p.status === 'completed' ? '#4d621d' : '#6B7280',
+                          }}>
+                            {p.status === 'open' ? 'Open' : p.status === 'completed' ? 'Completed' : 'Expired'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                          {p.participant_count}/6 joined
+                          {p.status === 'open' && ` · ${timeUntil(p.expires_at)}`}
+                          {p.status === 'completed' && p.completed_at && ` · completed ${timeAgo(p.completed_at)}`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
