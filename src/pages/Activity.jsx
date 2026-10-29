@@ -7,7 +7,7 @@ import { useLongPress, LONG_PRESS_NO_SELECT } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
 import PinButton from '../components/ui/PinButton'
 import PartyAddButton from '../components/ui/PartyAddButton'
-import { IconThumbUp, IconThumbDown } from '@tabler/icons-react'
+import { IconThumbUp, IconThumbDown, IconHistory, IconMessageCircle, IconArrowsUpDown, IconRefresh, IconPin, IconConfetti } from '@tabler/icons-react'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useModalFocus } from '../hooks/useModalFocus'
 import { HEADER_HEIGHT_PX } from '../components/layout/Header'
@@ -989,28 +989,48 @@ export default function Activity() {
         <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>Activity</h1>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — icons only, no visible labels (Aidan, 2026-10-29: the
+          6-tab row with full text names read as "jammed in," especially
+          with "? Party" added as the 6th). aria-label/title carry the
+          name for screen readers and a hover/long-press tooltip, same
+          as every other icon-only control in this app (PinButton,
+          PartyAddButton) — there's just nothing visible alongside the
+          icon here the way those have a sibling label elsewhere on
+          their card. Icon choices: IconArrowsUpDown for Shifts (up/down
+          side by side, matching trending opinion up or down) and
+          IconRefresh for Revisit (a single arrow circling back, same
+          "come back to this" idea as the recycle-icon shape Aidan asked
+          for) were the two Aidan specifically wanted checked for
+          availability — confirmed present in the installed
+          @tabler/icons-react (3.44.0) before committing to this over
+          the icon+tiny-label fallback. */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '1.5rem', background: '#F3F4F6', padding: '4px', borderRadius: '10px' }}>
         {[
-          { key: 'history', label: 'History' },
-          { key: 'comments', label: 'Comments' },
-          { key: 'shifts', label: 'Shifts' },
-          { key: 'revisit', label: 'Revisit' },
-          { key: 'pinned', label: 'Pinned' },
-          { key: 'party', label: '? Party' },
-        ].map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              flex: 1, padding: '8px', background: tab === t.key ? '#2D3DCA' : 'transparent',
-              color: tab === t.key ? 'white' : '#6B7280', border: 'none', borderRadius: '8px',
-              fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Merriweather, serif',
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+          { key: 'history', label: 'History', icon: IconHistory },
+          { key: 'comments', label: 'Comments', icon: IconMessageCircle },
+          { key: 'shifts', label: 'Shifts', icon: IconArrowsUpDown },
+          { key: 'revisit', label: 'Revisit', icon: IconRefresh },
+          { key: 'pinned', label: 'Pinned', icon: IconPin },
+          { key: 'party', label: '? Party', icon: IconConfetti },
+        ].map(t => {
+          const Icon = t.icon
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              aria-label={t.label}
+              aria-current={tab === t.key ? 'page' : undefined}
+              title={t.label}
+              style={{
+                flex: 1, padding: '9px 4px', background: tab === t.key ? '#2D3DCA' : 'transparent',
+                color: tab === t.key ? 'white' : '#6B7280', border: 'none', borderRadius: '8px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              }}
+            >
+              <Icon size={20} />
+            </button>
+          )
+        })}
       </div>
 
       {tabLoading ? (
