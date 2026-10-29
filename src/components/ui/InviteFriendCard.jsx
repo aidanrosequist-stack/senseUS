@@ -20,6 +20,13 @@ import { useAuth } from '../../hooks/useAuth'
 // after useRegistration.js's completeRegistration() has already read
 // ?ref= from window.location.search), so the tag survives the whole
 // phone-verify -> code -> details flow intact.
+//
+// Simplified (Aidan, 2026-10-29) from an explanatory card down to a
+// plain button -- "just a regular blue button that matches the
+// comparison button" (Activity.jsx's "Compare your vote history with a
+// friend", same style here: width 100%, padding 8px, #2D3DCA, 700
+// weight). The old card's own explanatory line ("if they join and vote,
+// it counts...") doesn't need its own real estate anymore.
 export default function InviteFriendCard() {
   const { user } = useAuth()
 
@@ -46,19 +53,11 @@ export default function InviteFriendCard() {
   }
 
   return (
-    <div style={{ marginBottom: '1.5rem', background: '#F3F4F6', borderRadius: '12px', padding: '14px 16px' }}>
-      <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', marginBottom: '4px' }}>
-        Invite a friend
-      </div>
-      <p style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.5, marginTop: 0, marginBottom: '10px' }}>
-        Share your personal link — if they join and vote, it counts toward your integrity weight.
-      </p>
-      <button
-        onClick={invite}
-        style={{ width: '100%', padding: '9px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-      >
-        Share your invite link
-      </button>
-    </div>
+    <button
+      onClick={invite}
+      style={{ width: '100%', marginBottom: '1.5rem', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+    >
+      Invite a friend
+    </button>
   )
 }
