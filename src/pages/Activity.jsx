@@ -989,21 +989,17 @@ export default function Activity() {
         <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>Activity</h1>
       </div>
 
-      {/* Tabs — icons only, no visible labels (Aidan, 2026-10-29: the
-          6-tab row with full text names read as "jammed in," especially
-          with "? Party" added as the 6th). aria-label/title carry the
-          name for screen readers and a hover/long-press tooltip, same
-          as every other icon-only control in this app (PinButton,
-          PartyAddButton) — there's just nothing visible alongside the
-          icon here the way those have a sibling label elsewhere on
-          their card. Icon choices: IconArrowsUpDown for Shifts (up/down
-          side by side, matching trending opinion up or down) and
-          IconRefresh for Revisit (a single arrow circling back, same
-          "come back to this" idea as the recycle-icon shape Aidan asked
-          for) were the two Aidan specifically wanted checked for
-          availability — confirmed present in the installed
-          @tabler/icons-react (3.44.0) before committing to this over
-          the icon+tiny-label fallback. */}
+      {/* Tabs — icon + tiny label, stacked (Aidan, 2026-10-30: pure icons
+          weren't clear enough on their own, back to a visible name under
+          each one — same icon-on-top/label-below shape as BottomNav's own
+          primary nav). Icon size bumped from 20 to 30 (50% bigger, per
+          Aidan's ask) — aria-label/title are redundant with the now-visible
+          label but kept anyway, consistent with every other labeled icon
+          control in this app. Icon choices: IconArrowsUpDown for Shifts
+          (up/down side by side) and IconRefresh for Revisit (a single
+          arrow circling back) were the two Aidan specifically wanted
+          checked for availability — confirmed present in the installed
+          @tabler/icons-react (3.44.0). */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '1.5rem', background: '#F3F4F6', padding: '4px', borderRadius: '10px' }}>
         {[
           { key: 'history', label: 'History', icon: IconHistory },
@@ -1022,12 +1018,16 @@ export default function Activity() {
               aria-current={tab === t.key ? 'page' : undefined}
               title={t.label}
               style={{
-                flex: 1, padding: '9px 4px', background: tab === t.key ? '#2D3DCA' : 'transparent',
+                flex: 1, padding: '6px 2px', background: tab === t.key ? '#2D3DCA' : 'transparent',
                 color: tab === t.key ? 'white' : '#6B7280', border: 'none', borderRadius: '8px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                gap: '3px', cursor: 'pointer',
               }}
             >
-              <Icon size={20} />
+              <Icon size={30} />
+              <span style={{ fontSize: '9px', fontWeight: tab === t.key ? 700 : 400, fontFamily: 'Merriweather, serif', lineHeight: 1, whiteSpace: 'nowrap' }}>
+                {t.label}
+              </span>
             </button>
           )
         })}
