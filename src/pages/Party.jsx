@@ -162,7 +162,7 @@ export default function Party() {
   }
 
   const pageStyle = {
-    minHeight: `calc(100dvh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`,
+    minHeight: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`,
     boxSizing: 'border-box',
     background: '#C7C7CC',
     padding: '14px',

@@ -479,7 +479,7 @@ export default function Explore() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: `calc(100dvh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
+      <div style={{ minHeight: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
         <div style={{ padding: '14px', boxSizing: 'border-box' }}>
           <div style={{ maxWidth: '480px', margin: '0 auto', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)', padding: '1.25rem' }}>
             {[1, 2, 3].map(i => (
@@ -499,7 +499,7 @@ export default function Explore() {
   }
 
   return (
-    <div style={{ minHeight: `calc(100dvh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '90px' }}>
+    <div style={{ minHeight: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '90px' }}>
     <VisuallyHidden as="h1">Explore</VisuallyHidden>
     <div style={{ padding: '14px', boxSizing: 'border-box' }}>
     {/* No horizontal padding here (unlike Profile/Activity's card) — every

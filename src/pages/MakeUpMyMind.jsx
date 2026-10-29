@@ -102,7 +102,7 @@ export default function MakeUpMyMind() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
         <LoadingSpinner />
       </div>
     )
@@ -110,14 +110,14 @@ export default function MakeUpMyMind() {
 
   if (error) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100dvh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
         Something went wrong. Please go back and try again.
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: `calc(100dvh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, background: '#C7C7CC', boxSizing: 'border-box', paddingBottom: '90px' }}>
+    <div style={{ minHeight: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, background: '#C7C7CC', boxSizing: 'border-box', paddingBottom: '90px' }}>
       <div style={{ padding: '14px', boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
         <div style={{ width: '100%', maxWidth: '480px', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', boxShadow: 'var(--senseus-card-shadow)' }}>
 
