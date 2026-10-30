@@ -337,11 +337,26 @@ export default function Vote() {
         </button>
       )}
       <div
+        // maxHeight used to be an unconditional inline 760px, on every
+        // screen size. That's fine on an actual phone (available height
+        // between header and footer rarely clears ~760px there), but on
+        // any taller viewport — a big phone, and every desktop browser
+        // window — the card stopped growing at 760px and just sat
+        // centered in its flex parent, leaving large, equal gray gaps
+        // above and below it (confirmed directly: at a 1187px-tall
+        // container the card rendered at ~758px, matching this cap
+        // almost exactly). That's the "too big" gap Aidan reported
+        // 2026-10-29 — not the card being too big, the dead space around
+        // it. senseus-vote-card-shell (index.css) now only applies this
+        // cap at the same >=768px breakpoint every other desktop-only
+        // treatment in this app already uses, so mobile always fills the
+        // real available height and only wide desktop windows keep the
+        // phone-card aspect ratio this cap was actually for.
+        className="senseus-vote-card-shell"
         style={{
           width: '100%',
           maxWidth: '420px',
           height: '100%',
-          maxHeight: '760px',
           borderRadius: 'var(--senseus-card-radius)',
           overflow: 'hidden',
           border: '0.5px solid #E5E7EB',
