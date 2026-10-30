@@ -7,6 +7,7 @@ import { useLongPress, LONG_PRESS_NO_SELECT } from '../hooks/useLongPress'
 import CardActionSheet from '../components/ui/CardActionSheet'
 import PinButton from '../components/ui/PinButton'
 import PartyAddButton from '../components/ui/PartyAddButton'
+import SwipeToDelete from '../components/ui/SwipeToDelete'
 import { IconThumbUp, IconThumbDown, IconHistory, IconMessageCircle, IconArrowsUpDown, IconRefresh, IconPin, IconConfetti } from '@tabler/icons-react'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useModalFocus } from '../hooks/useModalFocus'
@@ -905,6 +906,21 @@ export default function Activity() {
     setMyParties(data || [])
   }
 
+  // Swipe-to-delete on a completed/expired party row (see SwipeToDelete
+  // and its disabled={p.status === 'open'} below -- an open party can't
+  // be swiped at all, matching hide_party()'s own server-side check).
+  // RPC-only, like every other write against question_party_participants
+  // (migration 095's own header) -- and per Aidan's explicit call
+  // (2026-10-29), this only ever touches the caller's own participant
+  // row (hidden_at), never a real delete of the party itself, so it
+  // never affects what any other participant sees. Migration
+  // 097_hide_completed_parties.sql.
+  async function hideParty(partyId) {
+    const { error } = await supabase.rpc('hide_party', { p_party_id: partyId })
+    if (error) { alert(error.message || 'Something went wrong — please try again.'); return }
+    setMyParties(prev => prev.filter(p => p.party_id !== partyId))
+  }
+
   async function fetchParty() {
     await Promise.all([fetchPartyCurationList(), fetchMyParties()])
   }
@@ -1408,23 +1424,24 @@ export default function Activity() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
                     {partyCurationList.map(item => (
-                      <PartyQuestionCard
-                        key={item.question_id}
-                        item={item}
-                        navigate={navigate}
-                        onToggleParty={() => togglePartyQuestion(item.question_id)}
-                        onLongPress={(p) => setActionSheet({
-                          title: p.text,
-                          actions: [
-                            { label: 'View this question', onClick: () => navigate(`/conversation/${p.question_id}`) },
-                            ...(p.userVoteChoice
-                              ? [{ label: 'Change my vote', onClick: () => navigate(`/vote?question=${p.question_id}&currentVote=${p.userVoteChoice}`) }]
-                              : [{ label: 'Vote on this question', onClick: () => navigate(`/vote?question=${p.question_id}`) }]),
-                            { label: 'Share this question', onClick: () => shareQuestion({ question_number: p.question_number }) },
-                            { label: 'Remove from ? Party list', onClick: () => togglePartyQuestion(p.question_id) },
-                          ],
-                        })}
-                      />
+                      <SwipeToDelete key={item.question_id} onDelete={() => togglePartyQuestion(item.question_id)}>
+                        <PartyQuestionCard
+                          item={item}
+                          navigate={navigate}
+                          onToggleParty={() => togglePartyQuestion(item.question_id)}
+                          onLongPress={(p) => setActionSheet({
+                            title: p.text,
+                            actions: [
+                              { label: 'View this question', onClick: () => navigate(`/conversation/${p.question_id}`) },
+                              ...(p.userVoteChoice
+                                ? [{ label: 'Change my vote', onClick: () => navigate(`/vote?question=${p.question_id}&currentVote=${p.userVoteChoice}`) }]
+                                : [{ label: 'Vote on this question', onClick: () => navigate(`/vote?question=${p.question_id}`) }]),
+                              { label: 'Share this question', onClick: () => shareQuestion({ question_number: p.question_number }) },
+                              { label: 'Remove from ? Party list', onClick: () => togglePartyQuestion(p.question_id) },
+                            ],
+                          })}
+                        />
+                      </SwipeToDelete>
                     ))}
                   </div>
                 )}
@@ -1457,29 +1474,30 @@ export default function Activity() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {myParties.map(p => (
-                      <div
-                        key={p.party_id}
-                        onClick={() => navigate(`/party/${p.invite_token}`)}
-                        style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
-                            {p.is_host ? 'You hosted' : 'You joined'} · {p.question_count} question{p.question_count === 1 ? '' : 's'}
-                          </span>
-                          <span style={{
-                            fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px',
-                            background: p.status === 'open' ? '#E6F1FB' : p.status === 'completed' ? '#eef3e0' : '#F3F4F6',
-                            color: p.status === 'open' ? '#0C447C' : p.status === 'completed' ? '#4d621d' : '#6B7280',
-                          }}>
-                            {p.status === 'open' ? 'Open' : p.status === 'completed' ? 'Completed' : 'Expired'}
-                          </span>
+                      <SwipeToDelete key={p.party_id} onDelete={() => hideParty(p.party_id)} disabled={p.status === 'open'}>
+                        <div
+                          onClick={() => navigate(`/party/${p.invite_token}`)}
+                          style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+                              {p.is_host ? 'You hosted' : 'You joined'} · {p.question_count} question{p.question_count === 1 ? '' : 's'}
+                            </span>
+                            <span style={{
+                              fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px',
+                              background: p.status === 'open' ? '#E6F1FB' : p.status === 'completed' ? '#eef3e0' : '#F3F4F6',
+                              color: p.status === 'open' ? '#0C447C' : p.status === 'completed' ? '#4d621d' : '#6B7280',
+                            }}>
+                              {p.status === 'open' ? 'Open' : p.status === 'completed' ? 'Completed' : 'Expired'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                            {p.participant_count}/6 joined
+                            {p.status === 'open' && ` · ${timeUntil(p.expires_at)}`}
+                            {p.status === 'completed' && p.completed_at && ` · completed ${timeAgo(p.completed_at)}`}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '11px', color: '#6B7280' }}>
-                          {p.participant_count}/6 joined
-                          {p.status === 'open' && ` · ${timeUntil(p.expires_at)}`}
-                          {p.status === 'completed' && p.completed_at && ` · completed ${timeAgo(p.completed_at)}`}
-                        </div>
-                      </div>
+                      </SwipeToDelete>
                     ))}
                   </div>
                 )}
