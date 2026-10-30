@@ -340,7 +340,23 @@ useEffect(() => {
     }
 
     delta.current = newDelta
-    const newZone = zoneFromDelta(delta.current.x)
+
+    // A drag whose vertical component dominates is treated as skip
+    // intent regardless of how far dx has drifted — previously
+    // zoneFromDelta ran on raw dx alone, so a swipe that was mostly
+    // upward but drifted rightward past THRESH_LEAN (not hard to do with
+    // a real thumb) still counted as a horizontal zone. That armed (and
+    // could fully complete) the 400ms-delayed hold-to-vote timer
+    // underneath what the user experienced as just swiping up to skip —
+    // reported by Aidan 2026-10-29 as an unwanted vote-haptic plus a
+    // "couldn't register my vote" error surfacing on what was meant to
+    // be a plain skip. Forcing newZone to null whenever |dy| > |dx|
+    // means a vertical-dominant drag always reads as "no zone," so the
+    // zoneChanged check below cancels any in-flight hold the instant the
+    // gesture leans vertical, the same way it already cancels one on a
+    // genuine release back to center.
+    const verticalDominant = Math.abs(newDelta.y) > Math.abs(newDelta.x)
+    const newZone = verticalDominant ? null : zoneFromDelta(newDelta.x)
     const zoneChanged = newZone !== lastZone.current
 
     applyZone(newZone)
@@ -348,7 +364,7 @@ useEffect(() => {
     // Mirrors handleEnd's own skip condition (more vertical than
     // horizontal, upward, no horizontal zone active) so the live lift
     // feedback never fights with the left/right zone-fill feedback above.
-    const verticalIntent = newDelta.y < 0 && Math.abs(newDelta.y) > Math.abs(newDelta.x) && !newZone
+    const verticalIntent = newDelta.y < 0 && verticalDominant && !newZone
     setLiftProgress(verticalIntent ? Math.min(-newDelta.y / THRESH_SWIPE_UP, 1) : 0)
 
     // Only reset the hold timer when the user actually crosses into a
@@ -504,14 +520,17 @@ useEffect(() => {
       {/* Per Aidan's request (2026-10-27): the add-to-"? Party" control
           takes the very top-right corner, with the pre-existing pin
           toggle sitting just to its left — a plain flex row, rightmost
-          child wins the corner. */}
+          child wins the corner. Icon size bumped 16 -> 48 (300%, per
+          Aidan's request 2026-10-29) — gap/inset widened to match so the
+          two buttons still read as a tidy pair instead of crowding the
+          card's rounded corner. */}
       {(onTogglePin || onToggleParty) && (
-        <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 3, display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ position: 'absolute', top: '6px', right: '6px', zIndex: 3, display: 'flex', alignItems: 'center', gap: '8px' }}>
           {onTogglePin && (
-            <PinButton pinned={pinned} onToggle={onTogglePin} size={16} />
+            <PinButton pinned={pinned} onToggle={onTogglePin} size={48} />
           )}
           {onToggleParty && (
-            <PartyAddButton added={partyAdded} onToggle={onToggleParty} size={16} />
+            <PartyAddButton added={partyAdded} onToggle={onToggleParty} size={48} />
           )}
         </div>
       )}
