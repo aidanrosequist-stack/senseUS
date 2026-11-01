@@ -3,31 +3,40 @@ import { usePageTitle } from '../hooks/usePageTitle'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import PartyMiniCard from '../components/party/PartyMiniCard'
 
-// migration: 095_question_parties.sql — the "? Party" invite/results page,
-// reached via the link create_party()/join_party() hand out
-// (https://senseus.app/party/:token). Same token-page shape as
-// Compare.jsx: get_party_preview(token) first (the thin, pre-join read —
-// never exposes the question list or anyone's votes to someone who
-// hasn't joined), then join_party(token) if the viewer chooses to join,
-// then get_party_results(token) for the actual N-way breakdown once
-// they're a participant.
-
-const VOTE_COLORS = {
-  yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA',
-}
-
-const VOTE_LABELS = {
-  yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no', dec: 'undecided',
-}
+// migration: 095/097/098/099_question_parties — the "?Party" invite/vote/
+// results page, reached via the link create_party()/join_party() hand out
+// (https://senseus.app/party/:token).
+//
+// REBUILT 2026-11-01 around the new backend (098/099), after discussing
+// at length with Aidan (see claude/senseUS-question-party-feature-notes.md):
+//   - get_party_preview(token): thin pre-join read, unchanged in shape.
+//   - get_party_voting_state(party_id): the caller's own curated questions
+//     + their own existing votes only — backs the editable mini-card list.
+//   - get_party_results(token): the N-way breakdown, now self-triggering
+//     the lazy "is everyone actually done" completion check on every call
+//     and withholding question-level rows entirely until the party is no
+//     longer 'open' — so calling it is always safe, and its own returned
+//     party_status is the one authoritative signal for which view to show.
+//   - submit_party_answers(party_id): the mini-card page's "I'm done"
+//     button. Leaving a question blank is allowed by design (no forced
+//     skip) — a confirm prompt below just makes sure that was intentional.
+//
+// Voting itself goes straight through the same cast_vote()/retract_vote()
+// RPCs the regular VoteCard uses (migration 099) — tapping an
+// already-selected stance again un-casts it, same as VoteCard.
 
 const JOIN_REJECTION_MESSAGES = {
   rate_limited: "You're trying that a little too fast — give it a second and try again.",
   not_found: 'This party invite could not be found.',
   already_closed: 'This party is no longer open.',
   expired: 'This party invite has expired.',
-  party_full: 'This party already has its full 6 people.',
+  party_full: 'This party is already full.',
 }
+
+const RESULT_COLORS = { yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f' }
+const RESULT_LABELS = { yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no' }
 
 function timeUntil(dateString) {
   const diff = Math.floor((new Date(dateString) - new Date()) / 1000)
@@ -45,64 +54,124 @@ function timeAgo(dateString) {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
+// Per-question aggregate bar — same visual language as Conversation.jsx's
+// breakdown bar and ResultsCard's yes/no hero, condensed for a list
+// context. Per Aidan: "a bar... that shows 3 people voted yes and 3
+// people voted no, and a percentage, for each question."
+function AggregateBar({ answers }) {
+  const tally = { yes: 0, ly: 0, ln: 0, no: 0 }
+  for (const a of answers) {
+    if (a.choice && tally[a.choice] !== undefined) tally[a.choice]++
+  }
+  const total = tally.yes + tally.ly + tally.ln + tally.no
+  const yesTrue = tally.yes + tally.ly
+  const noTrue = tally.ln + tally.no
+  const yesPct = total > 0 ? Math.round((yesTrue / total) * 100) : 0
+
+  return (
+    <div style={{ marginBottom: '10px' }}>
+      <div style={{ width: '100%', height: '8px', borderRadius: '4px', overflow: 'hidden', display: 'flex', background: '#F1F1F1' }}>
+        {['yes', 'ly', 'ln', 'no'].map(key => (
+          <div key={key} style={{ width: total > 0 ? `${(tally[key] / total) * 100}%` : '25%', background: RESULT_COLORS[key], flexShrink: 0 }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#6B7280', marginTop: '3px' }}>
+        <span>{yesTrue} voted yes</span>
+        <span>{total > 0 ? `${yesPct}%` : '—'}</span>
+        <span>{noTrue} voted no</span>
+      </div>
+    </div>
+  )
+}
+
 export default function Party() {
-  usePageTitle('? Party')
+  usePageTitle('?Party')
   const { token } = useParams()
   const navigate = useNavigate()
 
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [preview, setPreview] = useState(null)
-  const [questions, setQuestions] = useState([]) // [{ question_id, question_number, question_text, question_category, answers: [...] }]
-  const [partyMeta, setPartyMeta] = useState(null) // { party_status, expires_at, completed_at }
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState(null)
 
-  const loadResults = useCallback(async (p_token) => {
-    const { data } = await supabase.rpc('get_party_results', { p_token })
-    if (!data || data.length === 0) {
-      setQuestions([])
-      setPartyMeta(null)
+  // 'voting' — mini-card list (party still open); 'results' — the N-way
+  // breakdown (completed or expired). get_party_results' own returned
+  // party_status is the single source of truth for which one applies —
+  // see the file header comment on why that's always safe to call.
+  const [mode, setMode] = useState(null)
+  const [votingMeta, setVotingMeta] = useState(null) // { capacity, participantCount, expiresAt, alreadySubmitted }
+  const [votingQuestions, setVotingQuestions] = useState([]) // [{ question_id, question_number, question_text, question_category, my_choice }]
+  const [resultsMeta, setResultsMeta] = useState(null) // { partyStatus, expiresAt, completedAt }
+  const [resultsQuestions, setResultsQuestions] = useState([]) // [{ question_id, ..., answers: [...] }]
+  const [submitting, setSubmitting] = useState(false)
+  const [voteError, setVoteError] = useState(null)
+
+  const loadPartyData = useCallback(async (partyId, p_token) => {
+    const { data: resultsData, error: resultsErr } = await supabase.rpc('get_party_results', { p_token })
+
+    if (resultsErr || !resultsData || resultsData.length === 0) {
+      setMode('voting')
       return
     }
 
-    setPartyMeta({
-      party_status: data[0].party_status,
-      expires_at: data[0].expires_at,
-      completed_at: data[0].completed_at,
-    })
+    if (resultsData[0].party_status !== 'open') {
+      setResultsMeta({
+        partyStatus: resultsData[0].party_status,
+        expiresAt: resultsData[0].expires_at,
+        completedAt: resultsData[0].completed_at,
+      })
 
-    // One row per (question, participant) — group into one entry per
-    // question, each carrying every participant's answer for it.
-    const byQuestion = new Map()
-    for (const row of data) {
-      if (!byQuestion.has(row.question_id)) {
-        byQuestion.set(row.question_id, {
-          question_id: row.question_id,
-          question_number: row.question_number,
-          question_text: row.question_text,
-          question_category: row.question_category,
-          answers: [],
+      const byQuestion = new Map()
+      for (const row of resultsData) {
+        if (!byQuestion.has(row.question_id)) {
+          byQuestion.set(row.question_id, {
+            question_id: row.question_id,
+            question_number: row.question_number,
+            question_text: row.question_text,
+            question_category: row.question_category,
+            answers: [],
+          })
+        }
+        byQuestion.get(row.question_id).answers.push({
+          participant_number: row.participant_number,
+          display_name: row.display_name,
+          is_host: row.is_host,
+          is_mine: row.is_mine,
+          choice: row.choice,
         })
       }
-      byQuestion.get(row.question_id).answers.push({
-        participant_number: row.participant_number,
-        display_name: row.display_name,
-        is_host: row.is_host,
-        is_mine: row.is_mine,
-        choice: row.choice,
-      })
+      setResultsQuestions([...byQuestion.values()])
+      setMode('results')
+      return
     }
-    setQuestions([...byQuestion.values()])
+
+    // Still genuinely open — load the editable voting state.
+    const { data: votingData, error: votingErr } = await supabase.rpc('get_party_voting_state', { p_party_id: partyId })
+
+    if (votingErr || !votingData || votingData.length === 0) {
+      setMode('voting')
+      return
+    }
+
+    setVotingMeta({
+      capacity: votingData[0].capacity,
+      participantCount: votingData[0].participant_count,
+      expiresAt: votingData[0].expires_at,
+      alreadySubmitted: votingData[0].already_submitted,
+    })
+    setVotingQuestions(votingData.map(r => ({
+      question_id: r.question_id,
+      question_number: r.question_number,
+      question_text: r.question_text,
+      question_category: r.question_category,
+      my_choice: r.my_choice,
+    })))
+    setMode('voting')
   }, [])
 
   useEffect(() => {
     async function load() {
-      // Requires the exact token as an argument — same anti-listability
-      // reasoning as get_comparison_token (migration 079): RLS can't tell
-      // "filtered by one known token" from "no filter" at the row level,
-      // so question_parties has zero standing grants and this is the only
-      // read path.
       const { data: p } = await supabase.rpc('get_party_preview', { p_token: token }).maybeSingle()
 
       if (!p) {
@@ -114,14 +183,14 @@ export default function Party() {
       setPreview(p)
 
       if (p.already_joined) {
-        await loadResults(token)
+        await loadPartyData(p.party_id, token)
       }
 
       setLoading(false)
     }
 
     load()
-  }, [token, loadResults])
+  }, [token, loadPartyData])
 
   async function handleJoin() {
     setJoining(true)
@@ -141,12 +210,62 @@ export default function Party() {
     }
 
     setPreview(prev => ({ ...prev, already_joined: true, participant_count: Math.min((prev?.participant_count || 0) + 1, prev?.capacity || 6) }))
-    await loadResults(token)
+    await loadPartyData(data.party_id, token)
+  }
+
+  async function handleVote(questionId, choice) {
+    setVoteError(null)
+    const previous = votingQuestions
+    setVotingQuestions(qs => qs.map(q => q.question_id === questionId ? { ...q, my_choice: choice } : q))
+
+    const { error } = await supabase.rpc('cast_vote', { p_question_id: questionId, p_choice: choice })
+    if (error) {
+      setVotingQuestions(previous)
+      setVoteError(error.message || "Couldn't save that vote — try again.")
+    }
+  }
+
+  async function handleRetract(questionId) {
+    setVoteError(null)
+    const previous = votingQuestions
+    setVotingQuestions(qs => qs.map(q => q.question_id === questionId ? { ...q, my_choice: null } : q))
+
+    const { error } = await supabase.rpc('retract_vote', { p_question_id: questionId })
+    if (error) {
+      setVotingQuestions(previous)
+      setVoteError(error.message || "Couldn't update that — try again.")
+    }
+  }
+
+  function handleMakeUpMyMind(questionId) {
+    navigate(`/make-up-my-mind/${questionId}`, { state: { from: 'party', partyToken: token } })
+  }
+
+  async function handleSubmit() {
+    const unanswered = votingQuestions.filter(q => !q.my_choice).length
+    if (unanswered > 0) {
+      const proceed = window.confirm(
+        `You left ${unanswered} question${unanswered === 1 ? '' : 's'} unanswered. Submit anyway?`
+      )
+      if (!proceed) return
+    }
+
+    setSubmitting(true)
+    setVoteError(null)
+    const { error } = await supabase.rpc('submit_party_answers', { p_party_id: preview.party_id })
+    setSubmitting(false)
+
+    if (error) {
+      setVoteError(error.message || "Couldn't submit — try again.")
+      return
+    }
+
+    await loadPartyData(preview.party_id, token)
   }
 
   async function sharePartyLink() {
     const url = `https://senseus.app/party/${token}`
-    const shareData = { title: 'senseUS', text: 'Join my ? Party on senseUS — vote on a few questions and see how we compare.', url }
+    const shareData = { title: 'senseUS', text: 'Join my ?Party on senseUS — vote on a few questions and see how we compare.', url }
     if (navigator.share) {
       try { await navigator.share(shareData) } catch { /* cancelled, not an error */ }
     } else {
@@ -169,7 +288,7 @@ export default function Party() {
     padding: '14px',
   }
   const cardStyle = {
-    maxWidth: '480px',
+    maxWidth: '560px',
     margin: '0 auto',
     padding: '1.5rem',
     fontFamily: 'Merriweather, serif',
@@ -191,7 +310,7 @@ export default function Party() {
     return (
       <div style={pageStyle}>
         <div style={cardStyle}>
-          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginTop: 0 }}>? Party</h1>
+          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginTop: 0 }}>?Party</h1>
           <p style={{ fontSize: '13px', color: '#6B7280' }}>This party invite could not be found.</p>
           <button
             onClick={() => navigate('/activity')}
@@ -204,16 +323,13 @@ export default function Party() {
     )
   }
 
-  const isHostViewer = questions.some(q => q.answers.some(a => a.is_mine && a.is_host))
-  const effectiveStatus = partyMeta?.party_status || preview?.status
-
   // Pre-join screen — deliberately thin (no question list, no votes),
   // matching get_party_preview()'s own restriction server-side.
   if (!preview?.already_joined) {
     return (
       <div style={pageStyle}>
         <div style={cardStyle}>
-          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginTop: 0, marginBottom: '0.5rem' }}>? Party</h1>
+          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginTop: 0, marginBottom: '0.5rem' }}>?Party</h1>
           <p style={{ fontSize: '14px', color: '#1A1A1A', lineHeight: 1.5 }}>
             <strong>{preview.host_display_name}</strong> invited you to vote on {preview.question_count} question{preview.question_count === 1 ? '' : 's'} and compare answers.
           </p>
@@ -243,74 +359,133 @@ export default function Party() {
     )
   }
 
-  // Joined — the results view. Every question's own card lists each
-  // participant's answer (or a prompt to go vote, when it's the viewer's
-  // own still-missing answer on that question).
+  // Joined, party still open — the mini-card voting list.
+  if (mode === 'voting') {
+    const isHostViewer = preview.host_display_name !== undefined && votingMeta?.participantCount != null
+    const unansweredCount = votingQuestions.filter(q => !q.my_choice).length
+
+    return (
+      <div style={pageStyle}>
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+            <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>?Party</h1>
+            <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: '#E6F1FB', color: '#0C447C' }}>
+              Open
+            </span>
+          </div>
+          <p style={{ fontSize: '12px', color: '#6B7280', marginTop: 0, marginBottom: '1rem' }}>
+            {votingMeta?.participantCount}/{votingMeta?.capacity} joined
+            {votingMeta?.expiresAt && ` · expires in ${timeUntil(votingMeta.expiresAt)}`}
+          </p>
+
+          {isHostViewer && (
+            <button
+              onClick={sharePartyLink}
+              style={{ width: '100%', marginBottom: '1rem', padding: '8px', background: '#F3F4F6', color: '#2D3DCA', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
+            >
+              Invite more people to this party
+            </button>
+          )}
+
+          {votingMeta?.alreadySubmitted && (
+            <div style={{ background: '#F3F4F6', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#6B7280', marginBottom: '1rem' }}>
+              You've submitted your answers — results will show here once everyone else has too. You can still change an answer below; just submit again afterward.
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '1rem' }}>
+            {votingQuestions
+              .slice()
+              .sort((a, b) => a.question_number - b.question_number)
+              .map(q => (
+                <PartyMiniCard
+                  key={q.question_id}
+                  question={q}
+                  myChoice={q.my_choice}
+                  onVote={(choice) => handleVote(q.question_id, choice)}
+                  onRetract={() => handleRetract(q.question_id)}
+                  onMakeUpMyMind={() => handleMakeUpMyMind(q.question_id)}
+                />
+              ))}
+          </div>
+
+          {voteError && (
+            <p style={{ fontSize: '12px', color: '#991B1B', marginBottom: '10px' }}>{voteError}</p>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            style={{ width: '100%', padding: '11px', background: '#2D3DCA', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: submitting ? 'default' : 'pointer', fontFamily: 'Merriweather, serif', opacity: submitting ? 0.6 : 1 }}
+          >
+            {submitting ? 'Submitting…' : votingMeta?.alreadySubmitted ? 'Submit Again' : 'Submit'}
+          </button>
+          {unansweredCount > 0 && (
+            <p style={{ fontSize: '11px', color: '#9CA3AF', textAlign: 'center', marginTop: '6px', marginBottom: 0 }}>
+              {unansweredCount} question{unansweredCount === 1 ? '' : 's'} left blank
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Completed (or expired) — the combined results view: an aggregate bar
+  // per question plus the existing per-individual breakdown underneath.
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>? Party</h1>
+          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>?Party</h1>
           <span style={{
             fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px',
-            background: effectiveStatus === 'open' ? '#E6F1FB' : effectiveStatus === 'completed' ? '#eef3e0' : '#F3F4F6',
-            color: effectiveStatus === 'open' ? '#0C447C' : effectiveStatus === 'completed' ? '#4d621d' : '#6B7280',
+            background: resultsMeta?.partyStatus === 'completed' ? '#eef3e0' : '#F3F4F6',
+            color: resultsMeta?.partyStatus === 'completed' ? '#4d621d' : '#6B7280',
           }}>
-            {effectiveStatus === 'open' ? 'Open' : effectiveStatus === 'completed' ? 'Completed' : 'Expired'}
+            {resultsMeta?.partyStatus === 'completed' ? 'Completed' : 'Expired'}
           </span>
         </div>
         <p style={{ fontSize: '12px', color: '#6B7280', marginTop: 0, marginBottom: '1.25rem' }}>
-          {preview.participant_count}/{preview.capacity} joined
-          {effectiveStatus === 'open' && partyMeta?.expires_at && ` · expires in ${timeUntil(partyMeta.expires_at)}`}
-          {effectiveStatus === 'completed' && partyMeta?.completed_at && ` · completed ${timeAgo(partyMeta.completed_at)}`}
+          {resultsMeta?.partyStatus === 'completed' && resultsMeta?.completedAt && `Completed ${timeAgo(resultsMeta.completedAt)}`}
+          {resultsMeta?.partyStatus === 'expired' && 'This party expired before everyone finished — showing whoever made it in.'}
         </p>
 
-        {isHostViewer && effectiveStatus === 'open' && (
-          <button
-            onClick={sharePartyLink}
-            style={{ width: '100%', marginBottom: '1.25rem', padding: '8px', background: '#F3F4F6', color: '#2D3DCA', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-          >
-            Invite more people to this party
-          </button>
-        )}
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {questions.map(q => (
-            <div key={q.question_id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
-              <div style={{ fontSize: '11px', color: '#0C447C', background: '#E6F1FB', display: 'inline-block', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
-                {q.question_category}
-              </div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', lineHeight: 1.4, marginBottom: '10px' }}>
-                {q.question_text}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {q.answers
-                  .slice()
-                  .sort((a, b) => a.participant_number - b.participant_number)
-                  .map(a => (
-                    <div key={a.participant_number} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '12px', color: '#1A1A1A', fontWeight: a.is_mine ? 700 : 400 }}>
-                        {a.is_mine ? 'You' : a.display_name}{a.is_host ? ' (host)' : ''}
-                      </span>
-                      {a.choice ? (
-                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: '#FFFFFF', border: `1.5px solid ${VOTE_COLORS[a.choice]}`, color: VOTE_COLORS[a.choice] }}>
-                          {VOTE_LABELS[a.choice]}
+          {resultsQuestions
+            .slice()
+            .sort((a, b) => a.question_number - b.question_number)
+            .map(q => (
+              <div key={q.question_id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                <div style={{ fontSize: '11px', color: '#0C447C', background: '#E6F1FB', display: 'inline-block', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
+                  {q.question_category}
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', lineHeight: 1.4, marginBottom: '10px' }}>
+                  {q.question_text}
+                </div>
+
+                <AggregateBar answers={q.answers} />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {q.answers
+                    .slice()
+                    .sort((a, b) => a.participant_number - b.participant_number)
+                    .map(a => (
+                      <div key={a.participant_number} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', color: '#1A1A1A', fontWeight: a.is_mine ? 700 : 400 }}>
+                          {a.is_mine ? 'You' : a.display_name}{a.is_host ? ' (host)' : ''}
                         </span>
-                      ) : a.is_mine ? (
-                        <button
-                          onClick={() => navigate(`/vote?question=${q.question_id}`)}
-                          style={{ fontSize: '11px', color: '#2D3DCA', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', fontFamily: 'Merriweather, serif' }}
-                        >
-                          Vote now
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: '11px', color: '#9CA3AF' }}>hasn't voted yet</span>
-                      )}
-                    </div>
-                  ))}
+                        {a.choice ? (
+                          <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: '#FFFFFF', border: `1.5px solid ${RESULT_COLORS[a.choice]}`, color: RESULT_COLORS[a.choice] }}>
+                            {RESULT_LABELS[a.choice]}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#9CA3AF' }}>left blank</span>
+                        )}
+                      </div>
+                    ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
     </div>
