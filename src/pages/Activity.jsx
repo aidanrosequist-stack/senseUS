@@ -8,6 +8,8 @@ import CardActionSheet from '../components/ui/CardActionSheet'
 import PinButton from '../components/ui/PinButton'
 import PartyAddButton from '../components/ui/PartyAddButton'
 import SwipeToDelete from '../components/ui/SwipeToDelete'
+import { usePartyLists } from '../hooks/usePartyLists'
+import PartyListPicker from '../components/party/PartyListPicker'
 import { IconThumbUp, IconThumbDown, IconHistory, IconMessageCircle, IconArrowsUpDown, IconRefresh, IconPin, IconConfetti } from '@tabler/icons-react'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useModalFocus } from '../hooks/useModalFocus'
@@ -311,10 +313,10 @@ function PinnedQuestionCard({ pin, navigate, onTogglePin, onLongPress }) {
   )
 }
 
-// One row in the "? Party" tab's own curated-list view — same shape as
+// One row in the "?Party" tab's own per-list curated view — same shape as
 // PinnedQuestionCard just above (standing per-user lists over the same
 // kind of row), swapping PinButton for PartyAddButton since this list is
-// party_questions, not pinned_questions (migration 095_question_parties.sql).
+// one of the user's own party_lists (migration 098), not pinned_questions.
 // "added" is always true here — this card only ever renders for a
 // question already in the list, tapping the button removes it.
 function PartyQuestionCard({ item, navigate, onToggleParty, onLongPress }) {
@@ -410,17 +412,27 @@ export default function Activity() {
   const [pinnedCommentsList, setPinnedCommentsList] = useState([])
   const [pinnedView, setPinnedView] = useState('questions')
 
-  // "? Party" state (migration 095_question_parties.sql). partyQuestionIds
-  // is eager, same reasoning as pinnedQuestionIds above — every one of the
-  // longpress sheets below needs an accurate Add/Remove label regardless
-  // of whether the Party tab itself has been opened yet. partyCurationList
-  // (the full card data for the Party tab's own list) and myParties (every
-  // party the user hosts or has joined, via get_my_parties()) are both
-  // lazy, loaded only once the tab is actually opened, same as the Pinned
-  // tab's own lists.
-  const [partyQuestionIds, setPartyQuestionIds] = useState(new Set())
-  const [partyCurationList, setPartyCurationList] = useState([])
+  // "?Party" state. migration 098 replaced the old flat party_questions
+  // table with party_lists/party_list_questions (multiple named lists) —
+  // usePartyLists() is eager (fetches on mount), same reasoning as
+  // pinnedQuestionIds above: every longpress sheet below needs an
+  // accurate Add/Remove label regardless of whether the Party tab itself
+  // has been opened yet. partyListCards (the full card data — question
+  // text/category/vote status — for each list's own curation view) and
+  // myParties (every party the user hosts or has joined, via
+  // get_my_parties()) are both lazy, loaded only once the tab is
+  // actually opened, same as the Pinned tab's own lists.
+  const partyLists = usePartyLists()
+  const [partyPickerQuestionId, setPartyPickerQuestionId] = useState(null)
+  const [partyListCards, setPartyListCards] = useState(new Map()) // list_id -> cardItem[]
   const [myParties, setMyParties] = useState([])
+  const [expandedListId, setExpandedListId] = useState(null)
+  const [newListName, setNewListName] = useState('')
+  const [creatingList, setCreatingList] = useState(false)
+  const [listError, setListError] = useState(null)
+  const [editingListId, setEditingListId] = useState(null)
+  const [editingListName, setEditingListName] = useState('')
+  const [requestHeadcount, setRequestHeadcount] = useState(2)
   const [creatingParty, setCreatingParty] = useState(false)
   const [partyCreateError, setPartyCreateError] = useState(null)
   // Same one-time dismissible callout pattern as Explore.jsx's own
@@ -459,12 +471,10 @@ export default function Activity() {
     Promise.all([
       supabase.from('pinned_comments').select('comment_id').eq('user_id', user.id),
       supabase.from('pinned_questions').select('question_id').eq('user_id', user.id),
-      supabase.from('party_questions').select('question_id').eq('user_id', user.id),
-    ]).then(([{ data: comments }, { data: questions }, { data: partyQ }]) => {
+    ]).then(([{ data: comments }, { data: questions }]) => {
       if (cancelled) return
       setPinnedCommentIds(new Set((comments || []).map(c => c.comment_id)))
       setPinnedQuestionIds(new Set((questions || []).map(q => q.question_id)))
-      setPartyQuestionIds(new Set((partyQ || []).map(q => q.question_id)))
     }).catch(err => console.error(err))
 
     return () => { cancelled = true }
@@ -506,24 +516,27 @@ export default function Activity() {
     }
   }
 
-  // Same shape, against party_questions — capped at 10 server-side
-  // (migration 095_question_parties.sql); that rejection's own message is
-  // already friendly enough to show directly, unlike the generic fallback
-  // used for anything else going wrong.
+  // migration 098: party_questions (one flat list) is replaced by
+  // party_lists/party_list_questions (multiple named lists) — see
+  // usePartyLists.js. Keeps this a single tap for the 0-or-1-list case
+  // (everyone, until they deliberately make a second list); only opens
+  // the picker once "add to which list" is actually ambiguous.
   async function togglePartyQuestion(questionId) {
     if (!user) return
-    const isAdded = partyQuestionIds.has(questionId)
-    if (isAdded) {
-      const { error } = await supabase.from('party_questions').delete()
-        .eq('question_id', questionId).eq('user_id', user.id)
-      if (error) { alert('Something went wrong — please try again.'); return }
-      setPartyQuestionIds(prev => { const s = new Set(prev); s.delete(questionId); return s })
-      setPartyCurationList(prev => prev.filter(q => q.question_id !== questionId))
-    } else {
-      const { error } = await supabase.from('party_questions').insert({ question_id: questionId, user_id: user.id })
-      if (error) { alert(error.message || 'Something went wrong — please try again.'); return }
-      setPartyQuestionIds(prev => new Set([...prev, questionId]))
+    const result = await partyLists.smartToggle(questionId)
+    if (result?.needsPicker) {
+      setPartyPickerQuestionId(questionId)
+      return
     }
+    if (result?.error) {
+      alert(result.error.message || 'Something went wrong — please try again.')
+      return
+    }
+    // Invalidate the Party tab's own cached card data (built from a
+    // separate questions-table join, not just the id sets above) so it
+    // refetches next time that tab is opened, rather than trying to
+    // guess which list this toggle just changed from here.
+    setLoadedTabs(prev => { const s = new Set(prev); s.delete('party'); return s })
   }
 
   function shareQuestion(question) {
@@ -866,40 +879,50 @@ export default function Activity() {
     await Promise.all([fetchPinnedQuestions(), fetchPinnedComments()])
   }
 
-  // Same shape as fetchPinnedQuestions above, against party_questions —
-  // the standing curation list, plus each curated question's own
-  // userVoteChoice (useful here specifically: it's how someone curating a
-  // list sees at a glance which of their own picks they still need to
-  // vote on before a party they start can ever complete).
-  async function fetchPartyCurationList() {
-    const { data: curatedData } = await supabase
-      .from('party_questions')
-      .select('question_id, created_at, questions (id, text, category, question_number)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+  // Builds the Party tab's own per-list card data — question text/
+  // category/number plus each curated question's own userVoteChoice
+  // (useful here specifically: it's how someone curating a list sees at
+  // a glance which of their own picks they still need to vote on before
+  // a party they start can ever complete). usePartyLists() already has
+  // the raw list_id -> question_id membership; this is the one extra
+  // join (against questions, then votes) needed to render real cards.
+  async function fetchPartyListCards() {
+    const allQuestionIds = new Set()
+    for (const set of partyLists.listQuestionIds.values()) {
+      for (const qId of set) allQuestionIds.add(qId)
+    }
+    const questionIds = [...allQuestionIds]
 
-    const questionIds = (curatedData || []).map(p => p.question_id)
-    const voteMap = {}
-    if (questionIds.length > 0) {
-      const { data: votesData } = await supabase
-        .from('votes')
-        .select('question_id, choice')
-        .eq('user_id', user.id)
-        .in('question_id', questionIds)
-      ;(votesData || []).forEach(v => { voteMap[v.question_id] = v.choice })
+    if (questionIds.length === 0) {
+      setPartyListCards(new Map())
+      return
     }
 
-    setPartyCurationList(
-      (curatedData || [])
-        .filter(p => p.questions)
-        .map(p => ({
-          question_id: p.question_id,
-          text: p.questions.text,
-          category: p.questions.category,
-          question_number: p.questions.question_number,
-          userVoteChoice: voteMap[p.question_id] || null,
+    const [{ data: questionsData }, { data: votesData }] = await Promise.all([
+      supabase.from('questions').select('id, text, category, question_number').in('id', questionIds),
+      supabase.from('votes').select('question_id, choice').eq('user_id', user.id).in('question_id', questionIds),
+    ])
+
+    const questionMap = {}
+    ;(questionsData || []).forEach(q => { questionMap[q.id] = q })
+    const voteMap = {}
+    ;(votesData || []).forEach(v => { voteMap[v.question_id] = v.choice })
+
+    const cardsByList = new Map()
+    for (const list of partyLists.lists) {
+      const ids = [...(partyLists.listQuestionIds.get(list.id) || [])]
+      cardsByList.set(list.id, ids
+        .filter(id => questionMap[id])
+        .map(id => ({
+          question_id: id,
+          text: questionMap[id].text,
+          category: questionMap[id].category,
+          question_number: questionMap[id].question_number,
+          userVoteChoice: voteMap[id] || null,
         }))
-    )
+      )
+    }
+    setPartyListCards(cardsByList)
   }
 
   async function fetchMyParties() {
@@ -923,20 +946,61 @@ export default function Activity() {
   }
 
   async function fetchParty() {
-    await Promise.all([fetchPartyCurationList(), fetchMyParties()])
+    // usePartyLists() fetches eagerly on mount, but the Party tab can be
+    // opened before that settles — refetch() first guarantees the list/
+    // membership data this card-building pass joins against is current.
+    await partyLists.refetch()
+    await Promise.all([fetchPartyListCards(), fetchMyParties()])
   }
 
-  // Creates a new party from the current curation list (create_party()
-  // snapshots whatever's in party_questions for this user server-side —
-  // see migration 095) and immediately offers the resulting invite link
-  // via the same share()/clipboard-fallback idiom every other share
-  // button in this app already uses (InviteFriendCard, shareQuestion,
-  // startComparison's own link is the one exception, via a dedicated
-  // modal — not duplicated here for a first pass).
-  async function handleRequestParty() {
+  async function handleCreateList() {
+    const name = newListName.trim()
+    if (!name) return
+    setListError(null)
+    setCreatingList(true)
+    const { error } = await partyLists.createList(name)
+    setCreatingList(false)
+    if (error) { setListError(error.message || 'Something went wrong — please try again.'); return }
+    setNewListName('')
+    setPartyListCards(prev => new Map(prev)) // new list starts with no cards; next render picks it up via partyLists.lists
+  }
+
+  function startRenameList(list) {
+    setEditingListId(list.id)
+    setEditingListName(list.name)
+  }
+
+  async function saveRenameList() {
+    const name = editingListName.trim()
+    if (!name || !editingListId) { setEditingListId(null); return }
+    const { error } = await partyLists.renameList(editingListId, name)
+    if (error) alert(error.message || 'Something went wrong — please try again.')
+    setEditingListId(null)
+  }
+
+  // Deleting a list only removes the curation list itself — any party
+  // already created from it is an independent snapshot (question_party_
+  // questions carries no reference back to party_lists) and is
+  // completely unaffected, per the discussion with Aidan on exactly this
+  // question (2026-11-01).
+  async function handleDeleteList(listId) {
+    if (!window.confirm('Delete this list? Any ?Party already created from it keeps working fine — this only removes the curation list itself.')) return
+    const { error } = await partyLists.deleteList(listId)
+    if (error) { alert(error.message || 'Something went wrong — please try again.'); return }
+    setPartyListCards(prev => { const m = new Map(prev); m.delete(listId); return m })
+    if (expandedListId === listId) setExpandedListId(null)
+  }
+
+  // Creates a new party from one specific list's current curation
+  // (create_party() snapshots party_list_questions for that list_id
+  // server-side — migration 098) with the host's own declared headcount,
+  // then immediately offers the resulting invite link via the same
+  // share()/clipboard-fallback idiom every other share button in this
+  // app already uses (InviteFriendCard, shareQuestion).
+  async function handleRequestParty(listId, headcount) {
     setPartyCreateError(null)
     setCreatingParty(true)
-    const { data, error } = await supabase.rpc('create_party').single()
+    const { data, error } = await supabase.rpc('create_party', { p_list_id: listId, p_headcount: headcount }).single()
     setCreatingParty(false)
 
     if (error || !data) {
@@ -945,7 +1009,7 @@ export default function Activity() {
     }
 
     const url = `https://senseus.app/party/${data.invite_token}`
-    const shareData = { title: 'senseUS', text: 'Join my ? Party on senseUS — vote on a few questions and see how we compare.', url }
+    const shareData = { title: 'senseUS', text: 'Join my ?Party on senseUS — vote on a few questions and see how we compare.', url }
 
     if (navigator.share) {
       try {
@@ -1027,7 +1091,7 @@ export default function Activity() {
           { key: 'shifts', label: 'Shifts', icon: IconArrowsUpDown },
           { key: 'revisit', label: 'Revisit', icon: IconRefresh },
           { key: 'pinned', label: 'Pinned', icon: IconPin },
-          { key: 'party', label: '? Party', icon: IconConfetti },
+          { key: 'party', label: '?Party', icon: IconConfetti },
         ].map(t => {
           const Icon = t.icon
           return (
@@ -1114,7 +1178,9 @@ export default function Activity() {
                             onClick: () => togglePinComment(comment.id),
                           },
                           {
-                            label: partyQuestionIds.has(comment.questions?.id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                            label: partyLists.lists.length > 1
+                              ? 'Add to a ?Party list'
+                              : partyLists.isInAnyList(comment.questions?.id) ? 'Remove from ?Party list' : 'Add to ?Party list',
                             onClick: () => togglePartyQuestion(comment.questions?.id),
                           },
                         ],
@@ -1179,7 +1245,9 @@ export default function Activity() {
                             onClick: () => togglePinQuestion(s.questions?.id),
                           },
                           {
-                            label: partyQuestionIds.has(s.questions?.id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                            label: partyLists.lists.length > 1
+                              ? 'Add to a ?Party list'
+                              : partyLists.isInAnyList(s.questions?.id) ? 'Remove from ?Party list' : 'Add to ?Party list',
                             onClick: () => togglePartyQuestion(s.questions?.id),
                           },
                         ],
@@ -1218,7 +1286,9 @@ export default function Activity() {
                             onClick: () => togglePinQuestion(s.questions?.id),
                           },
                           {
-                            label: partyQuestionIds.has(s.questions?.id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                            label: partyLists.lists.length > 1
+                              ? 'Add to a ?Party list'
+                              : partyLists.isInAnyList(s.questions?.id) ? 'Remove from ?Party list' : 'Add to ?Party list',
                             onClick: () => togglePartyQuestion(s.questions?.id),
                           },
                         ],
@@ -1282,7 +1352,9 @@ export default function Activity() {
                             onClick: () => togglePinQuestion(v.questions?.id),
                           },
                           {
-                            label: partyQuestionIds.has(v.questions?.id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                            label: partyLists.lists.length > 1
+                              ? 'Add to a ?Party list'
+                              : partyLists.isInAnyList(v.questions?.id) ? 'Remove from ?Party list' : 'Add to ?Party list',
                             onClick: () => togglePartyQuestion(v.questions?.id),
                           },
                         ],
@@ -1342,7 +1414,9 @@ export default function Activity() {
                             { label: 'Share this question', onClick: () => shareQuestion({ question_number: p.question_number }) },
                             { label: 'Unpin this question', onClick: () => togglePinQuestion(p.question_id) },
                             {
-                              label: partyQuestionIds.has(p.question_id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                              label: partyLists.lists.length > 1
+                                ? 'Add to a ?Party list'
+                                : partyLists.isInAnyList(p.question_id) ? 'Remove from ?Party list' : 'Add to ?Party list',
                               onClick: () => togglePartyQuestion(p.question_id),
                             },
                           ],
@@ -1385,7 +1459,9 @@ export default function Activity() {
                               : []),
                             { label: 'Unpin this comment', onClick: () => togglePinComment(p.comment_id) },
                             {
-                              label: partyQuestionIds.has(p.question_id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+                              label: partyLists.lists.length > 1
+                                ? 'Add to a ?Party list'
+                                : partyLists.isInAnyList(p.question_id) ? 'Remove from ?Party list' : 'Add to ?Party list',
                               onClick: () => togglePartyQuestion(p.question_id),
                             },
                           ],
@@ -1402,7 +1478,7 @@ export default function Activity() {
             <div>
               {showPartyTooltip && (
                 <div style={{ marginBottom: '1.25rem', background: '#E6F1FB', border: '1px solid #0C447C', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#0C447C', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', lineHeight: 1.5 }}>
-                  <span>Invite up to 5 people to vote on a list of up to 10 questions you curate yourself. Tap the + on any question's card (or use its long-press menu) to add it to your list.</span>
+                  <span>Make a list of up to 10 questions, pick how many people you're inviting (2–6, including you), and send it out. Tap the + on any question's card (or use its long-press menu) to add it to a list.</span>
                   <button
                     onClick={() => {
                       localStorage.setItem('senseus_seen_party_tab_tooltip', 'true')
@@ -1417,53 +1493,161 @@ export default function Activity() {
 
               <div style={{ marginBottom: '1.5rem' }}>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>
-                  Your curated list ({partyCurationList.length}/10)
+                  Your Lists
                 </div>
 
-                {partyCurationList.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '13px', background: '#F9FAFB', borderRadius: '10px' }}>
+                {partyLists.lists.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '13px', background: '#F9FAFB', borderRadius: '10px', marginBottom: '12px' }}>
                     <div style={{ fontSize: '28px', marginBottom: '0.5rem' }}>❓</div>
-                    No questions yet. Tap the + on any question's card, or use its long-press menu, to add one here.
+                    No lists yet. Make one below, then tap the + on any question's card (or use its long-press menu) to add it.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
-                    {partyCurationList.map(item => (
-                      <SwipeToDelete key={item.question_id} onDelete={() => togglePartyQuestion(item.question_id)}>
-                        <PartyQuestionCard
-                          item={item}
-                          navigate={navigate}
-                          onToggleParty={() => togglePartyQuestion(item.question_id)}
-                          onLongPress={(p) => setActionSheet({
-                            title: p.text,
-                            actions: [
-                              { label: 'View this question', onClick: () => navigate(`/conversation/${p.question_id}`) },
-                              ...(p.userVoteChoice
-                                ? [{ label: 'Change my vote', onClick: () => navigate(`/vote?question=${p.question_id}&currentVote=${p.userVoteChoice}`) }]
-                                : [{ label: 'Vote on this question', onClick: () => navigate(`/vote?question=${p.question_id}`) }]),
-                              { label: 'Share this question', onClick: () => shareQuestion({ question_number: p.question_number }) },
-                              { label: 'Remove from ? Party list', onClick: () => togglePartyQuestion(p.question_id) },
-                            ],
-                          })}
-                        />
-                      </SwipeToDelete>
-                    ))}
+                    {partyLists.lists.map(list => {
+                      const cards = partyListCards.get(list.id) || []
+                      const expanded = expandedListId === list.id
+                      const isEditing = editingListId === list.id
+                      return (
+                        <div key={list.id} style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', overflow: 'hidden' }}>
+                          <div
+                            onClick={() => setExpandedListId(expanded ? null : list.id)}
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', cursor: 'pointer' }}
+                          >
+                            {isEditing ? (
+                              <input
+                                autoFocus
+                                value={editingListName}
+                                onChange={(e) => setEditingListName(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => { if (e.key === 'Enter') saveRenameList() }}
+                                onBlur={saveRenameList}
+                                style={{ flex: 1, fontSize: '13px', fontWeight: 700, color: '#1A1A1A', fontFamily: 'Merriweather, serif', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '4px 8px', marginRight: '8px' }}
+                              />
+                            ) : (
+                              <span
+                                style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}
+                                onClick={(e) => { e.stopPropagation(); startRenameList(list) }}
+                              >
+                                {list.name}
+                              </span>
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                              <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{cards.length}/10</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteList(list.id) }}
+                                style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '12px', cursor: 'pointer', padding: 0 }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+
+                          {expanded && (
+                            <div style={{ padding: '0 14px 14px' }}>
+                              {cards.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '1.5rem 0', color: '#6B7280', fontSize: '12px' }}>
+                                  No questions yet. Tap the + on any question's card, or use its long-press menu, to add one here.
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+                                  {cards.map(item => (
+                                    <SwipeToDelete key={item.question_id} onDelete={() => {
+                                      partyLists.removeFromList(list.id, item.question_id)
+                                      setPartyListCards(prev => { const m = new Map(prev); m.set(list.id, (m.get(list.id) || []).filter(c => c.question_id !== item.question_id)); return m })
+                                    }}>
+                                      <PartyQuestionCard
+                                        item={item}
+                                        navigate={navigate}
+                                        onToggleParty={() => {
+                                          partyLists.removeFromList(list.id, item.question_id)
+                                          setPartyListCards(prev => { const m = new Map(prev); m.set(list.id, (m.get(list.id) || []).filter(c => c.question_id !== item.question_id)); return m })
+                                        }}
+                                        onLongPress={(p) => setActionSheet({
+                                          title: p.text,
+                                          actions: [
+                                            { label: 'View this question', onClick: () => navigate(`/conversation/${p.question_id}`) },
+                                            ...(p.userVoteChoice
+                                              ? [{ label: 'Change my vote', onClick: () => navigate(`/vote?question=${p.question_id}&currentVote=${p.userVoteChoice}`) }]
+                                              : [{ label: 'Vote on this question', onClick: () => navigate(`/vote?question=${p.question_id}`) }]),
+                                            { label: 'Share this question', onClick: () => shareQuestion({ question_number: p.question_number }) },
+                                            { label: 'Remove from this list', onClick: () => {
+                                              partyLists.removeFromList(list.id, p.question_id)
+                                              setPartyListCards(prev => { const m = new Map(prev); m.set(list.id, (m.get(list.id) || []).filter(c => c.question_id !== p.question_id)); return m })
+                                            } },
+                                          ],
+                                        })}
+                                      />
+                                    </SwipeToDelete>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '6px' }}>
+                                How many people, including you? (2–6)
+                              </div>
+                              <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                                {[2, 3, 4, 5, 6].map(n => (
+                                  <button
+                                    key={n}
+                                    onClick={() => setRequestHeadcount(n)}
+                                    style={{
+                                      flex: 1, padding: '7px 0', borderRadius: '7px', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                                      background: requestHeadcount === n ? '#2D3DCA' : '#F3F4F6',
+                                      color: requestHeadcount === n ? 'white' : '#6B7280',
+                                      border: 'none', fontFamily: 'Merriweather, serif',
+                                    }}
+                                  >
+                                    {n}
+                                  </button>
+                                ))}
+                              </div>
+
+                              <button
+                                onClick={() => handleRequestParty(list.id, requestHeadcount)}
+                                disabled={cards.length === 0 || creatingParty}
+                                style={{
+                                  width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none',
+                                  borderRadius: '8px', fontSize: '13px', fontWeight: 700, fontFamily: 'Merriweather, serif',
+                                  cursor: (cards.length === 0 || creatingParty) ? 'default' : 'pointer',
+                                  opacity: (cards.length === 0 || creatingParty) ? 0.6 : 1,
+                                }}
+                              >
+                                {creatingParty ? 'Creating your party…' : 'Request a ?Party'}
+                              </button>
+                              {partyCreateError && (
+                                <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '6px', marginBottom: 0 }}>{partyCreateError}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
-                <button
-                  onClick={handleRequestParty}
-                  disabled={partyCurationList.length === 0 || creatingParty}
-                  style={{
-                    width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none',
-                    borderRadius: '8px', fontSize: '13px', fontWeight: 700, fontFamily: 'Merriweather, serif',
-                    cursor: (partyCurationList.length === 0 || creatingParty) ? 'default' : 'pointer',
-                    opacity: (partyCurationList.length === 0 || creatingParty) ? 0.6 : 1,
-                  }}
-                >
-                  {creatingParty ? 'Creating your party…' : 'Request a ? Party'}
-                </button>
-                {partyCreateError && (
-                  <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '6px', marginBottom: 0 }}>{partyCreateError}</p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    value={newListName}
+                    onChange={(e) => setNewListName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateList() }}
+                    placeholder="New list name"
+                    style={{ flex: 1, fontSize: '13px', fontFamily: 'Merriweather, serif', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '8px 10px' }}
+                  />
+                  <button
+                    onClick={handleCreateList}
+                    disabled={!newListName.trim() || creatingList}
+                    style={{
+                      padding: '8px 14px', background: '#F3F4F6', color: '#2D3DCA', border: 'none', borderRadius: '8px',
+                      fontSize: '13px', fontWeight: 700, fontFamily: 'Merriweather, serif',
+                      cursor: (!newListName.trim() || creatingList) ? 'default' : 'pointer',
+                      opacity: (!newListName.trim() || creatingList) ? 0.6 : 1,
+                    }}
+                  >
+                    + New List
+                  </button>
+                </div>
+                {listError && (
+                  <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '6px', marginBottom: 0 }}>{listError}</p>
                 )}
               </div>
 
@@ -1473,7 +1657,7 @@ export default function Activity() {
                 </div>
                 {myParties.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280', fontSize: '13px', background: '#F9FAFB', borderRadius: '10px' }}>
-                    No parties yet — curate a list above, then request one.
+                    No parties yet — make a list above, then request one.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1496,7 +1680,7 @@ export default function Activity() {
                             </span>
                           </div>
                           <div style={{ fontSize: '11px', color: '#6B7280' }}>
-                            {p.participant_count}/6 joined
+                            {p.participant_count}/{p.capacity} joined
                             {p.status === 'open' && ` · ${timeUntil(p.expires_at)}`}
                             {p.status === 'completed' && p.completed_at && ` · completed ${timeAgo(p.completed_at)}`}
                           </div>
@@ -1516,6 +1700,22 @@ export default function Activity() {
           title={actionSheet.title}
           actions={actionSheet.actions}
           onClose={() => setActionSheet(null)}
+        />
+      )}
+
+      {partyPickerQuestionId && (
+        <PartyListPicker
+          questionId={partyPickerQuestionId}
+          lists={partyLists.lists}
+          listQuestionIds={partyLists.listQuestionIds}
+          onToggleList={(listId, questionId) => {
+            const already = partyLists.listQuestionIds.get(listId)?.has(questionId)
+            return already ? partyLists.removeFromList(listId, questionId) : partyLists.addToList(listId, questionId)
+          }}
+          onClose={() => {
+            setPartyPickerQuestionId(null)
+            setLoadedTabs(prev => { const s = new Set(prev); s.delete('party'); return s })
+          }}
         />
       )}
 
