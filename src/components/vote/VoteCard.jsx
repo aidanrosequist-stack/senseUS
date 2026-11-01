@@ -520,17 +520,16 @@ useEffect(() => {
       {/* Per Aidan's request (2026-10-27): the add-to-"? Party" control
           takes the very top-right corner, with the pre-existing pin
           toggle sitting just to its left — a plain flex row, rightmost
-          child wins the corner. Icon size bumped 16 -> 48 (300%, per
-          Aidan's request 2026-10-29) — gap/inset widened to match so the
-          two buttons still read as a tidy pair instead of crowding the
-          card's rounded corner. */}
+          child wins the corner. Icon size: 16 -> 48 (2026-10-29) read as
+          too big -> settled at 32 (2026-11-01, "meet in the middle") —
+          inset/gap sized to match. */}
       {(onTogglePin || onToggleParty) && (
-        <div style={{ position: 'absolute', top: '6px', right: '6px', zIndex: 3, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 3, display: 'flex', alignItems: 'center', gap: '6px' }}>
           {onTogglePin && (
-            <PinButton pinned={pinned} onToggle={onTogglePin} size={48} />
+            <PinButton pinned={pinned} onToggle={onTogglePin} size={32} />
           )}
           {onToggleParty && (
-            <PartyAddButton added={partyAdded} onToggle={onToggleParty} size={48} />
+            <PartyAddButton added={partyAdded} onToggle={onToggleParty} size={32} />
           )}
         </div>
       )}
