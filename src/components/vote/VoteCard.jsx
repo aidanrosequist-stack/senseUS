@@ -116,7 +116,7 @@ function ProgressRing({ progress }) {
   )
 }
 
-export default function VoteCard({ question, onVote, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, submitting = false, submittingLabel = 'Saving your vote...', voteError = null, onDismissError, enterFromAbove = false, pinned = false, onTogglePin, partyAdded = false, onToggleParty }) {
+export default function VoteCard({ question, onVote, onRetract, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, myChoice = null, submitting = false, submittingLabel = 'Saving your vote...', voteError = null, onDismissError, enterFromAbove = false, pinned = false, onTogglePin, partyAdded = false, onToggleParty }) {
   const { user } = useAuth()
   const [zone, setZone] = useState(initialZone)
 
@@ -238,7 +238,18 @@ useEffect(() => {
           // Audio playback can fail silently on some browsers/permissions — not critical to the vote itself
         }
 
-        onVote(currentZone)
+        // Holding on the already-recorded stance retracts it, same as a
+        // plain tap on that same button (handleButtonVote below) — see
+        // migration 099's retract_vote(). myChoice is the actual
+        // persisted vote (a stable prop from the parent), not `zone`
+        // (this card's own live drag-visual state), so this stays
+        // correct even mid-gesture.
+        if (currentZone === myChoice && onRetract) {
+          setZone(null)
+          onRetract()
+        } else {
+          onVote(currentZone)
+        }
         setHoldProgress(0)
         setHoldZone(null)
       }
@@ -421,6 +432,19 @@ useEffect(() => {
     if (submitting) return
     const isFull = value === 'yes' || value === 'no'
     vibrate(isFull ? 40 : 12)
+
+    // Tapping the already-recorded stance again retracts it — Aidan's
+    // request to extend the ?Party mini-card's retract behavior to the
+    // regular VoteCard too, while still letting the user tap a
+    // DIFFERENT stance to change their vote normally. myChoice is the
+    // actual persisted vote, not `zone` (this card's own live
+    // drag-visual state) — see migration 099's retract_vote().
+    if (value === myChoice && onRetract) {
+      setZone(null)
+      onRetract()
+      return
+    }
+
     playSound(value)
     onVote(value)
   }

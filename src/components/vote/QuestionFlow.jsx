@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import VoteCard from './VoteCard'
 import ResultsCard from './ResultsCard'
 
-export default function QuestionFlow({ questions, onVote, onHideQuestion, targetQuestionId, targetQuestion, initialVoteForTarget, pinnedQuestions, onTogglePinQuestion, partyQuestions, onTogglePartyQuestion }) {
+export default function QuestionFlow({ questions, onVote, onRetractVote, onHideQuestion, targetQuestionId, targetQuestion, initialVoteForTarget, pinnedQuestions, onTogglePinQuestion, isInPartyList, onTogglePartyQuestion }) {
   const navigate = useNavigate()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [extraQuestion, setExtraQuestion] = useState(null)
@@ -32,6 +32,17 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
   // account's running distinct-questions-voted count, so this is now
   // authoritative and account-wide with no extra round trip.
   const [firstVoteToShow, setFirstVoteToShow] = useState(false)
+  // Once a vote or retract has actually gone through for the CURRENT
+  // question, userVote itself (not the deep-link's static
+  // initialVoteForTarget) is the only source of truth for what VoteCard
+  // should treat as "already selected" — see effectiveChoice below. Without
+  // this, retracting a deep-linked "change my vote" revisit (currentInitialZone
+  // still holding the stale pre-retract value) would make re-tapping that
+  // same stance silently retract again (a no-op) instead of re-casting it,
+  // since currentInitialZone || userVote would keep resolving to the stale
+  // value forever. Reset per-question in the effect below, alongside
+  // enterFromAbove's own per-question reset.
+  const voteTouchedRef = useRef(false)
 
   useEffect(() => {
     if (!targetQuestionId) return
@@ -49,6 +60,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
 
   const currentQuestion = (extraQuestion && currentIndex === 0) ? extraQuestion : questions[currentIndex]
   const currentInitialZone = (extraQuestion && currentIndex === 0) ? initialVoteForTarget : null
+  const effectiveChoice = voteTouchedRef.current ? userVote : (currentInitialZone || userVote)
 
   function getTallyFor(question) {
     return tallies[question.id] || question.votes || { yes: 0, ly: 0, ln: 0, no: 0 }
@@ -97,10 +109,34 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
         setFirstVoteToShow(true)
       }
 
+      voteTouchedRef.current = true
       setUserVote(value)
       setView('results')
     } catch (err) {
       setVoteError(err.message || 'Something went wrong saving your vote. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Tapping (or holding) an already-recorded stance again retracts it
+  // (VoteCard.jsx) — stays on the voting view with a now-blank choice,
+  // never advances to ResultsCard, since there's nothing to show results
+  // for anymore. migration 099's retract_vote(), extended from the
+  // ?Party mini-card to the regular vote flow per Aidan's request.
+  async function handleRetractVote() {
+    if (submitting) return
+    setSubmitting(true)
+    setSubmittingLabel('Removing your vote...')
+    setVoteError(null)
+
+    try {
+      if (onRetractVote) await onRetractVote(currentQuestion.id)
+      voteTouchedRef.current = true
+      setUserVote(null)
+      setChangingVote(false)
+    } catch (err) {
+      setVoteError(err.message || 'Something went wrong — please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -150,6 +186,11 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
   // for whatever question comes after.
   useEffect(() => {
     if (enterFromAbove) setEnterFromAbove(false)
+    // Per-question reset for effectiveChoice's own touched-flag above —
+    // a new question should always start trusting its own deep-link
+    // initialVoteForTarget (if any) again, not the previous question's
+    // vote/retract history.
+    voteTouchedRef.current = false
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately keyed on currentQuestion, not enterFromAbove itself
   }, [currentQuestion])
 
@@ -240,12 +281,14 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
           key={currentQuestion.id}
           question={currentQuestion}
           onVote={handleVote}
+          onRetract={handleRetractVote}
           onSkip={handleSkip}
           onHideQuestion={handleHideQuestion}
           onMakeUpMyMind={() => navigate(`/make-up-my-mind/${currentQuestion.id}`, { state: { from: 'vote' } })}
           onViewConversation={() => navigate(`/conversation/${currentQuestion.id}`)}
           showHint={currentIndex === 0}
-          initialZone={currentInitialZone || userVote}
+          initialZone={effectiveChoice}
+          myChoice={effectiveChoice}
           enterFromAbove={enterFromAbove}
           changingVote={changingVote}
           submitting={submitting}
@@ -254,7 +297,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
           onDismissError={() => setVoteError(null)}
           pinned={pinnedQuestions?.has(currentQuestion.id) || false}
           onTogglePin={onTogglePinQuestion ? () => onTogglePinQuestion(currentQuestion.id) : undefined}
-          partyAdded={partyQuestions?.has(currentQuestion.id) || false}
+          partyAdded={isInPartyList?.(currentQuestion.id) || false}
           onToggleParty={onTogglePartyQuestion ? () => onTogglePartyQuestion(currentQuestion.id) : undefined}
         />
       )}
@@ -267,7 +310,7 @@ export default function QuestionFlow({ questions, onVote, onHideQuestion, target
           onNext={advance}
           firstVote={firstVoteToShow}
           onChangeVote={() => { setChangingVote(true); setView('voting') }}
-          partyAdded={partyQuestions?.has(currentQuestion.id) || false}
+          partyAdded={isInPartyList?.(currentQuestion.id) || false}
           onToggleParty={onTogglePartyQuestion ? () => onTogglePartyQuestion(currentQuestion.id) : undefined}
         />
       )}

@@ -7,6 +7,8 @@ import { useState, useEffect } from 'react'
 import VisuallyHidden from '../components/ui/VisuallyHidden'
 import { usePageTitle } from '../hooks/usePageTitle'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { usePartyLists } from '../hooks/usePartyLists'
+import PartyListPicker from '../components/party/PartyListPicker'
 
 export default function Vote() {
   usePageTitle('Vote')
@@ -34,7 +36,11 @@ export default function Vote() {
   const from = location.state?.from || '/vote'
   const [targetQuestion, setTargetQuestion] = useState(null)
   const [pinnedQuestions, setPinnedQuestions] = useState(new Set())
-  const [partyQuestions, setPartyQuestions] = useState(new Set())
+  // migration 098 replaced party_questions (one flat list) with
+  // party_lists/party_list_questions (multiple named lists) — see
+  // usePartyLists.js, shared with Explore.jsx/Activity.jsx.
+  const partyLists = usePartyLists()
+  const [partyPickerQuestionId, setPartyPickerQuestionId] = useState(null)
 
   // Same fetch-once-per-user shape as Explore.jsx's pinnedQuestions —
   // loaded independently here rather than threaded in from Explore since
@@ -43,21 +49,16 @@ export default function Vote() {
   useEffect(() => {
     if (!user) {
       setPinnedQuestions(new Set())
-      setPartyQuestions(new Set())
       return
     }
     let cancelled = false
-    async function fetchPinnedAndParty() {
-      const [{ data: pinned }, { data: party }] = await Promise.all([
-        supabase.from('pinned_questions').select('question_id').eq('user_id', user.id),
-        supabase.from('party_questions').select('question_id').eq('user_id', user.id),
-      ])
+    async function fetchPinned() {
+      const { data: pinned } = await supabase.from('pinned_questions').select('question_id').eq('user_id', user.id)
       if (!cancelled) {
         setPinnedQuestions(new Set((pinned || []).map(row => row.question_id)))
-        setPartyQuestions(new Set((party || []).map(row => row.question_id)))
       }
     }
-    fetchPinnedAndParty()
+    fetchPinned()
     return () => { cancelled = true }
   }, [user?.id])
 
@@ -78,26 +79,17 @@ export default function Vote() {
     }
   }
 
-  // Same shape as togglePinQuestion, against party_questions (migration
-  // 095_question_parties.sql) — the standing "? Party" curation list.
-  // Capped at 10 by a server-side trigger; that rejection's own message
-  // ("You can curate up to 10 questions for a party.") is already
-  // friendly enough to show directly, unlike the generic fallback used
-  // for anything else going wrong.
+  // Same shape as Explore.jsx's togglePartyQuestion — a single tap for
+  // the common 0-or-1-list case, opening PartyListPicker only once
+  // "add to which list" is genuinely ambiguous (2+ lists).
   async function togglePartyQuestion(questionId) {
     if (!user) return
-    const isAdded = partyQuestions.has(questionId)
-
-    if (isAdded) {
-      const { error } = await supabase.from('party_questions').delete()
-        .eq('question_id', questionId).eq('user_id', user.id)
-      if (error) { alert('Something went wrong — please try again.'); return }
-      setPartyQuestions(prev => { const s = new Set(prev); s.delete(questionId); return s })
-    } else {
-      const { error } = await supabase.from('party_questions').insert({ question_id: questionId, user_id: user.id })
-      if (error) { alert(error.message || 'Something went wrong — please try again.'); return }
-      setPartyQuestions(prev => new Set([...prev, questionId]))
+    const result = await partyLists.smartToggle(questionId)
+    if (result?.needsPicker) {
+      setPartyPickerQuestionId(questionId)
+      return
     }
+    if (result?.error) alert(result.error.message || 'Something went wrong — please try again.')
   }
 
   useEffect(() => {
@@ -243,6 +235,20 @@ export default function Vote() {
     }
   }
 
+  // Tapping an already-selected stance button again (VoteCard.jsx) un-
+  // casts it — migration 099's retract_vote(), extended from the
+  // ?Party mini-card to the regular vote flow per Aidan's request:
+  // "I'd much rather the user pick a stance, [but] they should be able
+  // to remain neutral."
+  async function handleRetractVote(questionId) {
+    if (!user) return
+    const { error } = await supabase.rpc('retract_vote', { p_question_id: questionId })
+    if (error) {
+      console.error('Retract vote error:', error)
+      throw new Error('Your vote could not be removed. Please check your connection and try again.')
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
@@ -357,6 +363,7 @@ export default function Vote() {
         <QuestionFlow
           questions={questions}
           onVote={handleVote}
+          onRetractVote={handleRetractVote}
           onHideQuestion={handleHideQuestion}
           targetQuestionId={targetQuestionId}
           targetQuestion={targetQuestion}
@@ -371,10 +378,22 @@ export default function Vote() {
           initialVoteForTarget={targetQuestion ? (targetQuestion.myVoteChoice ?? null) : currentVoteParam}
           pinnedQuestions={pinnedQuestions}
           onTogglePinQuestion={togglePinQuestion}
-          partyQuestions={partyQuestions}
+          isInPartyList={partyLists.isInAnyList}
           onTogglePartyQuestion={togglePartyQuestion}
         />
       </div>
+      {partyPickerQuestionId && (
+        <PartyListPicker
+          questionId={partyPickerQuestionId}
+          lists={partyLists.lists}
+          listQuestionIds={partyLists.listQuestionIds}
+          onToggleList={(listId, questionId) => {
+            const already = partyLists.listQuestionIds.get(listId)?.has(questionId)
+            return already ? partyLists.removeFromList(listId, questionId) : partyLists.addToList(listId, questionId)
+          }}
+          onClose={() => setPartyPickerQuestionId(null)}
+        />
+      )}
     </div>
     </div>
   )
