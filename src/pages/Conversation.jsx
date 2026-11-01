@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
 import { usePageTitle } from '../hooks/usePageTitle'
-import { HEADER_HEIGHT_PX } from '../components/layout/Header'
-import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -1065,7 +1063,7 @@ export default function Conversation() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
         <LoadingSpinner />
       </div>
     )
@@ -1079,12 +1077,13 @@ export default function Conversation() {
     // top-aligned long thread as comments accumulate — a stranger
     // experience than just staying top-aligned the way any other
     // thread/list page does, even while short. This still gets the
-    // header/footer-height fix below (see BOTTOM_NAV_HEIGHT_PX) — that
-    // part's a real, separate bug: without it, this page (like the
-    // others under AppShell) was tall enough to let you scroll a little
-    // past its own content, hiding the top of the card behind the sticky
-    // header.
-    <div style={{ minHeight: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, boxSizing: 'border-box', background: '#C7C7CC' }}>
+    // header/footer-height fix below — minHeight:'100%' resolves against
+    // AppShell's <main>, which already reserves Header/BottomNav's real
+    // heights via padding (2026-11-01) — that part's a real, separate
+    // bug: without it, this page (like the others under AppShell) was
+    // tall enough to let you scroll a little past its own content, hiding
+    // the top of the card behind the header.
+    <div style={{ minHeight: '100%', boxSizing: 'border-box', background: '#C7C7CC' }}>
       <div style={{ padding: '14px', boxSizing: 'border-box' }}>
         <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', paddingBottom: '100px', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)' }}>
 

@@ -8,8 +8,6 @@ import CardActionSheet from '../components/ui/CardActionSheet'
 import PinButton from '../components/ui/PinButton'
 import VisuallyHidden from '../components/ui/VisuallyHidden'
 import { usePageTitle } from '../hooks/usePageTitle'
-import { HEADER_HEIGHT_PX } from '../components/layout/Header'
-import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
 
 const DOMAINS = [
   'society & culture',
@@ -478,8 +476,11 @@ export default function Explore() {
   }, [searchQuery, unansweredOnly, userVotes, selectedCategory])
 
   if (loading) {
+    // AppShell's <main> reserves Header/BottomNav's real heights via
+    // padding (2026-11-01), so '100%' here lands on exactly the space
+    // between them -- no page-local calc() needed.
     return (
-      <div style={{ minHeight: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
+      <div style={{ minHeight: '100%', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
         <div style={{ padding: '14px', boxSizing: 'border-box' }}>
           <div style={{ maxWidth: '480px', margin: '0 auto', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)', padding: '1.25rem' }}>
             {[1, 2, 3].map(i => (
@@ -499,7 +500,7 @@ export default function Explore() {
   }
 
   return (
-    <div style={{ minHeight: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '90px' }}>
+    <div style={{ minHeight: '100%', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '90px' }}>
     <VisuallyHidden as="h1">Explore</VisuallyHidden>
     <div style={{ padding: '14px', boxSizing: 'border-box' }}>
     {/* No horizontal padding here (unlike Profile/Activity's card) — every

@@ -4,8 +4,6 @@ import { useQuestions } from '../hooks/useQuestions'
 import QuestionFlow from '../components/vote/QuestionFlow'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { HEADER_HEIGHT_PX } from '../components/layout/Header'
-import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
 import VisuallyHidden from '../components/ui/VisuallyHidden'
 import { usePageTitle } from '../hooks/usePageTitle'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -247,7 +245,7 @@ export default function Vote() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
         <LoadingSpinner label="Loading questions..." />
       </div>
     )
@@ -255,7 +253,7 @@ export default function Vote() {
 
   if (error) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
         Error loading questions. Please try again.
       </div>
     )
@@ -265,28 +263,19 @@ export default function Vote() {
     <div
       style={{
         width: '100%',
-        // This used to be a flat 100dvh, sized on the assumption that
-        // Header was rendered inside this same div (its old first child).
-        // Now Header lives above this in AppShell, so this div only gets
-        // the rest of the viewport underneath it — hence the subtraction.
-        height: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`,
+        // AppShell's <main> already reserves Header's and BottomNav's
+        // real heights (padding, 2026-11-01) and establishes a definite
+        // height for this to resolve against — so '100%' here lands on
+        // exactly the space between them, no page-local subtraction
+        // needed. No paddingBottom either, same reason: nothing left over
+        // to clear.
+        height: '100%',
         background: '#C7C7CC',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'flex-start',
         padding: '0',
-        // No paddingBottom here anymore — this height calc already
-        // subtracts BottomNav's real height above, so there's nothing left
-        // for extra bottom padding to clear. The 74px that used to be here
-        // predates BottomNav switching to `position: sticky` (see its own
-        // comment): back when it was `fixed`, it could overlap this page's
-        // content, so padding was needed to hold content clear of it.
-        // Sticky already reserves its own space in the document flow, so
-        // this had become 74px of pure dead space under the vote card —
-        // and, worse, 74px *less* height for the card itself to work with,
-        // which is what was contributing to content getting clipped at the
-        // bottom of some cards.
         boxSizing: 'border-box',
         position: 'relative',
       }}

@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { HEADER_HEIGHT_PX } from '../components/layout/Header'
-import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 // migration: 095_question_parties.sql — the "? Party" invite/results page,
@@ -161,8 +159,11 @@ export default function Party() {
     }
   }
 
+  // AppShell's <main> reserves Header/BottomNav's real heights via
+  // padding (2026-11-01), so '100%' here lands on exactly the space
+  // between them -- no page-local calc() needed.
   const pageStyle = {
-    minHeight: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`,
+    minHeight: '100%',
     boxSizing: 'border-box',
     background: '#C7C7CC',
     padding: '14px',

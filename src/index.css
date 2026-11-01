@@ -16,16 +16,21 @@
 html, body {
   /* Plain `height: 100%` resolves against the initial containing block,
      which mobile browsers are free to size off the LARGE viewport (chrome
-     collapsed) rather than the small one — even after every AppShell
-     page's own content div was switched from 100dvh to 100svh (2026-10-29,
-     fixing the footer visibly sliding on scroll), that still left html/body
-     itself taller than the sum of header+content+footer, enough slack for
-     the document to take a tiny extra scroll during the chrome collapse/
-     expand animation and still catch the sticky footer mid-slide. 100svh
-     pins this to the small-viewport size directly, matching every
-     AppShell page's own calc() exactly, so there's no leftover slack for
-     that animation to exploit. Plain `height: 100%` stays first as the
-     fallback for a browser that doesn't understand svh yet. */
+     collapsed) rather than the small one. 100svh pins it to the small-
+     viewport size directly instead. Plain `height: 100%` stays first as
+     the fallback for a browser that doesn't understand svh yet.
+
+     This was the second attempt (2026-10-29) at the footer-slides-on-
+     scroll bug, after switching every AppShell page's own content div
+     from 100dvh to 100svh (also 2026-10-29) didn't fully fix it on its
+     own. Neither attempt turned out to be enough on their own (reported
+     again 2026-11-01) — the actual fix is .senseus-bottom-nav/
+     .senseus-app-header below switching to `position: fixed`, which
+     doesn't depend on any of this html/body/viewport-unit math being
+     exactly right to avoid sliding. Left in place as a reasonable
+     baseline regardless — doesn't hurt, and still correctly caps this
+     page at the small-viewport size for anything else that might assume
+     that. */
   height: 100%;
   height: 100svh;
   margin: 0;
@@ -159,7 +164,39 @@ button:not(:disabled):active {
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
+/* Header.jsx and BottomNav.jsx's own position (2026-11-01) — `fixed` by
+   default (anchors directly to the real viewport edge, so it's immune to
+   the whole class of bug where a document-flow-based position like
+   `sticky` can visibly lag or "catch up" while a mobile browser's
+   address bar collapses/expands mid-scroll, which is what kept making
+   this nav appear to slide no matter how precisely 100dvh/100svh/html+
+   body height got tuned — see index.css's html/body comment above and
+   AppShell.jsx for the full history). `left`/`right: 0` here rather than
+   on each component inline, since both need the exact same values.
+   AppShell.jsx's <main> reserves these two elements' real heights via
+   padding, not via flow — a fixed element takes up no flow space at
+   all, unlike the `sticky` this replaces, so without that padding page
+   content would render straight underneath/behind them instead of
+   starting below/ending above. Switched back to `sticky` at the same
+   >=768px breakpoint every other desktop-only rule here already uses —
+   `fixed` positions against the real browser window, not the centered
+   480px #root column desktop gets below, so unlike mobile (where #root
+   already spans the full width and this makes no visual difference)
+   `fixed` on desktop would let this escape that column and span the
+   whole browser window. */
+.senseus-app-header, .senseus-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+}
+.senseus-app-header { top: 0; }
+.senseus-bottom-nav { bottom: 0; }
+
 @media (min-width: 768px) {
+  .senseus-app-header, .senseus-bottom-nav {
+    position: sticky;
+  }
+
   html, body {
     background: #C7C7CC;
     min-height: 100vh;

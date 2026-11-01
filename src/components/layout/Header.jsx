@@ -17,11 +17,14 @@
 // constant too.
 export const HEADER_HEIGHT_PX = 58
 
+// position/top live on the .senseus-app-header class (index.css), not
+// inline, so the >=768px media query there can override `fixed` back to
+// `sticky` for desktop's centered-column treatment — see that class's
+// own comment, and AppShell.jsx for why `fixed` is safe again now (its
+// <main> padding, not flow, reserves this header's space).
 export default function Header() {
   return (
-    <header style={{
-      position: 'sticky',
-      top: 0,
+    <header className="senseus-app-header" style={{
       zIndex: 40,
       width: '100%',
       height: `${HEADER_HEIGHT_PX}px`,

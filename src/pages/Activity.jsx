@@ -11,8 +11,6 @@ import SwipeToDelete from '../components/ui/SwipeToDelete'
 import { IconThumbUp, IconThumbDown, IconHistory, IconMessageCircle, IconArrowsUpDown, IconRefresh, IconPin, IconConfetti } from '@tabler/icons-react'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useModalFocus } from '../hooks/useModalFocus'
-import { HEADER_HEIGHT_PX } from '../components/layout/Header'
-import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
 import InviteFriendCard from '../components/ui/InviteFriendCard'
 
 const VOTE_COLORS = {
@@ -995,8 +993,11 @@ export default function Activity() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: user?.id, not the user object, is the real dependency (see ProtectedRoute.jsx for the same pattern). AuthContext hands out a new user object reference on every onAuthStateChange firing, including Supabase's routine hourly token refresh — the loadedTabs guard above already prevents a real re-fetch in that case, but there's no reason to re-invoke the effect at all.
   }, [tab, user?.id])
 
+  // AppShell's <main> reserves Header/BottomNav's real heights via
+  // padding (2026-11-01), so '100%' here lands on exactly the space
+  // between them -- no page-local calc() needed.
   return (
-    <div style={{ minHeight: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
+    <div style={{ minHeight: '100%', boxSizing: 'border-box', background: '#C7C7CC', paddingBottom: '80px' }}>
     <div style={{ padding: '14px', boxSizing: 'border-box' }}>
     <div style={{ maxWidth: '480px', margin: '0 auto', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', boxShadow: 'var(--senseus-card-shadow)' }}>
 

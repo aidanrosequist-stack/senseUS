@@ -2,14 +2,11 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { IconThumbUp, IconBell, IconUser, IconCompass } from '@tabler/icons-react'
 import { useNotificationsContext } from '../../context/NotificationsContext'
 
-// Exported for the same reason Header exports HEADER_HEIGHT_PX: this nav is
-// `position: sticky`, so — like the header — it occupies real space in the
-// normal document flow, not just visually. A page that only subtracts
-// HEADER_HEIGHT_PX from its own 100dvh sizing (or doesn't subtract anything
-// at all) ends up that much taller than the actual viewport regardless,
-// which is exactly what let the page scroll a little past where it should
-// stop: a few pixels to a few dozen, hiding its own top edge behind the
-// sticky header above. If you resize this nav, update this constant too.
+// Exported for the same reason Header exports HEADER_HEIGHT_PX: AppShell's
+// <main> uses this to reserve exactly this nav's real height (padding-
+// bottom, 2026-11-01 — the single centralized place this now happens,
+// replacing ~21 pages' worth of their own calc()). If you resize this
+// nav, update this constant too.
 export const BOTTOM_NAV_HEIGHT_PX = 60
 
 export default function BottomNav() {
@@ -31,18 +28,23 @@ export default function BottomNav() {
   return (
     <nav
       aria-label="Primary"
+      className="senseus-bottom-nav"
       style={{
-        // `sticky`, not `fixed` — this is the fix for the footer spanning
-        // the full browser window while the header doesn't. On desktop,
-        // index.css caps #root at 480px and centers it on a gray backdrop;
-        // Header lives inside that box and is `position: sticky`, so it's
-        // naturally confined to it. `fixed` positions relative to the
-        // actual viewport, not #root, so it was escaping that 480px column
-        // and spanning the whole window. `sticky` stays inside the normal
-        // document flow (and therefore inside #root) while still pinning
-        // to the bottom of the screen as you scroll.
-        position: 'sticky',
-        bottom: 0,
+        // position/bottom live on .senseus-bottom-nav (index.css) now, not
+        // here — see that class's own comment for the full history. Short
+        // version: this used to be `sticky` specifically to stay confined
+        // to desktop's centered 480px #root column (`fixed` positions
+        // against the real viewport, which would've spanned the whole
+        // browser window instead). It's `fixed` again on mobile as of
+        // 2026-11-01 — sticky plus ever-more-precise dvh/svh viewport-unit
+        // math still weren't enough to stop this nav visibly sliding
+        // during a phone browser's address-bar collapse/expand animation
+        // on scroll (reported twice, 2026-10-29 and 2026-11-01); `fixed`
+        // sidesteps that whole class of bug by anchoring to the actual
+        // visual viewport edge directly, immune to how tall the document
+        // currently computes to. The >=768px media query in that class
+        // switches back to `sticky` so desktop keeps the original
+        // confined-to-480px-column behavior.
         display: 'flex',
         justifyContent: 'center',
         background: '#FFFFFF',

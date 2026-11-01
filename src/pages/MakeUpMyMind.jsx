@@ -1,5 +1,3 @@
-import { HEADER_HEIGHT_PX } from '../components/layout/Header'
-import { BOTTOM_NAV_HEIGHT_PX } from '../components/layout/BottomNav'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
@@ -102,7 +100,7 @@ export default function MakeUpMyMind() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: 'Merriweather, serif', color: '#6B7280' }}>
         <LoadingSpinner />
       </div>
     )
@@ -110,14 +108,17 @@ export default function MakeUpMyMind() {
 
   if (error) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: 'Merriweather, serif', color: '#7a1313' }}>
         Something went wrong. Please go back and try again.
       </div>
     )
   }
 
+  // AppShell's <main> reserves Header/BottomNav's real heights via
+  // padding (2026-11-01), so '100%' here lands on exactly the space
+  // between them -- no page-local calc() needed.
   return (
-    <div style={{ minHeight: `calc(100svh - ${HEADER_HEIGHT_PX}px - ${BOTTOM_NAV_HEIGHT_PX}px)`, background: '#C7C7CC', boxSizing: 'border-box', paddingBottom: '90px' }}>
+    <div style={{ minHeight: '100%', background: '#C7C7CC', boxSizing: 'border-box', paddingBottom: '90px' }}>
       <div style={{ padding: '14px', boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
         <div style={{ width: '100%', maxWidth: '480px', background: '#FFFFFF', borderRadius: 'var(--senseus-card-radius)', padding: '1.5rem', fontFamily: 'Merriweather, serif', boxSizing: 'border-box', boxShadow: 'var(--senseus-card-shadow)' }}>
 
