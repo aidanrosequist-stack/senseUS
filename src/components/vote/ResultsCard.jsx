@@ -184,7 +184,7 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
       }}
     >
       {/* No pre-existing pin button on this card to sit left of, unlike
-          VoteCard — just the add-to-"? Party" control alone in the
+          VoteCard — just the add-to-"?Party" control alone in the
           corner. Per Aidan's request (2026-10-27). */}
       {onToggleParty && (
         <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 3 }}>

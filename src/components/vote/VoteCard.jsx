@@ -541,7 +541,7 @@ useEffect(() => {
       }}
       onTouchEnd={() => { cancelHold(); handleEnd() }}
     >
-      {/* Per Aidan's request (2026-10-27): the add-to-"? Party" control
+      {/* Per Aidan's request (2026-10-27): the add-to-"?Party" control
           takes the very top-right corner, with the pre-existing pin
           toggle sitting just to its left — a plain flex row, rightmost
           child wins the corner. Icon size: 16 -> 48 (2026-10-29) read as

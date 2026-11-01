@@ -1,11 +1,11 @@
 import { IconCirclePlus, IconCircleCheckFilled } from '@tabler/icons-react'
 
-// Shared "add to ? Party list" toggle — same interaction shape as
+// Shared "add to ?Party list" toggle — same interaction shape as
 // PinButton (a single icon that swaps on click, e.stopPropagation() since
 // every surface this sits on is itself clickable/long-press-triggering),
 // but visually and semantically its own control: pinning is a private
 // bookmark, this toggles a question's membership in party_questions, the
-// standing curation list a "? Party" invite snapshots from (migration
+// standing curation list a "?Party" invite snapshots from (migration
 // 095_question_parties.sql). A plain "+" (unadded) flipping to a filled
 // checkmark (added) reads more clearly here than PinButton's own
 // pin/pin-filled pair would — "added" should look like a confirmation, not
@@ -20,9 +20,9 @@ export default function PartyAddButton({ added, onToggle, size = 16, style }) {
         e.stopPropagation()
         onToggle()
       }}
-      aria-label={added ? 'Remove from ? Party list' : 'Add to ? Party list'}
+      aria-label={added ? 'Remove from ?Party list' : 'Add to ?Party list'}
       aria-pressed={added}
-      title={added ? 'Remove from ? Party list' : 'Add to ? Party list'}
+      title={added ? 'Remove from ?Party list' : 'Add to ?Party list'}
       style={{
         display: 'flex',
         alignItems: 'center',

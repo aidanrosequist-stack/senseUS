@@ -6,10 +6,10 @@ const SWIPE_OPEN_THRESHOLD = 36
 
 // Generic swipe-right-to-reveal-delete wrapper, per Aidan's request
 // (2026-10-29): swipe a row right, a red trash button appears on the
-// left, tap it to delete. Used for the "? Party" tab's own curated-
+// left, tap it to delete. Used for the "?Party" tab's own curated-
 // question list (swipe removes that question from the standing
 // party_questions curation list -- the exact same effect its existing
-// long-press "Remove from ? Party list" action already has) and
+// long-press "Remove from ?Party list" action already has) and
 // completed/expired party rows (swipe hides that party from just this
 // account's own list -- see hide_party(), migration
 // 097_hide_completed_parties.sql).
