@@ -9,21 +9,20 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 import PinButton from '../components/ui/PinButton'
 
 const VOTE_COLORS = {
-  yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
+  yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f'
 }
 
 const VOTE_LABELS = {
-  yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no', dec: 'undecided'
+  yes: 'yes', ly: 'leaning yes', ln: 'leaning no', no: 'no'
 }
 
 // Darker text for the "voted" badge next to a commenter's name, to match
 // the white-background/darker-border badge style now used everywhere else
 // a vote choice gets a pill (Explore's VOTE_BADGE_TEXT, Activity's
 // VOTE_PILL_STYLES colors) instead of the old flat tinted-background pill.
-// yes/ly/ln/no reuse those exact hex values; dec reuses the text color
-// ResultsCard.jsx already established for an undecided/declined vote.
+// yes/ly/ln/no reuse those exact hex values.
 const VOTE_BADGE_TEXT = {
-  yes: '#4d621d', ly: '#7a6b0e', ln: '#7a4513', no: '#7a1313', dec: '#0C447C',
+  yes: '#4d621d', ly: '#7a6b0e', ln: '#7a4513', no: '#7a1313',
 }
 
 // Updated 2026-09-03 (second pass), same tier-2 palette shared with
@@ -42,7 +41,7 @@ const VOTE_WASH = {
 
 // Comments are color-coded by how the commenter voted rather than a
 // random per-user hue — a comment's avatar always reflects yes/leaning
-// yes/leaning no/no/undecided, same palette as everywhere else on senseUS.
+// yes/leaning no/no, same palette as everywhere else on senseUS.
 const NEUTRAL_AVATAR_COLOR = '#6B7280' // fallback for a comment with no vote on record
 
 const MAX_REPLY_DEPTH = 2 // comment (0) -> reply (1) -> reply (2), then no further replying
@@ -576,8 +575,9 @@ export default function Conversation() {
                 .single()
             : Promise.resolve({ data: null }),
           // Current vote tally for this question, for the breakdown bar.
-          // Only yes/ly/ln/no are counted — matches ResultsCard's math,
-          // which doesn't include 'dec' (declined) in the yes/no percentage.
+          // Only yes/ly/ln/no are counted — matches ResultsCard's math
+          // ('dec' was a reserved-but-dead choice value, removed outright
+          // in migration 099; confirmed zero rows ever used it).
           supabase
             .rpc('get_vote_tally', { p_question_id: questionId })
             .single(),

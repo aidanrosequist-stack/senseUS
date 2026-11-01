@@ -39,7 +39,16 @@ export default function MakeUpMyMind() {
   // picking the right destination fixes both buttons for both paths at
   // once, and does it without depending on browser history at all.
   const cameFromConversation = location.state?.from === 'conversation'
-  const backDestination = cameFromConversation
+  // ?Party mini-card page (2026-11-01): voting happens inline on
+  // /party/:token rather than through QuestionFlow, so a Make Up My Mind
+  // tap from there needs to land back on that same party page, not /vote
+  // — landing on /vote would detour the user through the regular solo
+  // vote flow for a question that's actually part of a party they were
+  // mid-way through answering.
+  const cameFromParty = location.state?.from === 'party' && location.state?.partyToken
+  const backDestination = cameFromParty
+    ? `/party/${location.state.partyToken}`
+    : cameFromConversation
     ? `/conversation/${questionId}`
     : `/vote?question=${questionId}`
 

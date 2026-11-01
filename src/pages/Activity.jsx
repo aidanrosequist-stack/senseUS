@@ -14,7 +14,7 @@ import { useModalFocus } from '../hooks/useModalFocus'
 import InviteFriendCard from '../components/ui/InviteFriendCard'
 
 const VOTE_COLORS = {
-  yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f', dec: '#2D3DCA'
+  yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f'
 }
 
 // Updated 2026-09-03 (second pass), same tier-2 palette shared with
@@ -58,7 +58,10 @@ function VoteIcon({ choice, size = 14 }) {
   if (choice === 'ly') return <IconThumbUp size={size} color={color} style={{ transform: 'rotate(45deg)' }} />
   if (choice === 'ln') return <IconThumbDown size={size} color={color} style={{ transform: 'rotate(45deg)' }} />
   if (choice === 'no') return <IconThumbDown size={size} color={color} />
-  return <span style={{ fontSize: size - 2, color }}>undecided</span>
+  // Defensive only — every real votes row is yes/ly/ln/no (the only
+  // choices cast_vote() has ever accepted since migration 099 removed
+  // the dead 'dec' value, confirmed zero rows ever used it).
+  return null
 }
 
 function timeAgo(dateString) {
