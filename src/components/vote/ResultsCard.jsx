@@ -16,7 +16,6 @@ const VOTE_PILL_STYLES = {
   ly: { background: '#faf6d0', color: '#7a6b0e' },
   ln: { background: '#f9ead8', color: '#7a4513' },
   no: { background: '#f9d8d8', color: '#7a1313' },
-  dec: { background: '#E6F1FB', color: '#0C447C' },
 }
 
 const VOTE_LABELS = {
@@ -24,7 +23,6 @@ const VOTE_LABELS = {
   ly: 'leaning yes',
   ln: 'leaning no',
   no: 'no',
-  dec: 'undecided',
 }
 
 // A light wash of each vote color, used as the results card's background —
@@ -35,7 +33,6 @@ const VOTE_WASH = {
   ly: '#FBF8E4',
   ln: '#FBF1E6',
   no: '#FBEAEA',
-  dec: '#FFFFFF',
 }
 
 export default function ResultsCard({ question, userVote, tally, onJoinConversation, onNext, onChangeVote, firstVote = false, partyAdded = false, onToggleParty }) {
