@@ -8,6 +8,8 @@ import CardActionSheet from '../components/ui/CardActionSheet'
 import PinButton from '../components/ui/PinButton'
 import VisuallyHidden from '../components/ui/VisuallyHidden'
 import { usePageTitle } from '../hooks/usePageTitle'
+import { usePartyLists } from '../hooks/usePartyLists'
+import PartyListPicker from '../components/party/PartyListPicker'
 
 const DOMAINS = [
   'society & culture',
@@ -210,7 +212,8 @@ export default function Explore() {
   const [questions, setQuestions] = useState([])
   const [userVotes, setUserVotes] = useState({})
   const [pinnedQuestions, setPinnedQuestions] = useState(new Set())
-  const [partyQuestions, setPartyQuestions] = useState(new Set())
+  const partyLists = usePartyLists()
+  const [partyPickerQuestionId, setPartyPickerQuestionId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [unansweredOnly, setUnansweredOnly] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(null)
@@ -311,15 +314,6 @@ export default function Explore() {
           .eq('user_id', user.id)
         setPinnedQuestions(new Set((pinsData || []).map(p => p.question_id)))
 
-        // Same reasoning, against party_questions (migration
-        // 095_question_parties.sql) — the standing "? Party" curation
-        // list, also carrying no other user's identity.
-        const { data: partyData } = await supabase
-          .from('party_questions')
-          .select('question_id')
-          .eq('user_id', user.id)
-        setPartyQuestions(new Set((partyData || []).map(p => p.question_id)))
-
       } catch (err) {
         console.error(err)
       } finally {
@@ -350,22 +344,20 @@ export default function Explore() {
     }
   }
 
-  // Same shape, against party_questions — capped at 10 server-side; that
-  // rejection's own message is already friendly enough to show directly.
+  // migration 098: party_questions (one flat list) is replaced by
+  // party_lists/party_list_questions (multiple named lists) — see
+  // usePartyLists.js. smartToggle keeps this a single tap for the
+  // 0-or-1-list case (everyone, until they deliberately make a second
+  // list) and only opens the picker once "add to which list" is actually
+  // ambiguous.
   async function togglePartyQuestion(questionId) {
     if (!user) return
-    const isAdded = partyQuestions.has(questionId)
-
-    if (isAdded) {
-      const { error } = await supabase.from('party_questions').delete()
-        .eq('question_id', questionId).eq('user_id', user.id)
-      if (error) { alert('Something went wrong — please try again.'); return }
-      setPartyQuestions(prev => { const s = new Set(prev); s.delete(questionId); return s })
-    } else {
-      const { error } = await supabase.from('party_questions').insert({ question_id: questionId, user_id: user.id })
-      if (error) { alert(error.message || 'Something went wrong — please try again.'); return }
-      setPartyQuestions(prev => new Set([...prev, questionId]))
+    const result = await partyLists.smartToggle(questionId)
+    if (result?.needsPicker) {
+      setPartyPickerQuestionId(questionId)
+      return
     }
+    if (result?.error) alert(result.error.message || 'Something went wrong — please try again.')
   }
 
   function handleThumbnailClick(question) {
@@ -923,10 +915,24 @@ export default function Explore() {
               onClick: () => togglePinQuestion(actionSheetQuestion.id),
             },
             {
-              label: partyQuestions.has(actionSheetQuestion.id) ? 'Remove from ? Party list' : 'Add to ? Party list',
+              label: partyLists.lists.length > 1
+                ? 'Add to a ?Party list'
+                : partyLists.isInAnyList(actionSheetQuestion.id) ? 'Remove from ?Party list' : 'Add to ?Party list',
               onClick: () => togglePartyQuestion(actionSheetQuestion.id),
             },
           ]}
+        />
+      )}
+      {partyPickerQuestionId && (
+        <PartyListPicker
+          questionId={partyPickerQuestionId}
+          lists={partyLists.lists}
+          listQuestionIds={partyLists.listQuestionIds}
+          onToggleList={(listId, questionId) => {
+            const already = partyLists.listQuestionIds.get(listId)?.has(questionId)
+            return already ? partyLists.removeFromList(listId, questionId) : partyLists.addToList(listId, questionId)
+          }}
+          onClose={() => setPartyPickerQuestionId(null)}
         />
       )}
     </div>
