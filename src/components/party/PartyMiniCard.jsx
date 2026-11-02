@@ -100,14 +100,20 @@ export default function PartyMiniCard({ question, myChoice, onVote, onRetract, o
 
   const dragTint = dragging && horizontalLock.current ? STANCE_BY_KEY[zoneFromDx(dragDx)]?.bg : null
 
+  // Per Aidan's testing feedback (2026-11-02): a 5px left-edge-only border
+  // read as too subtle to notice scrolling through the list. Now a full
+  // border wrapping the whole card, in the stance's `circle` color (the
+  // medium-saturation accent already used for the icon badge) rather than
+  // the much darker `border` color — less harsh wrapped all the way
+  // around at that saturation — plus the same light `bg` wash as a
+  // permanent fill once answered, not just during an active drag.
   return (
     <div
       style={{
         width: '100%',
         boxSizing: 'border-box',
-        background: dragTint || '#FFFFFF',
-        border: '0.5px solid #E5E7EB',
-        borderLeft: answered ? `5px solid ${answered.border}` : '0.5px solid #E5E7EB',
+        background: dragTint || (answered ? answered.bg : '#FFFFFF'),
+        border: answered ? `2px solid ${answered.circle}` : '0.5px solid #E5E7EB',
         borderRadius: '10px',
         padding: '12px 14px',
         transition: dragging ? 'none' : 'background 0.18s ease, border-color 0.18s ease',

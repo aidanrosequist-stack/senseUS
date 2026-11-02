@@ -32,6 +32,8 @@ export default function PartyListPicker({ questionId, lists, listQuestionIds, on
     if (toggleError) setError(toggleError.message || 'Something went wrong — try again.')
   }
 
+  const anySelected = lists.some(list => listQuestionIds.get(list.id)?.has(questionId))
+
   return (
     <div
       onClick={onClose}
@@ -97,6 +99,13 @@ export default function PartyListPicker({ questionId, lists, listQuestionIds, on
           <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '10px', marginBottom: 0 }}>{error}</p>
         )}
 
+        {/* Per Aidan's testing feedback (2026-11-02): this button was
+            always styled grey regardless of state -- it was never
+            actually disabled (it always closes the sheet), but looking
+            inert after picking a list read as broken. Now flips to the
+            same blue used for every other primary action once at least
+            one list has this question, so its look matches what tapping
+            it actually does. */}
         <button
           onClick={onClose}
           style={{
@@ -104,12 +113,12 @@ export default function PartyListPicker({ questionId, lists, listQuestionIds, on
             textAlign: 'center',
             padding: '14px 0',
             marginTop: '14px',
-            background: '#F3F4F6',
+            background: anySelected ? '#2D3DCA' : '#F3F4F6',
             border: 'none',
             borderRadius: '8px',
             fontSize: '14px',
             fontWeight: 500,
-            color: '#6B7280',
+            color: anySelected ? '#FFFFFF' : '#6B7280',
             cursor: 'pointer',
             fontFamily: 'Merriweather, serif',
           }}
