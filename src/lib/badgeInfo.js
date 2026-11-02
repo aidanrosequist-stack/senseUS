@@ -26,6 +26,7 @@ export const BADGE_INFO = {
   'first-responder': { label: 'First Responder', description: 'Among the first 10 voters, 10 times', emoji: '⏱️' },
   'diligent-researcher': { label: 'Diligent Researcher', description: 'Read the articles behind 10 questions', emoji: '📚' },
   'diligent-researcher-2': { label: 'Master Researcher', description: 'Read the articles behind 50 questions', emoji: '📖' },
+  'party-starter': { label: 'Party Starter', description: 'Completed your first ?Party!', emoji: '🎉' },
 }
 
 export const BADGE_EMOJI = Object.fromEntries(

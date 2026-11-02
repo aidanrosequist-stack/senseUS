@@ -4,6 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import PartyMiniCard from '../components/party/PartyMiniCard'
+import ConfettiBurst from '../components/ui/ConfettiBurst'
+import { playSound } from '../lib/sound'
 
 // migration: 095/097/098/099_question_parties — the "?Party" invite/vote/
 // results page, reached via the link create_party()/join_party() hand out
@@ -84,6 +86,52 @@ function AggregateBar({ answers }) {
   )
 }
 
+// "Most agreement" / "Biggest split" results callout -- per Aidan's
+// 2026-11-02 brainstorm ask, computed purely client-side from the same
+// resultsQuestions the page already has (no backend change). Agreement
+// groups yes/ly as one side and ln/no as the other, same grouping
+// AggregateBar already uses -- agreementPct is how lopsided that split
+// is, so 1.0 is unanimous and 0.5 is a dead-even split.
+//
+// A question nobody actually answered can't score either way, so it's
+// excluded outright. Below 2 scoreable questions there's nothing
+// meaningful to contrast, so both highlights are withheld. "Biggest
+// split" additionally needs >=2 answers on that question (a single lone
+// answer is 100% "agreement" by definition, never a split), and if it
+// would otherwise land on the exact same question as "most agreement"
+// (every question tied, or only one question clears that bar), it's
+// dropped rather than shown twice.
+function computeResultHighlights(questions) {
+  const scored = questions
+    .map(q => {
+      const tally = { yes: 0, ly: 0, ln: 0, no: 0 }
+      for (const a of q.answers) {
+        if (a.choice && tally[a.choice] !== undefined) tally[a.choice]++
+      }
+      const total = tally.yes + tally.ly + tally.ln + tally.no
+      if (total === 0) return null
+      const yesSide = tally.yes + tally.ly
+      const noSide = tally.ln + tally.no
+      return { question: q, total, agreementPct: Math.max(yesSide, noSide) / total }
+    })
+    .filter(Boolean)
+
+  if (scored.length < 2) return { mostAgreement: null, biggestSplit: null }
+
+  const mostAgreement = scored.reduce((best, s) => (s.agreementPct > best.agreementPct ? s : best))
+
+  const splitCandidates = scored.filter(s => s.total >= 2)
+  const biggestSplit = splitCandidates.length > 0
+    ? splitCandidates.reduce((best, s) => (Math.abs(s.agreementPct - 0.5) < Math.abs(best.agreementPct - 0.5) ? s : best))
+    : null
+
+  if (biggestSplit && biggestSplit.question.question_id === mostAgreement.question.question_id) {
+    return { mostAgreement, biggestSplit: null }
+  }
+
+  return { mostAgreement, biggestSplit }
+}
+
 export default function Party() {
   usePageTitle('?Party!')
   const { token } = useParams()
@@ -118,6 +166,7 @@ export default function Party() {
     if (resultsData[0].party_status !== 'open') {
       setResultsMeta({
         partyStatus: resultsData[0].party_status,
+        partyName: resultsData[0].party_name,
         expiresAt: resultsData[0].expires_at,
         completedAt: resultsData[0].completed_at,
       })
@@ -156,6 +205,7 @@ export default function Party() {
 
     setVotingMeta({
       capacity: votingData[0].capacity,
+      partyName: votingData[0].party_name,
       participantCount: votingData[0].participant_count,
       expiresAt: votingData[0].expires_at,
       alreadySubmitted: votingData[0].already_submitted,
@@ -191,6 +241,22 @@ export default function Party() {
 
     load()
   }, [token, loadPartyData])
+
+  // Results-reveal cue (2026-11-02, per Aidan's brainstorm ask) — fires
+  // once per time this page lands on a genuinely completed party's
+  // results, confetti included below in the render itself. Deliberately
+  // keyed to mode+status rather than a "have I already celebrated this
+  // party" flag: revisiting a completed party is rare enough, and brief
+  // enough, that re-playing the cue each time reads as a nice touch
+  // rather than noise — easy to add a one-time-only guard later if it
+  // doesn't land that way in practice. Expired parties get no cue —
+  // nothing to celebrate about the clock running out on some unanswered
+  // questions.
+  useEffect(() => {
+    if (mode === 'results' && resultsMeta?.partyStatus === 'completed') {
+      playSound('celebrate')
+    }
+  }, [mode, resultsMeta?.partyStatus])
 
   async function handleJoin() {
     setJoining(true)
@@ -265,7 +331,7 @@ export default function Party() {
 
   async function sharePartyLink() {
     const url = `https://senseus.app/party/${token}`
-    const shareData = { title: 'senseUS', text: 'Join my ?Party! on senseUS — vote on a few questions and see how we compare.', url }
+    const shareData = { title: 'senseUS', text: `Join my ${votingMeta?.partyName || '?Party!'} on senseUS — vote on a few questions and see how we compare.`, url }
     if (navigator.share) {
       try { await navigator.share(shareData) } catch { /* cancelled, not an error */ }
     } else {
@@ -329,7 +395,7 @@ export default function Party() {
     return (
       <div style={pageStyle}>
         <div style={cardStyle}>
-          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginTop: 0, marginBottom: '0.5rem' }}>?Party!</h1>
+          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginTop: 0, marginBottom: '0.5rem' }}>{preview.party_name || '?Party!'}</h1>
           <p style={{ fontSize: '14px', color: '#1A1A1A', lineHeight: 1.5 }}>
             <strong>{preview.host_display_name}</strong> invited you to vote on {preview.question_count} question{preview.question_count === 1 ? '' : 's'} and compare answers.
           </p>
@@ -368,7 +434,7 @@ export default function Party() {
       <div style={pageStyle}>
         <div style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-            <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>?Party!</h1>
+            <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{votingMeta?.partyName || '?Party!'}</h1>
             <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: '#E6F1FB', color: '#0C447C' }}>
               Open
             </span>
@@ -432,11 +498,13 @@ export default function Party() {
 
   // Completed (or expired) — the combined results view: an aggregate bar
   // per question plus the existing per-individual breakdown underneath.
+  const { mostAgreement, biggestSplit } = computeResultHighlights(resultsQuestions)
+
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>?Party!</h1>
+        <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{resultsMeta?.partyName || '?Party!'}</h1>
           <span style={{
             fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px',
             background: resultsMeta?.partyStatus === 'completed' ? '#eef3e0' : '#F3F4F6',
@@ -444,11 +512,33 @@ export default function Party() {
           }}>
             {resultsMeta?.partyStatus === 'completed' ? 'Completed' : 'Expired'}
           </span>
+          {/* Confetti only for a genuinely completed party — see the
+              results-reveal-cue effect above for why expired gets none. */}
+          {resultsMeta?.partyStatus === 'completed' && <ConfettiBurst count={28} />}
         </div>
         <p style={{ fontSize: '12px', color: '#6B7280', marginTop: 0, marginBottom: '1.25rem' }}>
           {resultsMeta?.partyStatus === 'completed' && resultsMeta?.completedAt && `Completed ${timeAgo(resultsMeta.completedAt)}`}
           {resultsMeta?.partyStatus === 'expired' && 'This party expired before everyone finished — showing whoever made it in.'}
         </p>
+
+        {mostAgreement && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '1.25rem' }}>
+            <div style={{ background: '#eef3e0', border: '1px solid #4d621d', borderRadius: '10px', padding: '10px 14px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#27500A', marginBottom: '3px' }}>
+                🤝 Most agreement — {Math.round(mostAgreement.agreementPct * 100)}% in sync
+              </div>
+              <div style={{ fontSize: '12px', color: '#1A1A1A', lineHeight: 1.4 }}>{mostAgreement.question.question_text}</div>
+            </div>
+            {biggestSplit && (
+              <div style={{ background: '#faf6d0', border: '1px solid #7a6b0e', borderRadius: '10px', padding: '10px 14px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#633806', marginBottom: '3px' }}>
+                  ⚡ Biggest split
+                </div>
+                <div style={{ fontSize: '12px', color: '#1A1A1A', lineHeight: 1.4 }}>{biggestSplit.question.question_text}</div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {resultsQuestions

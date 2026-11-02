@@ -3,6 +3,7 @@ import { IconThumbUp, IconThumbDown, IconBulb, IconMessageCircle, IconShare } fr
 import PinButton from '../ui/PinButton'
 import PartyAddButton from '../ui/PartyAddButton'
 import { useAuth } from '../../hooks/useAuth'
+import { playSound, getAudioContext } from '../../lib/sound'
 
 // Tier 2 ("wash") — updated 2026-09-03 (second pass) to reuse the vote
 // buttons' own backfill colors below (see `bg` in the button styles further
@@ -44,42 +45,12 @@ function vibrate(pattern) {
   }
 }
 
-// Reused across the whole session instead of creating (and leaking)
-// a new AudioContext on every sound effect.
-let sharedAudioCtx = null
-function getAudioContext() {
-  if (!sharedAudioCtx) {
-    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)()
-  }
-  if (sharedAudioCtx.state === 'suspended') {
-    sharedAudioCtx.resume()
-  }
-  return sharedAudioCtx
-}
-
-function playSound(type) {
-  if (localStorage.getItem('senseus_sound') === 'off') return
-  const ctx = getAudioContext()
-  const oscillator = ctx.createOscillator()
-  const gainNode = ctx.createGain()
-  oscillator.connect(gainNode)
-  gainNode.connect(ctx.destination)
-
-  const configs = {
-    yes:        { frequency: 520, duration: 0.08, gain: 0.15 },
-    ly:         { frequency: 440, duration: 0.07, gain: 0.12 },
-    ln:         { frequency: 320, duration: 0.07, gain: 0.12 },
-    no:         { frequency: 240, duration: 0.08, gain: 0.15 },
-  }
-
-  const config = configs[type] || configs.yes
-  oscillator.frequency.setValueAtTime(config.frequency, ctx.currentTime)
-  oscillator.type = 'sine'
-  gainNode.gain.setValueAtTime(config.gain, ctx.currentTime)
-  gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + config.duration)
-  oscillator.start(ctx.currentTime)
-  oscillator.stop(ctx.currentTime + config.duration)
-}
+// playSound() moved to src/lib/sound.js (2026-11-02) -- Party.jsx's
+// results-reveal cue needed to reuse the exact same tone generator, and
+// exporting it from here alongside the default component export tripped
+// react-refresh/only-export-components (Fast Refresh only works when a
+// file exports components and nothing else). See that file for the full
+// implementation and the shared AudioContext it still reuses.
 
 function ProgressRing({ progress }) {
   const radius = 18

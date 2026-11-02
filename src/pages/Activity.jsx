@@ -433,6 +433,7 @@ export default function Activity() {
   const [editingListId, setEditingListId] = useState(null)
   const [editingListName, setEditingListName] = useState('')
   const [requestHeadcount, setRequestHeadcount] = useState(2)
+  const [requestName, setRequestName] = useState('')
   const [creatingParty, setCreatingParty] = useState(false)
   const [partyCreateError, setPartyCreateError] = useState(null)
   // Same one-time dismissible callout pattern as Explore.jsx's own
@@ -997,10 +998,10 @@ export default function Activity() {
   // then immediately offers the resulting invite link via the same
   // share()/clipboard-fallback idiom every other share button in this
   // app already uses (InviteFriendCard, shareQuestion).
-  async function handleRequestParty(listId, headcount) {
+  async function handleRequestParty(listId, headcount, name) {
     setPartyCreateError(null)
     setCreatingParty(true)
-    const { data, error } = await supabase.rpc('create_party', { p_list_id: listId, p_headcount: headcount }).single()
+    const { data, error } = await supabase.rpc('create_party', { p_list_id: listId, p_headcount: headcount, p_name: name || null }).single()
     setCreatingParty(false)
 
     if (error || !data) {
@@ -1008,8 +1009,10 @@ export default function Activity() {
       return
     }
 
+    setRequestName('')
+
     const url = `https://senseus.app/party/${data.invite_token}`
-    const shareData = { title: 'senseUS', text: 'Join my ?Party! on senseUS — vote on a few questions and see how we compare.', url }
+    const shareData = { title: 'senseUS', text: `Join my ${name?.trim() || '?Party!'} on senseUS — vote on a few questions and see how we compare.`, url }
 
     if (navigator.share) {
       try {
@@ -1583,6 +1586,21 @@ export default function Activity() {
                               )}
 
                               <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '6px' }}>
+                                Name it? (optional)
+                              </div>
+                              <input
+                                value={requestName}
+                                onChange={(e) => setRequestName(e.target.value)}
+                                placeholder="?Party!"
+                                maxLength={60}
+                                style={{
+                                  width: '100%', boxSizing: 'border-box', marginBottom: '10px', padding: '8px 10px',
+                                  fontSize: '13px', color: '#1A1A1A', fontFamily: 'Merriweather, serif',
+                                  border: '1px solid #D1D5DB', borderRadius: '6px',
+                                }}
+                              />
+
+                              <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '6px' }}>
                                 How many people, including you? (2–6)
                               </div>
                               <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
@@ -1603,7 +1621,7 @@ export default function Activity() {
                               </div>
 
                               <button
-                                onClick={() => handleRequestParty(list.id, requestHeadcount)}
+                                onClick={() => handleRequestParty(list.id, requestHeadcount, requestName)}
                                 disabled={cards.length === 0 || creatingParty}
                                 style={{
                                   width: '100%', padding: '8px', background: '#2D3DCA', color: 'white', border: 'none',
@@ -1669,7 +1687,7 @@ export default function Activity() {
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                             <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
-                              {p.is_host ? 'You hosted' : 'You joined'} · {p.question_count} question{p.question_count === 1 ? '' : 's'}
+                              {p.party_name || (p.is_host ? 'You hosted' : 'You joined')}
                             </span>
                             <span style={{
                               fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px',
@@ -1680,7 +1698,8 @@ export default function Activity() {
                             </span>
                           </div>
                           <div style={{ fontSize: '11px', color: '#6B7280' }}>
-                            {p.participant_count}/{p.capacity} joined
+                            {p.party_name && `${p.is_host ? 'You hosted' : 'You joined'} · `}
+                            {p.question_count} question{p.question_count === 1 ? '' : 's'} · {p.participant_count}/{p.capacity} joined
                             {p.status === 'open' && ` · ${timeUntil(p.expires_at)}`}
                             {p.status === 'completed' && p.completed_at && ` · completed ${timeAgo(p.completed_at)}`}
                           </div>
