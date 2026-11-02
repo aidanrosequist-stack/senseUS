@@ -932,6 +932,11 @@ export default function Explore() {
             const already = partyLists.listQuestionIds.get(listId)?.has(questionId)
             return already ? partyLists.removeFromList(listId, questionId) : partyLists.addToList(listId, questionId)
           }}
+          onCreateList={async (name) => {
+            const { data: newList, error: createError } = await partyLists.createList(name)
+            if (createError) return { error: createError }
+            return partyLists.addToList(newList.id, partyPickerQuestionId)
+          }}
           onClose={() => setPartyPickerQuestionId(null)}
         />
       )}
