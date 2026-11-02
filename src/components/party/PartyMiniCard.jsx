@@ -26,8 +26,13 @@ const STANCES = [
 ]
 const STANCE_BY_KEY = Object.fromEntries(STANCES.map(s => [s.key, s]))
 
-const THRESH_LEAN = 24
-const THRESH_FULL = 64
+// Matches VoteCard's own thresholds exactly (2026-11-02, per Aidan's
+// testing feedback: the original 24/64 here gave "leaning" too thin a
+// margin before jumping straight to a full yes/no). Drag distance isn't
+// relative to the card's own width, so there's no reason this needed to
+// differ from VoteCard's already-tuned feel.
+const THRESH_LEAN = 35
+const THRESH_FULL = 130
 
 function vibrate(pattern) {
   if (navigator.vibrate) navigator.vibrate(pattern)
@@ -46,6 +51,7 @@ export default function PartyMiniCard({ question, myChoice, onVote, onRetract, o
   const [dragging, setDragging] = useState(false)
   const startPos = useRef({ x: 0, y: 0 })
   const horizontalLock = useRef(null) // null = undecided yet, true/false once a gesture commits to a direction
+  const lastZone = useRef(null) // last zone a live-drag buzz already fired for, so holding still doesn't re-buzz every pixel
 
   const answered = STANCE_BY_KEY[myChoice]
 
@@ -63,6 +69,7 @@ export default function PartyMiniCard({ question, myChoice, onVote, onRetract, o
     if (readOnly) return
     startPos.current = { x, y }
     horizontalLock.current = null
+    lastZone.current = null
     setDragging(true)
   }
 
@@ -78,6 +85,17 @@ export default function PartyMiniCard({ question, myChoice, onVote, onRetract, o
     if (horizontalLock.current) {
       if (e?.cancelable) e.preventDefault()
       setDragDx(dx)
+
+      // Per Aidan (2026-11-02): a quick buzz as the drag actually
+      // crosses into each stance, not just when it's released — mirrors
+      // VoteCard's own applyZone() live-drag feedback. Only fires on an
+      // actual zone change, so holding still inside the same zone (or
+      // natural hand tremor) doesn't re-buzz every pixel of movement.
+      const liveZone = zoneFromDx(dx)
+      if (liveZone !== lastZone.current) {
+        if (liveZone) vibrate(liveZone === 'yes' || liveZone === 'no' ? 40 : 12)
+        lastZone.current = liveZone
+      }
     }
   }
 
@@ -96,6 +114,7 @@ export default function PartyMiniCard({ question, myChoice, onVote, onRetract, o
     setDragging(false)
     setDragDx(0)
     horizontalLock.current = null
+    lastZone.current = null
   }
 
   const dragTint = dragging && horizontalLock.current ? STANCE_BY_KEY[zoneFromDx(dragDx)]?.bg : null
