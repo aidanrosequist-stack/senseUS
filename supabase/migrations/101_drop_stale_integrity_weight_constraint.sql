@@ -1,0 +1,70 @@
+-- migration: 101_drop_stale_integrity_weight_constraint.sql
+--
+-- CRITICAL HOTFIX -- found while investigating Aidan's "votes won't
+-- save" / "new row for relation votes violates check constraint
+-- integrity_weight_at_vote_range" report (2026-11-02). This blocks ANY
+-- brand-new vote (a genuine INSERT into votes, not a re-vote UPDATE) for
+-- any account whose profiles.integrity_weight has grown past 1.0050 --
+-- i.e. it's a live production outage for voting itself, unrelated to the
+-- ?Party work, just surfaced more by it (retract_vote()'s real DELETE
+-- turns a re-vote back into a fresh INSERT).
+--
+-- ROOT CAUSE: migration 007 (2026-07-27) added a CHECK constraint named
+-- integrity_weight_at_vote_range, capping integrity_weight_at_vote at
+-- 1.0050 -- matching the weight ceiling at the time. Migration 094
+-- (2026-10-27, "raise the max to 1.0100") correctly raised
+-- calculate_all_integrity_weights()'s own ceiling to 1.0100 and added a
+-- NEW, differently-named constraint, votes_integrity_weight_at_vote_check,
+-- with the wider [1.0000, 1.0100] range -- but its own
+-- `drop constraint if exists votes_integrity_weight_at_vote_check` only
+-- ever targeted that NEW name (which didn't exist yet, so the drop was a
+-- no-op) and never touched the ORIGINAL 007 constraint by its actual
+-- name. Postgres enforces every CHECK constraint on a table simultaneously
+-- (not just the most recently added one), so the two constraints have
+-- been ANDed together since 094 shipped: effectively still capped at the
+-- OLDER, narrower 1.0050, silently defeating the entire point of 094.
+--
+-- Confirmed directly from the migration files (both constraints' exact
+-- definitions, names, and dates) -- not a guess: grep across every
+-- migration confirms integrity_weight_at_vote_range (007) is never
+-- dropped anywhere before this one. The exact error text Aidan reported
+-- names this constraint by its exact original name.
+--
+-- Any account whose integrity_weight has climbed into (1.0050, 1.0100]
+-- -- reachable since 094 via the new "comparing"/"sharing"/3-distinct-
+-- months bonuses on top of the pre-existing ones -- has been unable to
+-- cast a single NEW vote (first-ever vote on a question, or a vote
+-- re-cast after a real delete/retract) since 094 went live. A re-vote on
+-- an already-answered question was unaffected (secure_vote_fields()'s
+-- UPDATE branch just carries forward the OLD stamped value, never
+-- re-checking against the live profile weight), which is why this went
+-- unnoticed until now.
+--
+-- FIX: drop the stale constraint. votes_integrity_weight_at_vote_check
+-- (094) is left completely untouched -- it's already the correct,
+-- current rule and needs no change.
+
+ALTER TABLE public.votes
+  DROP CONSTRAINT IF EXISTS integrity_weight_at_vote_range;
+
+-- ============================================================
+-- One-time verification (SQL Editor, after applying):
+--
+-- 1. select conname, pg_get_constraintdef(oid) from pg_constraint
+--    where conrelid = 'public.votes'::regclass and contype = 'c';
+--    -> exactly ONE integrity-weight range constraint now
+--    (votes_integrity_weight_at_vote_check, 1.0000-1.0100), the old
+--    integrity_weight_at_vote_range name is gone.
+--
+-- 2. For the specific account that hit this: find an unanswered
+--    question and cast_vote() on it -> succeeds (previously raised the
+--    check-constraint error). Confirm via a direct select that the new
+--    votes row's integrity_weight_at_vote matches that account's current
+--    profiles.integrity_weight exactly (should be something > 1.0050 if
+--    this is the account that tripped the bug -- that's the actual proof
+--    the old constraint was the blocker, not something else).
+--
+-- 3. Re-votes on already-answered questions still work exactly as before
+--    (unaffected by this migration either way -- UPDATE branch doesn't
+--    touch this constraint's enforcement differently).
+-- ============================================================
