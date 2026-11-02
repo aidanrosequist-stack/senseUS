@@ -984,7 +984,7 @@ export default function Activity() {
   // completely unaffected, per the discussion with Aidan on exactly this
   // question (2026-11-01).
   async function handleDeleteList(listId) {
-    if (!window.confirm('Delete this list? Any ?Party already created from it keeps working fine — this only removes the curation list itself.')) return
+    if (!window.confirm('Delete this list? Any ?Party! already created from it keeps working fine — this only removes the curation list itself.')) return
     const { error } = await partyLists.deleteList(listId)
     if (error) { alert(error.message || 'Something went wrong — please try again.'); return }
     setPartyListCards(prev => { const m = new Map(prev); m.delete(listId); return m })
@@ -1009,7 +1009,7 @@ export default function Activity() {
     }
 
     const url = `https://senseus.app/party/${data.invite_token}`
-    const shareData = { title: 'senseUS', text: 'Join my ?Party on senseUS — vote on a few questions and see how we compare.', url }
+    const shareData = { title: 'senseUS', text: 'Join my ?Party! on senseUS — vote on a few questions and see how we compare.', url }
 
     if (navigator.share) {
       try {
@@ -1091,7 +1091,7 @@ export default function Activity() {
           { key: 'shifts', label: 'Shifts', icon: IconArrowsUpDown },
           { key: 'revisit', label: 'Revisit', icon: IconRefresh },
           { key: 'pinned', label: 'Pinned', icon: IconPin },
-          { key: 'party', label: '?Party', icon: IconConfetti },
+          { key: 'party', label: '?Party!', icon: IconConfetti },
         ].map(t => {
           const Icon = t.icon
           return (
@@ -1179,8 +1179,8 @@ export default function Activity() {
                           },
                           {
                             label: partyLists.lists.length > 1
-                              ? 'Add to a ?Party list'
-                              : partyLists.isInAnyList(comment.questions?.id) ? 'Remove from ?Party list' : 'Add to ?Party list',
+                              ? 'Add to a ?Party! list'
+                              : partyLists.isInAnyList(comment.questions?.id) ? 'Remove from ?Party! list' : 'Add to ?Party! list',
                             onClick: () => togglePartyQuestion(comment.questions?.id),
                           },
                         ],
@@ -1246,8 +1246,8 @@ export default function Activity() {
                           },
                           {
                             label: partyLists.lists.length > 1
-                              ? 'Add to a ?Party list'
-                              : partyLists.isInAnyList(s.questions?.id) ? 'Remove from ?Party list' : 'Add to ?Party list',
+                              ? 'Add to a ?Party! list'
+                              : partyLists.isInAnyList(s.questions?.id) ? 'Remove from ?Party! list' : 'Add to ?Party! list',
                             onClick: () => togglePartyQuestion(s.questions?.id),
                           },
                         ],
@@ -1287,8 +1287,8 @@ export default function Activity() {
                           },
                           {
                             label: partyLists.lists.length > 1
-                              ? 'Add to a ?Party list'
-                              : partyLists.isInAnyList(s.questions?.id) ? 'Remove from ?Party list' : 'Add to ?Party list',
+                              ? 'Add to a ?Party! list'
+                              : partyLists.isInAnyList(s.questions?.id) ? 'Remove from ?Party! list' : 'Add to ?Party! list',
                             onClick: () => togglePartyQuestion(s.questions?.id),
                           },
                         ],
@@ -1353,8 +1353,8 @@ export default function Activity() {
                           },
                           {
                             label: partyLists.lists.length > 1
-                              ? 'Add to a ?Party list'
-                              : partyLists.isInAnyList(v.questions?.id) ? 'Remove from ?Party list' : 'Add to ?Party list',
+                              ? 'Add to a ?Party! list'
+                              : partyLists.isInAnyList(v.questions?.id) ? 'Remove from ?Party! list' : 'Add to ?Party! list',
                             onClick: () => togglePartyQuestion(v.questions?.id),
                           },
                         ],
@@ -1415,8 +1415,8 @@ export default function Activity() {
                             { label: 'Unpin this question', onClick: () => togglePinQuestion(p.question_id) },
                             {
                               label: partyLists.lists.length > 1
-                                ? 'Add to a ?Party list'
-                                : partyLists.isInAnyList(p.question_id) ? 'Remove from ?Party list' : 'Add to ?Party list',
+                                ? 'Add to a ?Party! list'
+                                : partyLists.isInAnyList(p.question_id) ? 'Remove from ?Party! list' : 'Add to ?Party! list',
                               onClick: () => togglePartyQuestion(p.question_id),
                             },
                           ],
@@ -1460,8 +1460,8 @@ export default function Activity() {
                             { label: 'Unpin this comment', onClick: () => togglePinComment(p.comment_id) },
                             {
                               label: partyLists.lists.length > 1
-                                ? 'Add to a ?Party list'
-                                : partyLists.isInAnyList(p.question_id) ? 'Remove from ?Party list' : 'Add to ?Party list',
+                                ? 'Add to a ?Party! list'
+                                : partyLists.isInAnyList(p.question_id) ? 'Remove from ?Party! list' : 'Add to ?Party! list',
                               onClick: () => togglePartyQuestion(p.question_id),
                             },
                           ],
@@ -1612,7 +1612,7 @@ export default function Activity() {
                                   opacity: (cards.length === 0 || creatingParty) ? 0.6 : 1,
                                 }}
                               >
-                                {creatingParty ? 'Creating your party…' : 'Request a ?Party'}
+                                {creatingParty ? 'Creating your party…' : 'Request a ?Party!'}
                               </button>
                               {partyCreateError && (
                                 <p style={{ fontSize: '12px', color: '#991B1B', marginTop: '6px', marginBottom: 0 }}>{partyCreateError}</p>

@@ -77,7 +77,7 @@ export default function PartyListPicker({ questionId, lists, listQuestionIds, on
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Add to a ?Party list"
+        aria-label="Add to a ?Party! list"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{

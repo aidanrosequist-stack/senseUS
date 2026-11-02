@@ -20,9 +20,9 @@ export default function PartyAddButton({ added, onToggle, size = 16, style }) {
         e.stopPropagation()
         onToggle()
       }}
-      aria-label={added ? 'Remove from ?Party list' : 'Add to ?Party list'}
+      aria-label={added ? 'Remove from ?Party! list' : 'Add to ?Party! list'}
       aria-pressed={added}
-      title={added ? 'Remove from ?Party list' : 'Add to ?Party list'}
+      title={added ? 'Remove from ?Party! list' : 'Add to ?Party! list'}
       style={{
         display: 'flex',
         alignItems: 'center',

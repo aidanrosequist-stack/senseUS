@@ -85,7 +85,7 @@ function AggregateBar({ answers }) {
 }
 
 export default function Party() {
-  usePageTitle('?Party')
+  usePageTitle('?Party!')
   const { token } = useParams()
   const navigate = useNavigate()
 
@@ -265,7 +265,7 @@ export default function Party() {
 
   async function sharePartyLink() {
     const url = `https://senseus.app/party/${token}`
-    const shareData = { title: 'senseUS', text: 'Join my ?Party on senseUS — vote on a few questions and see how we compare.', url }
+    const shareData = { title: 'senseUS', text: 'Join my ?Party! on senseUS — vote on a few questions and see how we compare.', url }
     if (navigator.share) {
       try { await navigator.share(shareData) } catch { /* cancelled, not an error */ }
     } else {
@@ -310,7 +310,7 @@ export default function Party() {
     return (
       <div style={pageStyle}>
         <div style={cardStyle}>
-          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginTop: 0 }}>?Party</h1>
+          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginTop: 0 }}>?Party!</h1>
           <p style={{ fontSize: '13px', color: '#6B7280' }}>This party invite could not be found.</p>
           <button
             onClick={() => navigate('/activity')}
@@ -329,7 +329,7 @@ export default function Party() {
     return (
       <div style={pageStyle}>
         <div style={cardStyle}>
-          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginTop: 0, marginBottom: '0.5rem' }}>?Party</h1>
+          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginTop: 0, marginBottom: '0.5rem' }}>?Party!</h1>
           <p style={{ fontSize: '14px', color: '#1A1A1A', lineHeight: 1.5 }}>
             <strong>{preview.host_display_name}</strong> invited you to vote on {preview.question_count} question{preview.question_count === 1 ? '' : 's'} and compare answers.
           </p>
@@ -368,7 +368,7 @@ export default function Party() {
       <div style={pageStyle}>
         <div style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-            <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>?Party</h1>
+            <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>?Party!</h1>
             <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: '#E6F1FB', color: '#0C447C' }}>
               Open
             </span>
@@ -436,7 +436,7 @@ export default function Party() {
     <div style={pageStyle}>
       <div style={cardStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>?Party</h1>
+          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>?Party!</h1>
           <span style={{
             fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px',
             background: resultsMeta?.partyStatus === 'completed' ? '#eef3e0' : '#F3F4F6',

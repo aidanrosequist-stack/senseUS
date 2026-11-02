@@ -916,8 +916,8 @@ export default function Explore() {
             },
             {
               label: partyLists.lists.length > 1
-                ? 'Add to a ?Party list'
-                : partyLists.isInAnyList(actionSheetQuestion.id) ? 'Remove from ?Party list' : 'Add to ?Party list',
+                ? 'Add to a ?Party! list'
+                : partyLists.isInAnyList(actionSheetQuestion.id) ? 'Remove from ?Party! list' : 'Add to ?Party! list',
               onClick: () => togglePartyQuestion(actionSheetQuestion.id),
             },
           ]}
