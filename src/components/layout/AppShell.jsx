@@ -31,16 +31,29 @@ import BottomNav, { BOTTOM_NAV_HEIGHT_PX } from './BottomNav'
 // space even while pinned), and every page separately did its own
 // subtraction to match; fixed elements reserve no flow space at all, so
 // without this padding a fixed header/footer would simply overlap page
-// content instead of sitting above/below it. overflow stays default
-// (visible), so a page whose own content needs more room than this
-// still grows past it and the whole document scrolls, exactly as
-// before — this height is a floor via each page's own `minHeight: '100%'`
-// or `height: '100%'`, not a hard clip.
+// content instead of sitting above/below it.
+//
+// UPDATED 2026-11-02: the `senseus-app-main` class (index.css) makes
+// THIS element the actual scroll container on mobile now, not the
+// document — html/body are overflow:hidden there. A page whose content
+// needs more room than this still grows past it (this height is a floor
+// via each page's own `minHeight: '100%'` or `height: '100%'`, not a
+// hard clip) but now scrolls inside this box's own overflow instead of
+// scrolling the whole page. See index.css's html/body comment for why:
+// a mobile browser's address-bar collapse/expand is tied to the
+// document itself scrolling, and that's what kept making the fixed
+// header/footer visibly resettle mid-gesture (reported three times) no
+// matter how exactly `fixed`/viewport-unit math was tuned — removing
+// the document-level scroll removes the trigger, not just the symptom.
+// Reset to a plain non-scrolling block at >=768px (same class, media
+// query in index.css) — desktop's whole centered column still scrolls
+// together as one, exactly as before.
 export default function AppShell() {
   return (
     <>
       <Header />
       <main
+        className="senseus-app-main"
         style={{
           height: '100svh',
           boxSizing: 'border-box',

@@ -20,19 +20,36 @@ html, body {
      viewport size directly instead. Plain `height: 100%` stays first as
      the fallback for a browser that doesn't understand svh yet.
 
-     This was the second attempt (2026-10-29) at the footer-slides-on-
+     This was the SECOND attempt (2026-10-29) at the footer-slides-on-
      scroll bug, after switching every AppShell page's own content div
      from 100dvh to 100svh (also 2026-10-29) didn't fully fix it on its
-     own. Neither attempt turned out to be enough on their own (reported
-     again 2026-11-01) — the actual fix is .senseus-bottom-nav/
-     .senseus-app-header below switching to `position: fixed`, which
-     doesn't depend on any of this html/body/viewport-unit math being
-     exactly right to avoid sliding. Left in place as a reasonable
-     baseline regardless — doesn't hurt, and still correctly caps this
-     page at the small-viewport size for anything else that might assume
-     that. */
+     own. The THIRD attempt (2026-11-01) was .senseus-bottom-nav/
+     .senseus-app-header switching to `position: fixed` — better, but
+     still reported again (2026-11-02, both the footer visibly settling
+     into a new position mid-scroll AND a page's last bit of content
+     being unreachably cut off at the bottom). Root cause: `fixed`
+     anchors to the viewport, but the DOCUMENT ITSELF was still the thing
+     scrolling (html/body had a height, not an overflow lock) — and it's
+     exactly a mobile browser scrolling the real document that makes its
+     address bar collapse/expand mid-gesture in the first place. That
+     animation temporarily resizes the viewport `fixed` anchors to, which
+     is what was still making the nav appear to lag/resettle, and why the
+     document's own max-scroll-top could come out wrong depending on
+     which viewport size was current when it was last measured.
+
+     FOURTH attempt, and the one that actually removes the trigger rather
+     than reacting to it: `overflow: hidden` here means the document
+     itself never scrolls at all on mobile, so there's nothing left to
+     make the address bar animate mid-gesture. All real scrolling now
+     happens inside .senseus-app-main's own internal scroll box instead
+     (see that class below, and AppShell.jsx) — a fixed, ordinary overflow
+     container has none of this viewport-resize-mid-scroll behavior.
+     Reset back to a normal scrolling document at the >=768px breakpoint
+     below, where header/footer are `sticky` (not `fixed`) and the whole
+     centered column is meant to scroll together as one. */
   height: 100%;
   height: 100svh;
+  overflow: hidden;
   margin: 0;
   padding: 0;
   font-family: 'Merriweather', serif;
@@ -192,6 +209,18 @@ button:not(:disabled):active {
 .senseus-app-header { top: 0; }
 .senseus-bottom-nav { bottom: 0; }
 
+/* AppShell.jsx's <main> — the mobile scroll container now that html/body
+   above is locked. `-webkit-overflow-scrolling: touch` is a no-op on
+   current iOS (momentum scrolling on an overflow:auto box is the
+   default now) but costs nothing and documents the intent for anyone on
+   an older WebKit. Reset to a plain, non-scrolling block at >=768px
+   below — desktop's whole centered column scrolls together as one, the
+   way it always has. */
+.senseus-app-main {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 @media (min-width: 768px) {
   .senseus-app-header, .senseus-bottom-nav {
     position: sticky;
@@ -200,6 +229,11 @@ button:not(:disabled):active {
   html, body {
     background: #C7C7CC;
     min-height: 100vh;
+    overflow: visible;
+  }
+
+  .senseus-app-main {
+    overflow-y: visible;
   }
 
   #root {
