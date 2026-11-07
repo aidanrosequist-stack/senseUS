@@ -8,6 +8,7 @@ import { BADGE_INFO } from '../lib/badgeInfo'
 import { useModalFocus } from '../hooks/useModalFocus'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import InviteFriendCard from '../components/ui/InviteFriendCard'
+import SwipeToDelete from '../components/ui/SwipeToDelete'
 
 function timeAgo(dateString) {
   const now = new Date()
@@ -419,47 +420,49 @@ async function openIntegrityInfo() {
   ) : (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {notifications.map(notification => (
-        <div
-          key={notification.id}
-          style={{
-            background: notification.read ? '#FFFFFF' : '#F0F3FF',
-            border: notification.priority === 'urgent' ? '1px solid #c21f1f' : notification.priority === 'high' ? '1px solid #2D3DCA' : '0.5px solid #E5E7EB',
-            borderRadius: '10px',
-            padding: '12px 14px',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => handleNotificationClick(notification)}
-            style={{ cursor: notification.action_url ? 'pointer' : 'default', display: 'flex', gap: '10px', alignItems: 'flex-start', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: 0, fontFamily: 'inherit' }}
+        // Swipe right to delete, same component/gesture as the ?Party tab's
+        // curated-question rows and completed-party rows (Activity.jsx) --
+        // Aidan asked for this specifically to replace the standalone
+        // "Delete" link each row used to render below its own content
+        // (2026-11-02). No `disabled` prop here (unlike the completed/
+        // expired-party case in Activity.jsx) -- every notification can be
+        // deleted regardless of its own state (read or not, any priority).
+        <SwipeToDelete key={notification.id} onDelete={() => deleteNotification(notification.id)}>
+          <div
+            style={{
+              background: notification.read ? '#FFFFFF' : '#F0F3FF',
+              border: notification.priority === 'urgent' ? '1px solid #c21f1f' : notification.priority === 'high' ? '1px solid #2D3DCA' : '0.5px solid #E5E7EB',
+              borderRadius: '10px',
+              padding: '12px 14px',
+            }}
           >
-            <div style={{ fontSize: '18px', flexShrink: 0, lineHeight: 1.3 }}>
-              {NOTIFICATION_TYPE_ICONS[notification.type] || '💬'}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
-                  {notification.title}
+            <button
+              type="button"
+              onClick={() => handleNotificationClick(notification)}
+              style={{ cursor: notification.action_url ? 'pointer' : 'default', display: 'flex', gap: '10px', alignItems: 'flex-start', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: 0, fontFamily: 'inherit' }}
+            >
+              <div style={{ fontSize: '18px', flexShrink: 0, lineHeight: 1.3 }}>
+                {NOTIFICATION_TYPE_ICONS[notification.type] || '💬'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>
+                    {notification.title}
+                  </div>
+                  {!notification.read && (
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2D3DCA', flexShrink: 0, marginTop: '4px' }} />
+                  )}
                 </div>
-                {!notification.read && (
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2D3DCA', flexShrink: 0, marginTop: '4px' }} />
-                )}
+                <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5, marginBottom: '4px' }}>
+                  {notification.body}
+                </div>
+                <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                  {timeAgo(notification.created_at)}
+                </div>
               </div>
-              <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5, marginBottom: '4px' }}>
-                {notification.body}
-              </div>
-              <div style={{ fontSize: '11px', color: '#6B7280' }}>
-                {timeAgo(notification.created_at)}
-              </div>
-            </div>
-          </button>
-          <button
-            onClick={() => deleteNotification(notification.id)}
-            style={{ marginTop: '8px', fontSize: '11px', color: '#6B7280', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Merriweather, serif', padding: 0, textDecoration: 'underline' }}
-          >
-            Delete
-          </button>
-        </div>
+            </button>
+          </div>
+        </SwipeToDelete>
       ))}
     </div>
   )}

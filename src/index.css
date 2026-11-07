@@ -18,41 +18,65 @@ html, body {
      which mobile browsers are free to size off the LARGE viewport (chrome
      collapsed) rather than the small one. 100svh pins it to the small-
      viewport size directly instead. Plain `height: 100%` stays first as
-     the fallback for a browser that doesn't understand svh yet.
-
-     This was the SECOND attempt (2026-10-29) at the footer-slides-on-
-     scroll bug, after switching every AppShell page's own content div
-     from 100dvh to 100svh (also 2026-10-29) didn't fully fix it on its
-     own. The THIRD attempt (2026-11-01) was .senseus-bottom-nav/
-     .senseus-app-header switching to `position: fixed` — better, but
-     still reported again (2026-11-02, both the footer visibly settling
-     into a new position mid-scroll AND a page's last bit of content
-     being unreachably cut off at the bottom). Root cause: `fixed`
-     anchors to the viewport, but the DOCUMENT ITSELF was still the thing
-     scrolling (html/body had a height, not an overflow lock) — and it's
-     exactly a mobile browser scrolling the real document that makes its
-     address bar collapse/expand mid-gesture in the first place. That
-     animation temporarily resizes the viewport `fixed` anchors to, which
-     is what was still making the nav appear to lag/resettle, and why the
-     document's own max-scroll-top could come out wrong depending on
-     which viewport size was current when it was last measured.
-
-     FOURTH attempt, and the one that actually removes the trigger rather
-     than reacting to it: `overflow: hidden` here means the document
-     itself never scrolls at all on mobile, so there's nothing left to
-     make the address bar animate mid-gesture. All real scrolling now
-     happens inside .senseus-app-main's own internal scroll box instead
-     (see that class below, and AppShell.jsx) — a fixed, ordinary overflow
-     container has none of this viewport-resize-mid-scroll behavior.
-     Reset back to a normal scrolling document at the >=768px breakpoint
-     below, where header/footer are `sticky` (not `fixed`) and the whole
-     centered column is meant to scroll together as one. */
+     the fallback for a browser that doesn't understand svh yet. This part
+     applies everywhere, every route — see .senseus-shell-mobile below for
+     the part that doesn't. */
   height: 100%;
   height: 100svh;
-  overflow: hidden;
   margin: 0;
   padding: 0;
   font-family: 'Merriweather', serif;
+}
+
+/* Document-level mobile scroll lock — toggled on <html> AND <body> by
+   AppShell.jsx itself (a useEffect adding this class on mount, removing
+   it on unmount), NOT a bare `html, body` selector like this started as.
+   That's the fix (2026-11-02, Aidan: "I can't scroll in /admin"): this
+   lock was written directly onto `html, body` when it first shipped
+   (2026-11-01, see the long history below), which applied it to every
+   route in the app, not just the ten pages actually under AppShell —
+   /admin (and /login, /register, every static marketing page, /q/:number)
+   has no `senseus-app-main`-style scroll container of its own, so once
+   the real document was locked everywhere, those pages simply had no way
+   to scroll at all on mobile. Scoping it to a class AppShell mounts/
+   unmounts means every route outside this shell gets the ordinary
+   scrolling document it always had, and only genuinely gets locked while
+   a page that actually has the `senseus-app-main` replacement scroll
+   container is the one currently showing.
+
+   Full history of why this lock exists at all, preserved from the
+   original rule: this was the SECOND attempt (2026-10-29) at the footer-
+   slides-on-scroll bug, after switching every AppShell page's own
+   content div from 100dvh to 100svh (also 2026-10-29) didn't fully fix it
+   on its own. The THIRD attempt (2026-11-01) was .senseus-bottom-nav/
+   .senseus-app-header switching to `position: fixed` — better, but still
+   reported again (2026-11-02, both the footer visibly settling into a
+   new position mid-scroll AND a page's last bit of content being
+   unreachably cut off at the bottom). Root cause: `fixed` anchors to the
+   viewport, but the DOCUMENT ITSELF was still the thing scrolling
+   (html/body had a height, not an overflow lock) — and it's exactly a
+   mobile browser scrolling the real document that makes its address bar
+   collapse/expand mid-gesture in the first place. That animation
+   temporarily resizes the viewport `fixed` anchors to, which is what was
+   still making the nav appear to lag/resettle, and why the document's
+   own max-scroll-top could come out wrong depending on which viewport
+   size was current when it was last measured.
+
+   FOURTH attempt, and the one that actually removes the trigger rather
+   than reacting to it: `overflow: hidden` here means the document itself
+   never scrolls at all on mobile (while this class is present), so
+   there's nothing left to make the address bar animate mid-gesture. All
+   real scrolling now happens inside .senseus-app-main's own internal
+   scroll box instead (see that class below, and AppShell.jsx) — a fixed,
+   ordinary overflow container has none of this viewport-resize-mid-
+   scroll behavior. Reset back to a normal scrolling document at the
+   >=768px breakpoint below, where header/footer are `sticky` (not
+   `fixed`) and the whole centered column is meant to scroll together as
+   one — same reset either way, shell route or not, since sticky/overflow-
+   visible is harmless on a route that was never locked in the first
+   place. */
+html.senseus-shell-mobile, body.senseus-shell-mobile {
+  overflow: hidden;
 }
 
 :root {
@@ -210,15 +234,66 @@ button:not(:disabled):active {
 .senseus-bottom-nav { bottom: 0; }
 
 /* AppShell.jsx's <main> — the mobile scroll container now that html/body
-   above is locked. `-webkit-overflow-scrolling: touch` is a no-op on
-   current iOS (momentum scrolling on an overflow:auto box is the
+   above is locked (while .senseus-shell-mobile is present — see that
+   class's own comment). `-webkit-overflow-scrolling: touch` is a no-op
+   on current iOS (momentum scrolling on an overflow:auto box is the
    default now) but costs nothing and documents the intent for anyone on
    an older WebKit. Reset to a plain, non-scrolling block at >=768px
    below — desktop's whole centered column scrolls together as one, the
-   way it always has. */
+   way it always has.
+
+   `--header-height`/`--bottom-nav-height` are set inline by AppShell.jsx
+   from Header/BottomNav's own exported HEADER_HEIGHT_PX/
+   BOTTOM_NAV_HEIGHT_PX constants — bridged in as custom properties so
+   this media query can override the padding that uses them, which an
+   inline style value on <main> itself could never do (inline always
+   beats a stylesheet, breakpoint or not).
+
+   BUG FIXED HERE (2026-11-02, Aidan: blank bar under the header, and
+   the bottom nav scrolling away with the page on /explore on desktop):
+   this rule used to only control overflow-y; `height: 100svh` and the
+   two paddings below were set as unconditional INLINE styles on <main>
+   in AppShell.jsx instead, so they applied identically at every
+   breakpoint. That's correct on mobile, where Header/BottomNav are
+   `fixed` and contribute nothing to document flow — <main> has to be
+   the full 100svh and use padding to visually clear them. But at
+   >=768px, Header/BottomNav switch to `sticky`, which DOES occupy its
+   own normal-flow space — so <main> was reserving a second, redundant
+   83px/60px on top of space Header/BottomNav were already taking for
+   themselves. The extra top padding was the blank bar (same height as
+   the header, directly below it, because that's literally what it
+   was — unused padding). The extra height+padding together also kept
+   <main>'s own box capped at exactly one viewport even though its
+   content (most pages use `minHeight: '100%'`, meant to grow past one
+   viewport and let the page itself scroll) could be — and on /explore,
+   regularly is — much taller; with this rule's own `overflow-y: visible`
+   letting that taller content spill past <main>'s undersized box
+   without the box growing to contain it, BottomNav — next in the DOM
+   right after <main> — ended up laid out at roughly one-viewport-height
+   down the page instead of after the real content, which is what made
+   it look like it wasn't staying put while scrolling: for most of the
+   page it genuinely was still in ordinary (non-stuck) flow, not yet at
+   the point where sticky has anything to stick to.
+
+   Fix: move height/padding into this class (so the media query below
+   can actually reach them) and let <main> size to `auto` at >=768px —
+   it can grow to fit a `minHeight: '100%'` page's real content now,
+   putting BottomNav after all of it, where sticky can do its job across
+   the page's whole real scroll range. No more padding either, since
+   Header/BottomNav already carve out their own space as sticky flow
+   elements — <main> doesn't need to reserve it a second time.
+
+   Vote.jsx is the one exception (`.senseus-app-main--fixed` below): its
+   swipeable card deliberately wants a single, non-scrolling viewport-
+   sized screen at every breakpoint, not auto growth, so it keeps a
+   real (if differently-computed) height at >=768px too. */
 .senseus-app-main {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  height: 100svh;
+  box-sizing: border-box;
+  padding-top: var(--header-height);
+  padding-bottom: var(--bottom-nav-height);
 }
 
 @media (min-width: 768px) {
@@ -226,14 +301,33 @@ button:not(:disabled):active {
     position: sticky;
   }
 
+  html.senseus-shell-mobile, body.senseus-shell-mobile {
+    overflow: visible;
+  }
+
   html, body {
     background: #C7C7CC;
     min-height: 100vh;
-    overflow: visible;
   }
 
   .senseus-app-main {
     overflow-y: visible;
+    height: auto;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  /* Vote only (AppShell.jsx adds this class just for /vote) — see the
+     long comment on .senseus-app-main above for why every other page
+     under AppShell gets `height: auto` here instead. Header/BottomNav
+     are sticky flow elements now, not fixed, so unlike the mobile rule
+     above this does NOT also add padding-top/bottom for them — they
+     already take their own space; stacking this height calc on top of
+     that padding would just recreate the exact double-reservation bug
+     this fix removes. */
+  .senseus-app-main--fixed {
+    height: calc(100svh - var(--header-height) - var(--bottom-nav-height));
+    overflow-y: hidden;
   }
 
   #root {

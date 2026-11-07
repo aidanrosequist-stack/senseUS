@@ -103,14 +103,25 @@ function formatVoteTimestamp(dateString) {
   return `${y}.${m}.${d} @ ${hours}:${minutes}${ampm} UTC`
 }
 
-function MyCommentCard({ c, navigate, onLongPress }) {
+// Visible pin icon added 2026-11-02 (Aidan noticed the Comments tab was
+// the one place a comment showed up with no way to pin it except the
+// longpress sheet, unlike every other pinned-content surface) — same
+// top-right placement/size as PinnedCommentCard/PinnedQuestionCard below,
+// `position: relative` added to the wrapper for it to anchor against.
+// The longpress sheet's own "Pin this comment"/"Unpin this comment"
+// entry (see this card's call site) stays too, same as how
+// PartyQuestionCard/PinnedQuestionCard both keep their own longpress
+// sheet alongside a visible one-tap icon elsewhere in this file — a
+// second way to reach the same action, not a replacement for it.
+function MyCommentCard({ c, navigate, pinned, onTogglePin, onLongPress }) {
   const longPress = useLongPress(() => onLongPress(c))
   return (
     <div
       onClick={() => { if (!longPress.wasLongPress()) navigate(`/conversation/${c.questions?.id}`) }}
       {...longPress}
-      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', ...LONG_PRESS_NO_SELECT }}
+      style={{ background: '#FFFFFF', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', position: 'relative', ...LONG_PRESS_NO_SELECT }}
     >
+      <PinButton pinned={pinned} onToggle={onTogglePin} size={15} style={{ position: 'absolute', top: '10px', right: '10px' }} />
       <div style={{ fontSize: '11px', color: '#0C447C', background: '#E6F1FB', display: 'inline-block', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
         {c.questions?.category}
       </div>
@@ -383,11 +394,47 @@ function PinnedCommentCard({ pin, navigate, onTogglePin, onLongPress }) {
   )
 }
 
+// Remembers which of the 6 tabs below was open, across navigating away
+// from /activity and back (Aidan, 2026-11-02: "when you navigate from
+// whatever tab you were on in /activity, go back to the same tab") --
+// this page remounts fresh on every visit (it's a plain route under
+// AppShell, not kept alive like AppShell itself), so a plain useState
+// default always reset to 'history'. Not anything another user needs to
+// see or that belongs in the database, so localStorage rather than a new
+// column -- same reasoning as AdminDashboard's own CARD_ORDER_KEY just
+// above this file's own equivalent, and the same try/catch-and-fall-back
+// shape, for the same reason (private browsing / storage disabled should
+// just silently not persist, never break the page).
+const ACTIVITY_TAB_KEY = 'senseus_activity_tab'
+// Keep in sync with the tab `key`s defined in the tab-bar render below --
+// an unrecognized or stale stored value (an old key from a tab that's
+// since been renamed or removed) falls back to the default rather than
+// selecting a tab that no longer exists.
+const ACTIVITY_TAB_KEYS = ['history', 'comments', 'shifts', 'revisit', 'pinned', 'party']
+
+function loadActivityTab() {
+  try {
+    const stored = localStorage.getItem(ACTIVITY_TAB_KEY)
+    return ACTIVITY_TAB_KEYS.includes(stored) ? stored : 'history'
+  } catch {
+    return 'history'
+  }
+}
+
+function saveActivityTab(key) {
+  try {
+    localStorage.setItem(ACTIVITY_TAB_KEY, key)
+  } catch {
+    // Private browsing / storage disabled -- the tab just won't be
+    // remembered next visit. Not worth surfacing an error for.
+  }
+}
+
 export default function Activity() {
   usePageTitle('Your Activity')
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [tab, setTab] = useState('history')
+  const [tab, setTab] = useState(loadActivityTab)
   const [commentSort, setCommentSort] = useState('newest')
   const [myComments, setMyComments] = useState([])
   const [commentsHasMore, setCommentsHasMore] = useState(false)
@@ -1012,7 +1059,18 @@ export default function Activity() {
     setRequestName('')
 
     const url = `https://senseus.app/party/${data.invite_token}`
-    const shareData = { title: 'senseUS', text: `Join my ${name?.trim() || '?Party!'} on senseUS — vote on a few questions and see how we compare.`, url }
+    // Wording is Aidan's own exact phrasing (2026-11-02, revised same day
+    // to add the party's name back in after an earlier pass dropped it).
+    // No name set -> drop the "called X" clause entirely rather than
+    // rendering it with something empty/awkward in its place.
+    const trimmedPartyName = name?.trim()
+    const shareData = {
+      title: 'senseUS',
+      text: trimmedPartyName
+        ? `I made a ?Party! called ${trimmedPartyName}, and want your input! Click here to accept and vote!`
+        : 'I made a ?Party! and want your input! Click here to accept and vote!',
+      url,
+    }
 
     if (navigator.share) {
       try {
@@ -1100,7 +1158,7 @@ export default function Activity() {
           return (
             <button
               key={t.key}
-              onClick={() => setTab(t.key)}
+              onClick={() => { setTab(t.key); saveActivityTab(t.key) }}
               aria-label={t.label}
               aria-current={tab === t.key ? 'page' : undefined}
               title={t.label}
@@ -1164,6 +1222,8 @@ export default function Activity() {
                       key={c.id}
                       c={c}
                       navigate={navigate}
+                      pinned={pinnedCommentIds.has(c.id)}
+                      onTogglePin={() => togglePinComment(c.id)}
                       onLongPress={(comment) => setActionSheet({
                         title: comment.questions?.text,
                         // "View this question" first and "Change my vote"

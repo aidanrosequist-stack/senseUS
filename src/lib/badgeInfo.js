@@ -27,6 +27,9 @@ export const BADGE_INFO = {
   'diligent-researcher': { label: 'Diligent Researcher', description: 'Read the articles behind 10 questions', emoji: '📚' },
   'diligent-researcher-2': { label: 'Master Researcher', description: 'Read the articles behind 50 questions', emoji: '📖' },
   'party-starter': { label: 'Party Starter', description: 'Completed your first ?Party!', emoji: '🎉' },
+  'award-giver': { label: 'Award-Giver', description: 'Given 25 Comment Awards', emoji: '🎁' },
+  'well-regarded': { label: 'Well-Regarded', description: 'Received 25 Comment Awards', emoji: '🏅' },
+  'gold-standard': { label: 'Gold Standard', description: 'Received a Gold Star award', emoji: '🌟' },
 }
 
 export const BADGE_EMOJI = Object.fromEntries(

@@ -3,10 +3,13 @@ import { usePageTitle } from '../hooks/usePageTitle'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-import { IconWaveSine, IconCornerDownRight, IconNews, IconThumbUp, IconThumbDown } from '@tabler/icons-react'
+import { IconWaveSine, IconCornerDownRight, IconNews, IconThumbUp, IconThumbDown, IconGift } from '@tabler/icons-react'
 import { checkComment } from '../lib/moderation'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import PinButton from '../components/ui/PinButton'
+import AwardIcon, { AwardPills } from '../components/ui/AwardIcons'
+import AwardPicker from '../components/ui/AwardPicker'
+import { AWARD_BY_ID } from '../lib/awardInfo'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c', ly: '#d9c01a', ln: '#c2731f', no: '#c21f1f'
@@ -163,6 +166,8 @@ function CommentCard({
   deleteComment,
   updateComment,
   submitComment,
+  openAwardPicker,
+  openAwardDetails,
 }) {
   const displayName = getDisplayName(comment.profiles)
   const voteChoice = comment.votes?.[0]?.choice
@@ -204,6 +209,7 @@ function CommentCard({
     replyingTo, setReplyingTo, replyText, setReplyText,
     editingId, setEditingId, editText, setEditText, submitting,
     toggleResonate, shareComment, flagComment, deleteComment, updateComment, submitComment,
+    openAwardPicker, openAwardDetails,
   }
 
   return (
@@ -375,6 +381,10 @@ function CommentCard({
           </div>
         )}
 
+        {!comment.is_removed && (
+          <AwardPills counts={comment.award_counts} onClick={() => openAwardDetails(comment.id)} />
+        )}
+
         {!comment.is_removed && !isEditing && (
           // One flat row, one consistent 12px/Merriweather text size for
           // every label in it (was a mix of 11px/12px/button-default
@@ -419,6 +429,17 @@ function CommentCard({
               >
                 <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>⚑</span>
                 <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>Flag</span>
+              </button>
+            )}
+
+            {canParticipate && !isOwn && (
+              <button
+                onClick={() => openAwardPicker(comment.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}
+                title="Give this comment an award"
+              >
+                <IconGift size={14} />
+                <span style={{ fontSize: '12px', fontFamily: 'Merriweather, serif' }}>Award</span>
               </button>
             )}
 
@@ -524,6 +545,66 @@ function CommentCard({
   )
 }
 
+// "Who gave this" expand for a comment's Comment Awards — same
+// bottom-sheet shape as CardActionSheet/AwardPicker, listing every award
+// the comment has received with its giver's display name (resolved via
+// get_comment_award_details(), never a raw user_id) and when it was
+// given. rows is undefined while the initial fetch is still in flight
+// (see openAwardDetails in Conversation below).
+function AwardDetailSheet({ rows, onClose }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-end' }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Awards given"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: '480px', margin: '0 auto', maxHeight: '70vh', overflowY: 'auto',
+          background: '#FFFFFF', borderRadius: '16px 16px 0 0', padding: '1.5rem', paddingBottom: '2rem',
+          fontFamily: 'Merriweather, serif', boxSizing: 'border-box',
+        }}
+      >
+        <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '12px' }}>Awards given</div>
+
+        {!rows ? (
+          <div style={{ fontSize: '13px', color: '#6B7280' }}>Loading...</div>
+        ) : rows.length === 0 ? (
+          <div style={{ fontSize: '13px', color: '#6B7280' }}>No awards yet.</div>
+        ) : (
+          rows.map((row, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', borderTop: i > 0 ? '0.5px solid #E5E7EB' : 'none' }}>
+              <AwardIcon id={row.award_type} size={30} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '13px', color: '#1A1A1A', fontWeight: 600 }}>
+                  {AWARD_BY_ID[row.award_type]?.label || row.award_type}
+                </div>
+                <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                  by {getDisplayName(row)}{row.is_own ? ' (you)' : ''} · {timeAgo(row.given_at)}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+
+        <button
+          onClick={onClose}
+          style={{
+            width: '100%', textAlign: 'center', padding: '14px 0', marginTop: '12px',
+            background: '#F3F4F6', border: 'none', borderRadius: '8px', fontSize: '14px',
+            fontWeight: 500, color: '#6B7280', cursor: 'pointer', fontFamily: 'Merriweather, serif',
+          }}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Conversation() {
   usePageTitle('Conversation')
   const { questionId } = useParams()
@@ -546,6 +627,25 @@ export default function Conversation() {
   const [userResonances, setUserResonances] = useState(new Set())
   const [pinnedCommentIds, setPinnedCommentIds] = useState(new Set())
 
+  // Comment Awards (migration 105) -- remainingAwardPoints is the user's
+  // shared monthly balance, fetched once below via
+  // get_remaining_award_points(). myGivenAwards maps commentId -> Set of
+  // award_type this user has already given THAT comment, fetched lazily
+  // (per comment, on demand) rather than up front for every comment in
+  // the thread -- most comments never get their picker opened, so most
+  // threads never need this at all. awardPickerFor/awardDetailsFor are
+  // the commentId currently showing the "give an award" sheet / the
+  // "who gave this" expand, respectively (mutually exclusive, but kept
+  // as two separate pieces of state rather than one shared "which sheet"
+  // enum since they render completely different content). awardDetails
+  // caches get_comment_award_details() results per commentId so
+  // reopening an already-fetched expand doesn't re-fetch.
+  const [remainingAwardPoints, setRemainingAwardPoints] = useState(null)
+  const [myGivenAwards, setMyGivenAwards] = useState(new Map())
+  const [awardPickerFor, setAwardPickerFor] = useState(null)
+  const [awardDetailsFor, setAwardDetailsFor] = useState(null)
+  const [awardDetails, setAwardDetails] = useState({})
+
   const canParticipate = !!userVote
 
   useEffect(() => {
@@ -560,6 +660,7 @@ export default function Conversation() {
           { data: commentsData },
           { data: resonances },
           { data: pins },
+          { data: remainingPoints },
         ] = await Promise.all([
           supabase
             .from('questions')
@@ -613,6 +714,14 @@ export default function Conversation() {
                 .select('comment_id')
                 .eq('user_id', user.id)
             : Promise.resolve({ data: null }),
+          // Comment Awards monthly balance (migration 105) -- read-only,
+          // computes what the balance would be after a lazy refill
+          // without writing it (the real refill only happens inside
+          // give_comment_award()), so this is never wrong across a month
+          // boundary even on a page that's been open a while.
+          user
+            ? supabase.rpc('get_remaining_award_points')
+            : Promise.resolve({ data: null }),
         ])
 
         setQuestion(q)
@@ -652,6 +761,7 @@ export default function Conversation() {
           previous_body: c.previous_body,
           previous_vote_choice: c.previous_vote_choice,
           edit_count: c.edit_count,
+          award_counts: c.award_counts,
           profiles: {
             first_name: c.first_name,
             last_initial: c.last_initial,
@@ -666,6 +776,7 @@ export default function Conversation() {
         if (user) {
           setUserResonances(new Set((resonances || []).map(r => r.comment_id)))
           setPinnedCommentIds(new Set((pins || []).map(p => p.comment_id)))
+          setRemainingAwardPoints(remainingPoints ?? 5)
         }
       } catch (err) {
         console.error(err)
@@ -985,6 +1096,66 @@ export default function Conversation() {
     alert('Thank you — this comment has been flagged for review.')
   }
 
+  // Comment Awards (migration 105) — opening the picker needs to know
+  // which award types THIS user has already given THIS comment (so
+  // AwardPicker can grey those out), fetched lazily per comment rather
+  // than for the whole thread up front. A direct table select, not an
+  // RPC — comment_awards' own "Users can view own given awards" RLS
+  // policy already scopes this to the caller's own rows, so there's
+  // nothing an RPC would add here.
+  async function openAwardPicker(commentId) {
+    if (!user) return
+    if (!myGivenAwards.has(commentId)) {
+      const { data } = await supabase
+        .from('comment_awards')
+        .select('award_type')
+        .eq('comment_id', commentId)
+        .eq('giver_id', user.id)
+      setMyGivenAwards(prev => new Map(prev).set(commentId, new Set((data || []).map(r => r.award_type))))
+    }
+    setAwardPickerFor(commentId)
+  }
+
+  // Thrown errors (not alert()-ed here) are caught by AwardPicker itself,
+  // which surfaces give_comment_award()'s own exception text (e.g. "Not
+  // enough awards remaining this month.") inline in the sheet rather than
+  // a disruptive alert() — unlike every other action on this page, this
+  // one has a real, expected failure mode (ran out of points) that isn't
+  // a bug, so it gets a gentler treatment.
+  async function giveAward(commentId, awardType) {
+    const { data, error } = await supabase.rpc('give_comment_award', {
+      p_comment_id: commentId,
+      p_award_type: awardType,
+    })
+    if (error) throw new Error(error.message)
+
+    setRemainingAwardPoints(data)
+    setComments(prev => prev.map(c => c.id === commentId
+      ? { ...c, award_counts: { ...(c.award_counts || {}), [awardType]: ((c.award_counts || {})[awardType] || 0) + 1 } }
+      : c
+    ))
+    setMyGivenAwards(prev => {
+      const next = new Map(prev)
+      next.set(commentId, new Set(next.get(commentId)).add(awardType))
+      return next
+    })
+    // Drop any cached "who gave this" list for this comment so the next
+    // time it's opened it refetches and includes the award just given.
+    setAwardDetails(prev => {
+      if (!(commentId in prev)) return prev
+      const next = { ...prev }
+      delete next[commentId]
+      return next
+    })
+  }
+
+  async function openAwardDetails(commentId) {
+    setAwardDetailsFor(commentId)
+    if (awardDetails[commentId]) return
+    const { data } = await supabase.rpc('get_comment_award_details', { p_comment_id: commentId })
+    setAwardDetails(prev => ({ ...prev, [commentId]: data || [] }))
+  }
+
   // Your own top-level comment, if you have one — pinned separately,
   // never shown again inside the regular ranked list below.
   const myComment = useMemo(() => {
@@ -1059,6 +1230,7 @@ export default function Conversation() {
     replyingTo, setReplyingTo, replyText, setReplyText,
     editingId, setEditingId, editText, setEditText, submitting,
     toggleResonate, shareComment, flagComment, deleteComment, updateComment, submitComment,
+    openAwardPicker, openAwardDetails,
   }
 
   if (loading) {
@@ -1248,6 +1420,22 @@ export default function Conversation() {
 
         </div>
       </div>
+
+      {awardPickerFor && (
+        <AwardPicker
+          remainingPoints={remainingAwardPoints ?? 0}
+          alreadyGiven={myGivenAwards.get(awardPickerFor) || new Set()}
+          onGive={(awardType) => giveAward(awardPickerFor, awardType)}
+          onClose={() => setAwardPickerFor(null)}
+        />
+      )}
+
+      {awardDetailsFor && (
+        <AwardDetailSheet
+          rows={awardDetails[awardDetailsFor]}
+          onClose={() => setAwardDetailsFor(null)}
+        />
+      )}
     </div>
   )
 }

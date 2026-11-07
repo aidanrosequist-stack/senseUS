@@ -12,6 +12,7 @@
 //   profiles(id, created_at, last_vote_at, streak_days, integrity_weight, country_code, badges)
 //   votes(id, question_id, user_id, created_at)
 //   integrity_events(id, user_id, event_type, details, reviewed, action_taken, created_at)
+//   comment_awards(id, comment_id, giver_id, award_type, created_at) — migration 105, read here only through get_top_awarded_comments()
 //
 // Usage: import into Admin.jsx and render as the default tab, e.g.
 //   <AdminDashboard supabase={supabase} />
@@ -26,6 +27,27 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+
+// Same display-name resolution Conversation.jsx's getDisplayName() uses,
+// duplicated here (not imported) since AdminDashboard has no existing
+// dependency on that page and the logic is three lines -- get_top_
+// awarded_comments() (migration 105) returns the flat first_name/
+// last_initial/display_preference/anon_name fields directly on each row
+// rather than a nested profile object, so this takes the row itself.
+function awardedCommentAuthorName(row) {
+  if (row.display_preference === "anon") return row.anon_name || "Anonymous";
+  if (row.display_preference === "first_only") return row.first_name;
+  return `${row.first_name}${row.last_initial ? ` ${row.last_initial}.` : ""}`;
+}
+
+// Comments can run long -- this card is a quick marketing-scan list, not
+// a place to read the whole thing, so anything past 90 chars gets an
+// ellipsis (clicking through to the real comment isn't wired up here;
+// Aidan can search the question/text combo if he wants the full thread).
+function truncate(text, max = 90) {
+  if (!text || text.length <= max) return text;
+  return `${text.slice(0, max).trimEnd()}…`;
+}
 
 function StatCard({ label, value }) {
   return (
@@ -91,6 +113,7 @@ export default function AdminDashboard({ supabase }) {
   const [voteSeries, setVoteSeries] = useState([]);
   const [topVotes, setTopVotes] = useState([]);
   const [topComments, setTopComments] = useState([]);
+  const [topAwarded, setTopAwarded] = useState([]);
   const [cardOrder, setCardOrder] = useState(loadCardOrder);
 
   const dragIndexRef = useRef(null);
@@ -126,6 +149,7 @@ export default function AdminDashboard({ supabase }) {
         { data: dailyActivity },
         { data: topVotesData },
         { data: topCommentsData },
+        { data: topAwardedData },
       ] = await Promise.all([
         supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", since24h),
         supabase.from("votes").select("*", { count: "exact", head: true }).gte("created_at", since24h),
@@ -141,6 +165,11 @@ export default function AdminDashboard({ supabase }) {
         // top-20/top-10 tables live on the Logs tab now.
         supabase.rpc("get_top_questions_by_votes", { p_limit: 5 }),
         supabase.rpc("get_top_questions_by_comments", { p_limit: 5 }),
+        // Most-Awarded Comments (migration 105) -- for Aidan's marketing
+        // highlight use ("track and perhaps highlight what comments have
+        // been awarded the most"), same condensed top-5 shape as the two
+        // snapshots above.
+        supabase.rpc("get_top_awarded_comments", { p_limit: 5 }),
       ]);
 
       setStats({
@@ -158,6 +187,11 @@ export default function AdminDashboard({ supabase }) {
       setVoteSeries((dailyActivity || []).map((d) => ({ date: d.day, count: Number(d.votes) })));
       setTopVotes((topVotesData || []).map((q) => ({ ...q, voteCount: Number(q.vote_count) })));
       setTopComments((topCommentsData || []).map((q) => ({ ...q, commentCount: Number(q.comment_count) })));
+      setTopAwarded((topAwardedData || []).map((c) => ({
+        ...c,
+        awardCount: Number(c.award_count),
+        goldStarCount: Number(c.gold_star_count),
+      })));
     } catch (err) {
       console.error("Dashboard load error:", err);
       setError("Couldn't load dashboard data. Check the console for details.");
@@ -298,7 +332,7 @@ export default function AdminDashboard({ supabase }) {
       </div>
 
       {/* Top-5 snapshots -- full top-20/top-10 tables live on the Logs tab */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
         <div style={{ background: "#fff", borderRadius: 8, padding: 20, border: "1px solid #eee" }}>
           <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>Top 5 Questions by Votes</div>
           {topVotes.length === 0 ? (
@@ -325,6 +359,30 @@ export default function AdminDashboard({ supabase }) {
                 <li key={q.id} style={{ marginBottom: 8 }}>
                   <span style={{ color: "#1a1a1a" }}>{q.text}</span>{" "}
                   <span style={{ color: "#888" }}>— {q.commentCount} comments</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+
+        {/* Comment Awards (migration 105) -- for marketing: which
+            comments have struck a chord, ranked by total awards
+            received. goldStarCount called out separately since Gold
+            Star is the one award Aidan specifically wants to be able to
+            say a comment "won." */}
+        <div style={{ background: "#fff", borderRadius: 8, padding: 20, border: "1px solid #eee" }}>
+          <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>Top 5 Most-Awarded Comments</div>
+          {topAwarded.length === 0 ? (
+            <div style={{ color: "#999", fontSize: 13 }}>No awards given yet.</div>
+          ) : (
+            <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+              {topAwarded.map((c) => (
+                <li key={c.id} style={{ marginBottom: 10 }}>
+                  <span style={{ color: "#1a1a1a" }}>“{truncate(c.body)}”</span>{" "}
+                  <span style={{ color: "#888" }}>
+                    — {awardedCommentAuthorName(c)}, {c.awardCount} award{c.awardCount === 1 ? "" : "s"}
+                    {c.goldStarCount > 0 ? ` (${c.goldStarCount} 🌟)` : ""}
+                  </span>
                 </li>
               ))}
             </ol>

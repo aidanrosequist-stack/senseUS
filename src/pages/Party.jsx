@@ -331,7 +331,16 @@ export default function Party() {
 
   async function sharePartyLink() {
     const url = `https://senseus.app/party/${token}`
-    const shareData = { title: 'senseUS', text: `Join my ${votingMeta?.partyName || '?Party!'} on senseUS — vote on a few questions and see how we compare.`, url }
+    // Wording matches Activity.jsx's own createParty() share text exactly
+    // -- see that file's own comment for the "called X" fallback reasoning.
+    const trimmedPartyName = votingMeta?.partyName?.trim()
+    const shareData = {
+      title: 'senseUS',
+      text: trimmedPartyName
+        ? `I made a ?Party! called ${trimmedPartyName}, and want your input! Click here to accept and vote!`
+        : 'I made a ?Party! and want your input! Click here to accept and vote!',
+      url,
+    }
     if (navigator.share) {
       try { await navigator.share(shareData) } catch { /* cancelled, not an error */ }
     } else {
