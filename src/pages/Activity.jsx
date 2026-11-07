@@ -589,13 +589,11 @@ export default function Activity() {
 
   function shareQuestion(question) {
     if (!question?.question_number) return
-    // ?ref=<your id> lets a resulting signup be attributed back to you —
-    // see useRegistration.js's completeRegistration() and migration
-    // 094_integrity_weight_sharing_and_comparing.sql.
-    const url = user?.id
-      ? `https://senseus.app/q/${question.question_number}?ref=${user.id}`
-      : `https://senseus.app/q/${question.question_number}`
+    // Share links no longer carry ?ref=<your id> (migration 108) — see
+    // VoteCard.jsx's shareQuestion() comment for the full reasoning.
+    const url = `https://senseus.app/q/${question.question_number}`
     const shareData = { title: 'senseUS', text: 'What do you think?', url }
+    supabase.rpc('claim_share').catch(() => {})
     if (navigator.share) {
       navigator.share(shareData).catch(() => {})
     } else {
@@ -605,9 +603,9 @@ export default function Activity() {
 
   function shareComment(comment) {
     if (!comment.questions?.question_number) return
-    const base = `https://senseus.app/q/${comment.questions.question_number}`
-    const url = user?.id ? `${base}?ref=${user.id}#comment-${comment.id}` : `${base}#comment-${comment.id}`
+    const url = `https://senseus.app/q/${comment.questions.question_number}#comment-${comment.id}`
     const shareData = { title: 'senseUS', text: 'Join the conversation on senseUS', url }
+    supabase.rpc('claim_share').catch(() => {})
     if (navigator.share) {
       navigator.share(shareData).catch(() => {})
     } else {
@@ -1071,6 +1069,11 @@ export default function Activity() {
         : 'I made a ?Party! and want your input! Click here to accept and vote!',
       url,
     }
+
+    // Counts toward the sharing integrity-weight bonus the moment this
+    // fires (migration 108) — same as every other Share button in the
+    // app, regardless of whether the share sheet below is completed.
+    supabase.rpc('claim_share').catch(() => {})
 
     if (navigator.share) {
       try {

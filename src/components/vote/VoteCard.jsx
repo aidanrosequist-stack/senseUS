@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { IconThumbUp, IconThumbDown, IconBulb, IconMessageCircle, IconShare } from '@tabler/icons-react'
 import PinButton from '../ui/PinButton'
 import PartyAddButton from '../ui/PartyAddButton'
-import { useAuth } from '../../hooks/useAuth'
 import { playSound, getAudioContext } from '../../lib/sound'
+import { supabase } from '../../lib/supabase'
 
 // Tier 2 ("wash") — updated 2026-09-03 (second pass) to reuse the vote
 // buttons' own backfill colors below (see `bg` in the button styles further
@@ -88,7 +88,6 @@ function ProgressRing({ progress }) {
 }
 
 export default function VoteCard({ question, onVote, onRetract, onSkip, onMakeUpMyMind, onViewConversation, onHideQuestion, showHint = false, initialZone = null, myChoice = null, submitting = false, submittingLabel = 'Saving your vote...', voteError = null, onDismissError, enterFromAbove = false, pinned = false, onTogglePin, partyAdded = false, onToggleParty }) {
-  const { user } = useAuth()
   const [zone, setZone] = useState(initialZone)
 
   // One-shot "settle in" entrance for the swipe-down-to-recover gesture
@@ -427,17 +426,24 @@ useEffect(() => {
 
   async function shareQuestion() {
     if (!question?.question_number) return
-    // ?ref=<your id> lets a resulting signup be attributed back to you —
-    // see useRegistration.js's completeRegistration() and migration
-    // 094_integrity_weight_sharing_and_comparing.sql.
-    const url = user?.id
-      ? `https://senseus.app/q/${question.question_number}?ref=${user.id}`
-      : `https://senseus.app/q/${question.question_number}`
+    // Share links no longer carry ?ref=<your id> (migration 108) — the
+    // sharing integrity-weight bonus is now credited the moment this
+    // handler fires (see the claim_share() call below), not on a
+    // resulting signup, so there's nothing left to attribute back to you.
+    const url = `https://senseus.app/q/${question.question_number}`
     const shareData = {
       title: 'senseUS',
       text: 'Vote on this question on senseUS',
       url,
     }
+
+    // Fire-and-forget, same reasoning as every other claim_*() call in
+    // this codebase: a write-once RPC that just returns false (never
+    // raises) once already claimed, so it can never block or surface an
+    // error here. Fires regardless of whether the share sheet below is
+    // actually completed or cancelled — see migration 108's header for
+    // why that's the deliberate design now, not an oversight.
+    supabase.rpc('claim_share').catch(() => {})
 
     if (navigator.share) {
       try {

@@ -341,6 +341,10 @@ export default function Party() {
         : 'I made a ?Party! and want your input! Click here to accept and vote!',
       url,
     }
+    // Counts toward the sharing integrity-weight bonus the moment this
+    // fires (migration 108) — same as every other Share button in the
+    // app, regardless of whether the share sheet below is completed.
+    supabase.rpc('claim_share').catch(() => {})
     if (navigator.share) {
       try { await navigator.share(shareData) } catch { /* cancelled, not an error */ }
     } else {
