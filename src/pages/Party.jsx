@@ -346,12 +346,21 @@ export default function Party() {
     // app, regardless of whether the share sheet below is completed.
     supabase.rpc('claim_share').catch(() => {})
     if (navigator.share) {
-      try { await navigator.share(shareData) } catch { /* cancelled, not an error */ }
+      try {
+        await navigator.share(shareData)
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          console.error('navigator.share failed:', err)
+          alert(`Couldn't open the share sheet (${err?.message || err?.name || 'unknown error'}). Here's the link:\n\n${url}`)
+        }
+      }
     } else {
       try {
         await navigator.clipboard.writeText(url)
         alert('Party invite link copied to clipboard!')
-      } catch {
+      } catch (err) {
+        console.error('Clipboard write failed:', err)
+        alert(`Couldn't copy automatically. Here's the link:\n\n${url}`)
         prompt('Copy this link:', url)
       }
     }

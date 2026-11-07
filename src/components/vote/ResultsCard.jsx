@@ -120,8 +120,11 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
     if (navigator.share) {
       try {
         await navigator.share(shareData)
-      } catch {
-        // User cancelled the share sheet — not an error, do nothing
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          console.error('navigator.share failed:', err)
+          alert(`Couldn't open the share sheet (${err?.message || err?.name || 'unknown error'}). Here's the link:\n\n${url}`)
+        }
       }
       return
     }
@@ -129,7 +132,9 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
     try {
       await navigator.clipboard.writeText(url)
       alert('Link copied to clipboard!')
-    } catch {
+    } catch (err) {
+      console.error('Clipboard write failed:', err)
+      alert(`Couldn't copy automatically. Here's the link:\n\n${url}`)
       prompt('Copy this link:', url)
     }
   }

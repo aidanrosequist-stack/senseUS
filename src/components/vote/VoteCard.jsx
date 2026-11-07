@@ -448,8 +448,16 @@ useEffect(() => {
     if (navigator.share) {
       try {
         await navigator.share(shareData)
-      } catch {
-        // User cancelled the share sheet — not an error, do nothing
+      } catch (err) {
+        // AbortError = user cancelled the share sheet, not a real error.
+        // Anything else was being swallowed completely silently before —
+        // no console log, no visible sign anything went wrong — which is
+        // exactly what made a real failure here indistinguishable from
+        // "nothing happened." Surfacing it for real now.
+        if (err?.name !== 'AbortError') {
+          console.error('navigator.share failed:', err)
+          alert(`Couldn't open the share sheet (${err?.message || err?.name || 'unknown error'}). Here's the link:\n\n${url}`)
+        }
       }
       return
     }
@@ -457,7 +465,13 @@ useEffect(() => {
     try {
       await navigator.clipboard.writeText(url)
       alert('Link copied to clipboard!')
-    } catch {
+    } catch (err) {
+      // window.prompt() can silently no-op in some WebView contexts
+      // instead of throwing or showing anything — alert() is far more
+      // reliably supported, so lead with a visible fallback that at
+      // least always shows the link, then still try prompt() too.
+      console.error('Clipboard write failed:', err)
+      alert(`Couldn't copy automatically. Here's the link:\n\n${url}`)
       prompt('Copy this link:', url)
     }
   }

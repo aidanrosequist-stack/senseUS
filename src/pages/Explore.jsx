@@ -233,9 +233,22 @@ export default function Explore() {
     const shareData = { title: 'senseUS', text: 'What do you think?', url }
     supabase.rpc('claim_share').catch(() => {})
     if (navigator.share) {
-      navigator.share(shareData).catch(() => {})
+      navigator.share(shareData).catch((err) => {
+        // AbortError = user cancelled, not a real error. Anything else
+        // was being swallowed completely silently before — surfacing it
+        // for real now so a genuine failure is never indistinguishable
+        // from the button just doing nothing.
+        if (err?.name !== 'AbortError') {
+          console.error('navigator.share failed:', err)
+          alert(`Couldn't open the share sheet (${err?.message || err?.name || 'unknown error'}). Here's the link:\n\n${url}`)
+        }
+      })
     } else {
-      navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!')).catch(() => prompt('Copy this link:', url))
+      navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!')).catch((err) => {
+        console.error('Clipboard write failed:', err)
+        alert(`Couldn't copy automatically. Here's the link:\n\n${url}`)
+        prompt('Copy this link:', url)
+      })
     }
   }
 
