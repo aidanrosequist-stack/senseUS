@@ -437,6 +437,12 @@ useEffect(() => {
       url,
     }
 
+    // TEMPORARY bisecting diagnostic (2026-11-08) — remove once the
+    // share-regression root cause is confirmed. Reports back exactly
+    // where execution stops: before/after the claim_share() call, and
+    // immediately before calling navigator.share() itself.
+    alert('DEBUG 1: about to call claim_share')
+
     // Fire-and-forget, same reasoning as every other claim_*() call in
     // this codebase: a write-once RPC that just returns false (never
     // raises) once already claimed, so it can never block or surface an
@@ -445,9 +451,13 @@ useEffect(() => {
     // why that's the deliberate design now, not an oversight.
     supabase.rpc('claim_share').catch(() => {})
 
+    alert('DEBUG 2: claim_share called, checking navigator.share')
+
     if (navigator.share) {
+      alert('DEBUG 3: about to call navigator.share')
       try {
         await navigator.share(shareData)
+        alert('DEBUG 4: navigator.share resolved successfully')
       } catch (err) {
         // AbortError = user cancelled the share sheet, not a real error.
         // Anything else was being swallowed completely silently before —
