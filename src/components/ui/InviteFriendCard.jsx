@@ -29,7 +29,18 @@ export default function InviteFriendCard() {
       // Aidan's device.
       try {
         const sharePromise = navigator.share(shareData)
-        supabase.rpc('claim_share').catch(() => {})
+        // Wrapped in Promise.resolve() -- the builder .rpc() returns is
+        // only a bare "thenable" (implements .then(), not .catch()) when
+        // called with no params, which makes .catch() chained directly
+        // onto it throw synchronously ("...rpc(...).catch is not a
+        // function") -- caught live on Aidan's device (2026-11-08) once
+        // this call was moved inside navigator.share()'s own try/catch,
+        // where it got misreported as a share-sheet failure even though
+        // the share itself had already succeeded. Promise.resolve(...)
+        // coerces it into a real native Promise first, so .catch() is
+        // always safe to chain regardless of what the builder itself
+        // implements.
+        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
         await sharePromise
       } catch (err) {
         if (err?.name !== 'AbortError') {

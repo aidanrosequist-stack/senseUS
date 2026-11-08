@@ -259,7 +259,10 @@ export default function Explore() {
       // 108) is unaffected by moving it a few lines later.
       try {
         const sharePromise = navigator.share(shareData)
-        supabase.rpc('claim_share').catch(() => {})
+        // Promise.resolve(...) wrap: see InviteFriendCard.jsx's invite()
+        // comment -- .rpc() with no params returns a bare thenable
+        // that doesn't implement .catch() in this build.
+        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
         await sharePromise
       } catch (err) {
         // AbortError = user cancelled, not a real error.

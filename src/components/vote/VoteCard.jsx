@@ -453,7 +453,11 @@ useEffect(() => {
         // in this codebase: a write-once RPC that just returns false
         // (never raises) once already claimed, so it can never block or
         // surface an error here.
-        supabase.rpc('claim_share').catch(() => {})
+        // Promise.resolve(...) wrap: see InviteFriendCard.jsx's invite()
+        // comment -- .rpc() with no params returns a bare thenable
+        // that doesn't implement .catch() in this build, so chaining
+        // .catch() directly onto it throws synchronously.
+        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
         await sharePromise
       } catch (err) {
         // AbortError = user cancelled the share sheet, not a real error.

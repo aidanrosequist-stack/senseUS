@@ -350,7 +350,10 @@ export default function Party() {
       // break the call itself.
       try {
         const sharePromise = navigator.share(shareData)
-        supabase.rpc('claim_share').catch(() => {})
+        // Promise.resolve(...) wrap: see InviteFriendCard.jsx's invite()
+        // comment -- .rpc() with no params returns a bare thenable
+        // that doesn't implement .catch() in this build.
+        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
         await sharePromise
       } catch (err) {
         if (err?.name !== 'AbortError') {

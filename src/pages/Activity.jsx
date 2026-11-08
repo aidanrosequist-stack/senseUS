@@ -614,7 +614,10 @@ export default function Activity() {
       // (migration 108) is unaffected.
       try {
         const sharePromise = navigator.share(shareData)
-        supabase.rpc('claim_share').catch(() => {})
+        // Promise.resolve(...) wrap: see InviteFriendCard.jsx's invite()
+        // comment -- .rpc() with no params returns a bare thenable
+        // that doesn't implement .catch() in this build.
+        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
         await sharePromise
       } catch (err) {
         if (err?.name !== 'AbortError') {
@@ -640,10 +643,10 @@ export default function Activity() {
     const shareData = { title: 'senseUS', text: 'Join the conversation on senseUS', url }
     if (navigator.share) {
       // See shareQuestion() above — same sync-throw fix, and same
-      // claim_share()-ordering fix.
+      // claim_share()-ordering/wrap fix.
       try {
         const sharePromise = navigator.share(shareData)
-        supabase.rpc('claim_share').catch(() => {})
+        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
         await sharePromise
       } catch (err) {
         if (err?.name !== 'AbortError') {
@@ -1129,7 +1132,10 @@ export default function Activity() {
       // break the call itself.
       try {
         const sharePromise = navigator.share(shareData)
-        supabase.rpc('claim_share').catch(() => {})
+        // Promise.resolve(...) wrap: see InviteFriendCard.jsx's invite()
+        // comment -- .rpc() with no params returns a bare thenable
+        // that doesn't implement .catch() in this build.
+        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
         await sharePromise
       } catch (err) {
         if (err?.name !== 'AbortError') {

@@ -136,7 +136,16 @@ useEffect(() => {
       // error during registration.
       const refParam = new URLSearchParams(window.location.search).get('ref')
       if (refParam) {
-        supabase.rpc('claim_referral', { p_referrer_id: refParam }).catch(() => {
+        // Promise.resolve(...) wrap (2026-11-08): see
+        // InviteFriendCard.jsx's invite() comment for the full
+        // reasoning -- found via claim_share()'s identical
+        // .rpc(...).catch() pattern throwing "...catch is not a
+        // function" live. This exact call site had the same latent bug
+        // but never surfaced it in practice, since no link has carried
+        // ?ref= since migration 108 removed it -- refParam is always
+        // null now, so this branch hasn't actually run. Fixed anyway in
+        // case an old shared/bookmarked link with ?ref= still shows up.
+        Promise.resolve(supabase.rpc('claim_referral', { p_referrer_id: refParam })).catch(() => {
           // Silent fail — see comment above
         })
       }
