@@ -1,5 +1,4 @@
 import { useAuth } from '../../hooks/useAuth'
-// eslint-disable-next-line no-unused-vars -- supabase's only use (claim_share()) is temporarily commented out below while testing the share regression; re-enable both together
 import { supabase } from '../../lib/supabase'
 
 // Surfaces a plain "invite a friend" entry point behind an explicit,
@@ -23,14 +22,15 @@ export default function InviteFriendCard() {
     const url = `https://senseus.app/register`
     const shareData = { title: 'senseUS', text: 'Join me on senseUS — real humans, real opinions, real truth.', url }
 
-    // TEMPORARY (2026-11-08): disabled to test whether this call is the
-    // cause of the share regression — see VoteCard.jsx's shareQuestion()
-    // comment for the full reasoning.
-    // supabase.rpc('claim_share').catch(() => {})
-
     if (navigator.share) {
+      // See VoteCard.jsx's shareQuestion() comment: navigator.share()
+      // must be called before claim_share(), not after — calling
+      // claim_share() first was itself breaking this exact button on
+      // Aidan's device.
       try {
-        await navigator.share(shareData)
+        const sharePromise = navigator.share(shareData)
+        supabase.rpc('claim_share').catch(() => {})
+        await sharePromise
       } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)

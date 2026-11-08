@@ -1017,11 +1017,13 @@ export default function Conversation() {
       url,
     }
 
-    supabase.rpc('claim_share').catch(() => {})
-
     if (navigator.share) {
+      // navigator.share() must be called before claim_share(), not
+      // after — see VoteCard.jsx's shareQuestion() comment.
       try {
-        await navigator.share(shareData)
+        const sharePromise = navigator.share(shareData)
+        supabase.rpc('claim_share').catch(() => {})
+        await sharePromise
       } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)

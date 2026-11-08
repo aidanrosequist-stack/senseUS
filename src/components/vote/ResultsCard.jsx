@@ -115,11 +115,15 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
     const url = `https://senseus.app/q/${question.question_number}`
     const shareData = { title: 'senseUS', text: 'I just voted on this — what do you think?', url }
 
-    supabase.rpc('claim_share').catch(() => {})
-
     if (navigator.share) {
+      // navigator.share() must be called before claim_share(), not
+      // after — see VoteCard.jsx's shareQuestion() comment. Calling
+      // claim_share() first was breaking navigator.share() on Aidan's
+      // device for every handler that did it that way.
       try {
-        await navigator.share(shareData)
+        const sharePromise = navigator.share(shareData)
+        supabase.rpc('claim_share').catch(() => {})
+        await sharePromise
       } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)

@@ -3,7 +3,6 @@ import { IconThumbUp, IconThumbDown, IconBulb, IconMessageCircle, IconShare } fr
 import PinButton from '../ui/PinButton'
 import PartyAddButton from '../ui/PartyAddButton'
 import { playSound, getAudioContext } from '../../lib/sound'
-// eslint-disable-next-line no-unused-vars -- supabase's only use (claim_share()) is temporarily commented out below while testing the share regression; re-enable both together
 import { supabase } from '../../lib/supabase'
 
 // Tier 2 ("wash") — updated 2026-09-03 (second pass) to reuse the vote
@@ -438,19 +437,24 @@ useEffect(() => {
       url,
     }
 
-    // TEMPORARY (2026-11-08): claim_share() call disabled to test whether
-    // it's the cause of the share regression reported across every
-    // handler this RPC call was added to (VoteCard, InviteFriendCard, and
-    // presumably the rest) — all of which stopped working the moment
-    // migration 108 added this exact call, and nothing else they have in
-    // common changed. If share works again with this commented out,
-    // that confirms it and we fix claim_share()/its call site for real
-    // instead of reverting the feature.
-    // supabase.rpc('claim_share').catch(() => {})
-
     if (navigator.share) {
+      // navigator.share() must be the very first thing that happens in
+      // this handler — calling claim_share() (or anything else) before
+      // it was itself breaking the share call on Aidan's device
+      // (confirmed 2026-11-08: this exact button started working the
+      // instant that call was removed, and broke again the moment it was
+      // restored ahead of navigator.share()). claim_share() still fires
+      // unconditionally right after, regardless of how the share below
+      // resolves, so "credit on click regardless of completion"
+      // (migration 108) is unaffected by the reordering.
       try {
-        await navigator.share(shareData)
+        const sharePromise = navigator.share(shareData)
+        // Fire-and-forget, same reasoning as every other claim_*() call
+        // in this codebase: a write-once RPC that just returns false
+        // (never raises) once already claimed, so it can never block or
+        // surface an error here.
+        supabase.rpc('claim_share').catch(() => {})
+        await sharePromise
       } catch (err) {
         // AbortError = user cancelled the share sheet, not a real error.
         // Anything else was being swallowed completely silently before —

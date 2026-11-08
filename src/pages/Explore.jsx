@@ -231,7 +231,6 @@ export default function Explore() {
     // VoteCard.jsx's shareQuestion() comment for the full reasoning.
     const url = `https://senseus.app/q/${question.question_number}`
     const shareData = { title: 'senseUS', text: 'What do you think?', url }
-    supabase.rpc('claim_share').catch(() => {})
     if (navigator.share) {
       // try/await/catch, not .catch() chained onto the call — found via
       // Aidan's real-device repro (2026-11-08): on his phone's mobile
@@ -246,8 +245,22 @@ export default function Explore() {
       // forms the same way, which is what every other share handler in
       // the app (VoteCard, ResultsCard, Conversation, Activity's party
       // share, Party, InviteFriendCard) already did correctly.
+      //
+      // claim_share() now fires AFTER starting the share call, not
+      // before (2026-11-08) — confirmed via Aidan's device that calling
+      // it first was itself breaking navigator.share() (VoteCard's and
+      // InviteFriendCard's identical buttons started working the instant
+      // that call was removed/disabled; this call site was still broken
+      // with it left in). navigator.share()'s call itself must be the
+      // very first thing that happens in the handler for whatever the
+      // browser's activation check here requires; claim_share() still
+      // fires unconditionally and doesn't block or wait on the share
+      // outcome, so "credit on click regardless of completion" (migration
+      // 108) is unaffected by moving it a few lines later.
       try {
-        await navigator.share(shareData)
+        const sharePromise = navigator.share(shareData)
+        supabase.rpc('claim_share').catch(() => {})
+        await sharePromise
       } catch (err) {
         // AbortError = user cancelled, not a real error.
         if (err?.name !== 'AbortError') {

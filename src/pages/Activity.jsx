@@ -593,7 +593,6 @@ export default function Activity() {
     // VoteCard.jsx's shareQuestion() comment for the full reasoning.
     const url = `https://senseus.app/q/${question.question_number}`
     const shareData = { title: 'senseUS', text: 'What do you think?', url }
-    supabase.rpc('claim_share').catch(() => {})
     if (navigator.share) {
       // try/await/catch, not .catch() chained onto the call — on Aidan's
       // real device, navigator.share() was throwing SYNCHRONOUSLY rather
@@ -605,8 +604,18 @@ export default function Activity() {
       // closed and no error ever surfaced. await-ing inside try/catch
       // catches both forms the same way, matching every other share
       // handler in the app.
+      //
+      // claim_share() now fires AFTER starting the share call, not
+      // before (2026-11-08) — calling it first was itself breaking
+      // navigator.share() on Aidan's device (confirmed via VoteCard's
+      // and InviteFriendCard's identical buttons, which started working
+      // the instant that call was removed). Still fires unconditionally
+      // right after, so "credit on click regardless of completion"
+      // (migration 108) is unaffected.
       try {
-        await navigator.share(shareData)
+        const sharePromise = navigator.share(shareData)
+        supabase.rpc('claim_share').catch(() => {})
+        await sharePromise
       } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)
@@ -629,11 +638,13 @@ export default function Activity() {
     if (!comment.questions?.question_number) return
     const url = `https://senseus.app/q/${comment.questions.question_number}#comment-${comment.id}`
     const shareData = { title: 'senseUS', text: 'Join the conversation on senseUS', url }
-    supabase.rpc('claim_share').catch(() => {})
     if (navigator.share) {
-      // See shareQuestion() above — same sync-throw fix.
+      // See shareQuestion() above — same sync-throw fix, and same
+      // claim_share()-ordering fix.
       try {
-        await navigator.share(shareData)
+        const sharePromise = navigator.share(shareData)
+        supabase.rpc('claim_share').catch(() => {})
+        await sharePromise
       } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)
@@ -1109,14 +1120,17 @@ export default function Activity() {
       url,
     }
 
-    // Counts toward the sharing integrity-weight bonus the moment this
-    // fires (migration 108) — same as every other Share button in the
-    // app, regardless of whether the share sheet below is completed.
-    supabase.rpc('claim_share').catch(() => {})
-
     if (navigator.share) {
+      // navigator.share() must be called before claim_share(), not
+      // after — see VoteCard.jsx's shareQuestion() comment. The bonus
+      // still counts toward the sharing integrity-weight bonus the
+      // moment this fires (migration 108), regardless of whether the
+      // share sheet below is completed — just ordered so it doesn't
+      // break the call itself.
       try {
-        await navigator.share(shareData)
+        const sharePromise = navigator.share(shareData)
+        supabase.rpc('claim_share').catch(() => {})
+        await sharePromise
       } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)
