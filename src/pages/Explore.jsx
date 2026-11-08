@@ -226,6 +226,11 @@ export default function Explore() {
   )
 
   function shareQuestionCard(question) {
+    // TEMPORARY DIAGNOSTIC (remove once the "Share does nothing" bug is
+    // found) -- proves definitively whether this handler is even being
+    // invoked at all, before anything else (including the early-return
+    // guard below) has a chance to silently swallow it.
+    alert('DEBUG: shareQuestionCard called, question_number=' + question?.question_number)
     if (!question?.question_number) return
     // Share links no longer carry ?ref=<your id> (migration 108) — see
     // VoteCard.jsx's shareQuestion() comment for the full reasoning.
