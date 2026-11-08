@@ -587,7 +587,7 @@ export default function Activity() {
     setLoadedTabs(prev => { const s = new Set(prev); s.delete('party'); return s })
   }
 
-  function shareQuestion(question) {
+  async function shareQuestion(question) {
     if (!question?.question_number) return
     // Share links no longer carry ?ref=<your id> (migration 108) — see
     // VoteCard.jsx's shareQuestion() comment for the full reasoning.
@@ -595,39 +595,60 @@ export default function Activity() {
     const shareData = { title: 'senseUS', text: 'What do you think?', url }
     supabase.rpc('claim_share').catch(() => {})
     if (navigator.share) {
-      navigator.share(shareData).catch((err) => {
+      // try/await/catch, not .catch() chained onto the call — on Aidan's
+      // real device, navigator.share() was throwing SYNCHRONOUSLY rather
+      // than returning a rejected promise. A bare `.catch()` never even
+      // gets attached when the call itself throws, so the exception
+      // propagated straight up through this handler and into the
+      // longpress menu's own onClick wrapper (CardActionSheet.jsx:
+      // `action.onClick(); onClose()`), which is why the menu never
+      // closed and no error ever surfaced. await-ing inside try/catch
+      // catches both forms the same way, matching every other share
+      // handler in the app.
+      try {
+        await navigator.share(shareData)
+      } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)
           alert(`Couldn't open the share sheet (${err?.message || err?.name || 'unknown error'}). Here's the link:\n\n${url}`)
         }
-      })
-    } else {
-      navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!')).catch((err) => {
-        console.error('Clipboard write failed:', err)
-        alert(`Couldn't copy automatically. Here's the link:\n\n${url}`)
-        prompt('Copy this link:', url)
-      })
+      }
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      alert('Link copied to clipboard!')
+    } catch (err) {
+      console.error('Clipboard write failed:', err)
+      alert(`Couldn't copy automatically. Here's the link:\n\n${url}`)
+      prompt('Copy this link:', url)
     }
   }
 
-  function shareComment(comment) {
+  async function shareComment(comment) {
     if (!comment.questions?.question_number) return
     const url = `https://senseus.app/q/${comment.questions.question_number}#comment-${comment.id}`
     const shareData = { title: 'senseUS', text: 'Join the conversation on senseUS', url }
     supabase.rpc('claim_share').catch(() => {})
     if (navigator.share) {
-      navigator.share(shareData).catch((err) => {
+      // See shareQuestion() above — same sync-throw fix.
+      try {
+        await navigator.share(shareData)
+      } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)
           alert(`Couldn't open the share sheet (${err?.message || err?.name || 'unknown error'}). Here's the link:\n\n${url}`)
         }
-      })
-    } else {
-      navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!')).catch((err) => {
-        console.error('Clipboard write failed:', err)
-        alert(`Couldn't copy automatically. Here's the link:\n\n${url}`)
-        prompt('Copy this link:', url)
-      })
+      }
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      alert('Link copied to clipboard!')
+    } catch (err) {
+      console.error('Clipboard write failed:', err)
+      alert(`Couldn't copy automatically. Here's the link:\n\n${url}`)
+      prompt('Copy this link:', url)
     }
   }
 
