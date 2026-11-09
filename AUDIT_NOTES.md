@@ -30,7 +30,7 @@ there. This was confirmed during the 2026-07-27 audit and remains true.
 
 Vote counts for yes/ly/ln/no are **integrity-weighted** — each vote is multiplied by
 the voter's `integrity_weight_at_vote` (the weight at the time they cast their vote,
-range 1.0000–1.0050). This means a more engaged user's vote counts very slightly more.
+range 1.0000–1.0100). This means a more engaged user's vote counts very slightly more.
 
 The `total` field is a **raw unweighted count** of distinct humans who answered.
 This is intentional — "X verified humans answered" should reflect actual headcount,
@@ -53,7 +53,7 @@ where question_id = '<question_id>';
 ## Integrity Weight System
 
 ### Design Principles
-- Range: 1.0000 (baseline) to 1.0050 (maximum)
+- Range: 1.0000 (baseline) to 1.0100 (maximum)
 - **Upward only** — weight can never decrease. Enforced by the `greatest()` ratchet
   in `calculate_all_integrity_weights()`
 - All-time counts — uses total lifetime votes and comments, not a rolling window
@@ -66,9 +66,16 @@ where question_id = '<question_id>';
 | 25+ lifetime votes | +0.0010 |
 | 50+ lifetime votes | +0.0020 |
 | 5+ lifetime comments | +0.0005 |
-| 10+ lifetime comments | +0.0005 |
-| 7+ day streak | +0.0005 |
-| **Maximum** | **1.0050** |
+| 10+ lifetime comments | +0.0010 |
+| Voted on 7+ distinct days | +0.0010 |
+| Voted in 3+ distinct months | +0.0020 |
+| Sent a comparison invite (migration 096) | +0.0010 |
+| ?Party list question or hosted party (migration 111) | +0.0010 |
+| **Maximum** | **1.0100** |
+
+Accounts flagged as VOIP lines (migration 010) stay at 1.0000 until 30 days
+and 20 votes have passed. The sharing bonus (migrations 094/108) was removed
+in migration 110; accounts that had already earned it keep their weight.
 
 ### The Ratchet
 ```sql
@@ -321,7 +328,7 @@ every write, ignoring whatever the client sends. `integrity_weight_at_vote`
 is pulled from `profiles.integrity_weight` at first vote only (preserved
 as-is on vote changes, matching existing documented behavior above). The
 pct fields are recomputed from the live weighted tally. A `CHECK` constraint
-(`integrity_weight_at_vote between 1.0000 and 1.0050`) backstops the trigger
+(`integrity_weight_at_vote between 1.0000 and 1.0050`, widened to 1.0100 in migration 094) backstops the trigger
 independently, along with a `valid_choice` constraint restricting `choice`
 to `yes/ly/ln/no/dec`.
 

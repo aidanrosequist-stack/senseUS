@@ -141,6 +141,7 @@ async function openIntegrityInfo() {
       consistent: (data?.distinct_vote_days || 0) >= 7,
       sustained: (data?.distinct_vote_months || 0) >= 3,
       compared: (data?.verified_comparison_count || 0) >= 1,
+      partied: (data?.party_activity || 0) >= 1,
     })
   }
 
@@ -560,6 +561,7 @@ async function openIntegrityInfo() {
                   { label: 'Be consistent', done: integrityStatus.consistent, started: integrityStatus.consistent },
                   { label: 'Stay active over time', done: integrityStatus.sustained, started: integrityStatus.sustained },
                   { label: 'Compare with a friend', done: integrityStatus.compared, started: integrityStatus.compared },
+                  { label: 'Plan a ?Party!', done: integrityStatus.partied, started: integrityStatus.partied },
                 ].map(item => (
                   <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div

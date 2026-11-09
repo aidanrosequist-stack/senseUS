@@ -161,13 +161,13 @@ export default function Transparency() {
 
       {/* Section 4 */}
       <Section title="4. How Integrity Weighting Works">
-        {p("Every senseUS account starts with an integrity weight of 1.0000. This weight can increase slightly — up to a maximum of 1.0050 — based on verified participation. Weights only go up; they never decrease as a penalty.")}
+        {p("Every senseUS account starts with an integrity weight of 1.0000. This weight can increase slightly — up to a maximum of 1.0100 — based on verified participation over your whole time here. Weights only go up; they never decrease as a penalty.")}
         {p("The current algorithm, recalculated daily:")}
         <div style={{ background: '#F9FAFB', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '1rem', marginBottom: '0.75rem' }}>
           <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '6px 8px', color: '#6B7280', fontWeight: 500, borderBottom: '1px solid #E5E7EB' }}>Activity (last 30 days)</th>
+                <th style={{ textAlign: 'left', padding: '6px 8px', color: '#6B7280', fontWeight: 500, borderBottom: '1px solid #E5E7EB' }}>Activity (lifetime)</th>
                 <th style={{ textAlign: 'right', padding: '6px 8px', color: '#6B7280', fontWeight: 500, borderBottom: '1px solid #E5E7EB' }}>Weight added</th>
               </tr>
             </thead>
@@ -178,8 +178,11 @@ export default function Transparency() {
                 ['25+ votes', '+0.0010'],
                 ['50+ votes', '+0.0020'],
                 ['5+ comments', '+0.0005'],
-                ['10+ comments', '+0.0005'],
-                ['7+ day voting streak', '+0.0005'],
+                ['10+ comments', '+0.0010'],
+                ['Voted on 7+ different days', '+0.0010'],
+                ['Voted in 3+ different months', '+0.0020'],
+                ['Sent a "Compare with a friend" invite', '+0.0010'],
+                ['Added a question to a ?Party! list, or hosted a ?Party!', '+0.0010'],
               ].map(([activity, weight]) => (
                 <tr key={activity}>
                   <td style={{ padding: '6px 8px', color: '#374151', borderBottom: '0.5px solid #F3F4F6' }}>{activity}</td>
@@ -188,12 +191,12 @@ export default function Transparency() {
               ))}
               <tr>
                 <td style={{ padding: '6px 8px', color: '#374151', fontWeight: 700 }}>Maximum possible</td>
-                <td style={{ padding: '6px 8px', color: '#2D3DCA', fontWeight: 700, textAlign: 'right' }}>1.0050</td>
+                <td style={{ padding: '6px 8px', color: '#2D3DCA', fontWeight: 700, textAlign: 'right' }}>1.0100</td>
               </tr>
             </tbody>
           </table>
         </div>
-        {p("This means that even the most active user's vote carries only 0.5% more weight than a brand new account. No individual voice is suppressed or silenced — the weighting exists solely to give verified long-term participation a slight edge over potential coordinated new-account manipulation.")}
+        {p("This means that even the most active user's vote carries only 1% more weight than a brand new account. No individual voice is suppressed or silenced — the weighting exists solely to give verified long-term participation a slight edge over potential coordinated new-account manipulation.")}
       </Section>
 
       {/* Section 5 */}

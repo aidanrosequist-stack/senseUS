@@ -127,8 +127,8 @@ export default function HowItWorks() {
 
       <Detail title="The integrity weighting system — what 'one voice' really means">
         <p>senseUS uses the phrase <em>one person, one account, one voice</em> — not "one vote." That distinction is deliberate and worth explaining.</p>
-        <p style={{ marginTop: '0.75rem' }}>Every verified account starts with an integrity weight of 1.0000. Through consistent, verified participation over time, that weight can increase slightly — up to a maximum of 1.0050. Weights only go up; they never go down as a penalty.</p>
-        <p style={{ marginTop: '0.75rem' }}>This means that in practice, a long-standing verified user's vote carries very slightly more weight than a brand new account — by at most 0.5%. It's a small upward nudge for trust, not a meaningful inequality. No individual's voice is suppressed or silenced.</p>
+        <p style={{ marginTop: '0.75rem' }}>Every verified account starts with an integrity weight of 1.0000. Through consistent, verified participation over time, that weight can increase slightly — up to a maximum of 1.0100. Weights only go up; they never go down as a penalty.</p>
+        <p style={{ marginTop: '0.75rem' }}>This means that in practice, a long-standing verified user's vote carries very slightly more weight than a brand new account — by at most 1%. It's a small upward nudge for trust, not a meaningful inequality. No individual's voice is suppressed or silenced.</p>
         <p style={{ marginTop: '0.75rem' }}>The weighting system exists to reward genuine participation and to give our data slightly more resistance to coordinated new-account manipulation. It is transparent, documented here, and subject to third-party audit.</p>
       </Detail>
 

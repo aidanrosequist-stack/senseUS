@@ -221,12 +221,12 @@ serve(async (req: Request) => {
       votes: Number(r.votes),
     }));
 
-    // Integrity weight distribution (bucketed, since range is 1.0000-1.0050).
+    // Integrity weight distribution (bucketed, since range is 1.0000-1.0100).
     // The RPC only returns buckets that actually have at least one user in
     // them, so merge onto the fixed 3-bucket template to keep all three
     // present (at 0) the way the report has always shown them.
     const { data: bucketRows } = await supabase.rpc("get_report_integrity_distribution");
-    const buckets = { "1.0000": 0, "1.0001–1.0020": 0, "1.0021–1.0050": 0 };
+    const buckets = { "1.0000": 0, "1.0001–1.0050": 0, "1.0051–1.0100": 0 };
     for (const row of (bucketRows || []) as any[]) {
       if (row.bucket in buckets) buckets[row.bucket as keyof typeof buckets] = Number(row.count);
     }
