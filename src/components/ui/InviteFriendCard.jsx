@@ -1,16 +1,11 @@
 import { useAuth } from '../../hooks/useAuth'
-import { supabase } from '../../lib/supabase'
 
 // Surfaces a plain "invite a friend" entry point behind an explicit,
 // dedicated card, rather than leaving inviting someone only reachable by
 // noticing it's possible via a generic question-share link.
 //
-// UPDATED (migration 108, 2026-11-07): the link used to carry a
-// ?ref=<your id> tag (see this file's own history) so a resulting signup
-// could be attributed back to you for the sharing integrity-weight
-// bonus. That bonus is now credited the moment any Share button's
-// handler fires — see claim_share() below — not on a signup, so the tag
-// no longer serves any purpose and has been dropped for a shorter link.
+// Shares are not tracked (migration 110): the link carries no ref tag,
+// and nothing is recorded when you tap the button.
 //
 // Links straight to /register rather than through a specific /q/:number
 // preview -- this is "come join the app," not "come see this question."
@@ -24,24 +19,9 @@ export default function InviteFriendCard() {
 
     if (navigator.share) {
       // See VoteCard.jsx's shareQuestion() comment: navigator.share()
-      // must be called before claim_share(), not after — calling
-      // claim_share() first was itself breaking this exact button on
-      // Aidan's device.
+      // must be the first thing this handler does.
       try {
-        const sharePromise = navigator.share(shareData)
-        // Wrapped in Promise.resolve() -- the builder .rpc() returns is
-        // only a bare "thenable" (implements .then(), not .catch()) when
-        // called with no params, which makes .catch() chained directly
-        // onto it throw synchronously ("...rpc(...).catch is not a
-        // function") -- caught live on Aidan's device (2026-11-08) once
-        // this call was moved inside navigator.share()'s own try/catch,
-        // where it got misreported as a share-sheet failure even though
-        // the share itself had already succeeded. Promise.resolve(...)
-        // coerces it into a real native Promise first, so .catch() is
-        // always safe to chain regardless of what the builder itself
-        // implements.
-        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
-        await sharePromise
+        await navigator.share(shareData)
       } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)
@@ -67,7 +47,7 @@ export default function InviteFriendCard() {
         Invite a friend
       </div>
       <p style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.5, marginTop: 0, marginBottom: '10px' }}>
-        Share senseUS with a friend — it counts toward your integrity weight.
+        Know someone who'd have something to say? Send them a link to join.
       </p>
       <button
         onClick={invite}

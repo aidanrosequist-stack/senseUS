@@ -1008,8 +1008,8 @@ export default function Conversation() {
   async function shareComment(commentId) {
     if (!question?.question_number) return
 
-    // Share links no longer carry ?ref=<your id> (migration 108) — see
-    // VoteCard.jsx's shareQuestion() comment for the full reasoning.
+    // Shares are not tracked (migration 110) — see VoteCard.jsx's
+    // shareQuestion() comment.
     const url = `https://senseus.app/q/${question.question_number}#comment-${commentId}`
     const shareData = {
       title: 'senseUS',
@@ -1018,15 +1018,10 @@ export default function Conversation() {
     }
 
     if (navigator.share) {
-      // navigator.share() must be called before claim_share(), not
-      // after — see VoteCard.jsx's shareQuestion() comment.
+      // navigator.share() must be the first thing this handler does —
+      // see VoteCard.jsx's shareQuestion() comment.
       try {
-        const sharePromise = navigator.share(shareData)
-        // Promise.resolve(...) wrap: see InviteFriendCard.jsx's invite()
-        // comment -- .rpc() with no params returns a bare thenable
-        // that doesn't implement .catch() in this build.
-        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
-        await sharePromise
+        await navigator.share(shareData)
       } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)

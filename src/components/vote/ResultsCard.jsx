@@ -2,7 +2,6 @@ import { IconMessageCircle } from '@tabler/icons-react'
 import { useRef, useEffect, useState } from 'react'
 import ConfettiBurst from '../ui/ConfettiBurst'
 import PartyAddButton from '../ui/PartyAddButton'
-import { supabase } from '../../lib/supabase'
 
 const VOTE_COLORS = {
   yes: '#6d8a1c',
@@ -110,23 +109,16 @@ export default function ResultsCard({ question, userVote, tally, onJoinConversat
 
   async function shareQuestion() {
     if (!question?.question_number) return
-    // Share links no longer carry ?ref=<your id> (migration 108) — see
-    // VoteCard.jsx's shareQuestion() comment for the full reasoning.
+    // Shares are not tracked (migration 110) — see VoteCard.jsx's
+    // shareQuestion() comment.
     const url = `https://senseus.app/q/${question.question_number}`
     const shareData = { title: 'senseUS', text: 'I just voted on this — what do you think?', url }
 
     if (navigator.share) {
-      // navigator.share() must be called before claim_share(), not
-      // after — see VoteCard.jsx's shareQuestion() comment. Calling
-      // claim_share() first was breaking navigator.share() on Aidan's
-      // device for every handler that did it that way.
+      // navigator.share() must be the first thing this handler does —
+      // see VoteCard.jsx's shareQuestion() comment.
       try {
-        const sharePromise = navigator.share(shareData)
-        // Promise.resolve(...) wrap: see InviteFriendCard.jsx's invite()
-        // comment -- .rpc() with no params returns a bare thenable
-        // that doesn't implement .catch() in this build.
-        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
-        await sharePromise
+        await navigator.share(shareData)
       } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)

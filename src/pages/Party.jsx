@@ -342,19 +342,10 @@ export default function Party() {
       url,
     }
     if (navigator.share) {
-      // navigator.share() must be called before claim_share(), not
-      // after — see VoteCard.jsx's shareQuestion() comment. The bonus
-      // still counts toward the sharing integrity-weight bonus the
-      // moment this fires (migration 108), regardless of whether the
-      // share sheet below is completed — just ordered so it doesn't
-      // break the call itself.
+      // navigator.share() must be the first thing this handler does —
+      // see VoteCard.jsx's shareQuestion() comment.
       try {
-        const sharePromise = navigator.share(shareData)
-        // Promise.resolve(...) wrap: see InviteFriendCard.jsx's invite()
-        // comment -- .rpc() with no params returns a bare thenable
-        // that doesn't implement .catch() in this build.
-        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
-        await sharePromise
+        await navigator.share(shareData)
       } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('navigator.share failed:', err)

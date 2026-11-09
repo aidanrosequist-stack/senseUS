@@ -3,7 +3,6 @@ import { IconThumbUp, IconThumbDown, IconBulb, IconMessageCircle, IconShare } fr
 import PinButton from '../ui/PinButton'
 import PartyAddButton from '../ui/PartyAddButton'
 import { playSound, getAudioContext } from '../../lib/sound'
-import { supabase } from '../../lib/supabase'
 
 // Tier 2 ("wash") — updated 2026-09-03 (second pass) to reuse the vote
 // buttons' own backfill colors below (see `bg` in the button styles further
@@ -426,10 +425,8 @@ useEffect(() => {
 
   async function shareQuestion() {
     if (!question?.question_number) return
-    // Share links no longer carry ?ref=<your id> (migration 108) — the
-    // sharing integrity-weight bonus is now credited the moment this
-    // handler fires (see the claim_share() call below), not on a
-    // resulting signup, so there's nothing left to attribute back to you.
+    // Shares are not tracked (migration 110): no ?ref= tag on the link and
+    // no server call when the button is tapped.
     const url = `https://senseus.app/q/${question.question_number}`
     const shareData = {
       title: 'senseUS',
@@ -439,26 +436,11 @@ useEffect(() => {
 
     if (navigator.share) {
       // navigator.share() must be the very first thing that happens in
-      // this handler — calling claim_share() (or anything else) before
-      // it was itself breaking the share call on Aidan's device
-      // (confirmed 2026-11-08: this exact button started working the
-      // instant that call was removed, and broke again the moment it was
-      // restored ahead of navigator.share()). claim_share() still fires
-      // unconditionally right after, regardless of how the share below
-      // resolves, so "credit on click regardless of completion"
-      // (migration 108) is unaffected by the reordering.
+      // this handler. Running anything before it (confirmed 2026-11-08
+      // with a server call placed ahead of it) broke the share sheet on
+      // Aidan's device. Every other share handler in the app points here.
       try {
-        const sharePromise = navigator.share(shareData)
-        // Fire-and-forget, same reasoning as every other claim_*() call
-        // in this codebase: a write-once RPC that just returns false
-        // (never raises) once already claimed, so it can never block or
-        // surface an error here.
-        // Promise.resolve(...) wrap: see InviteFriendCard.jsx's invite()
-        // comment -- .rpc() with no params returns a bare thenable
-        // that doesn't implement .catch() in this build, so chaining
-        // .catch() directly onto it throws synchronously.
-        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
-        await sharePromise
+        await navigator.share(shareData)
       } catch (err) {
         // AbortError = user cancelled the share sheet, not a real error.
         // Anything else was being swallowed completely silently before —

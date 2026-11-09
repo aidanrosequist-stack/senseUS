@@ -127,29 +127,6 @@ useEffect(() => {
         return
       }
 
-      // Attribute this signup to whoever shared the ?ref= link that
-      // brought the user here, if any — fire and forget, same reasoning
-      // as the welcome SMS and check-line-type calls below: a missing,
-      // bogus, or self-referencing ref is handled entirely server-side
-      // by claim_referral() (migration 094), which just returns false
-      // rather than raising, so this can never block or surface an
-      // error during registration.
-      const refParam = new URLSearchParams(window.location.search).get('ref')
-      if (refParam) {
-        // Promise.resolve(...) wrap (2026-11-08): see
-        // InviteFriendCard.jsx's invite() comment for the full
-        // reasoning -- found via claim_share()'s identical
-        // .rpc(...).catch() pattern throwing "...catch is not a
-        // function" live. This exact call site had the same latent bug
-        // but never surfaced it in practice, since no link has carried
-        // ?ref= since migration 108 removed it -- refParam is always
-        // null now, so this branch hasn't actually run. Fixed anyway in
-        // case an old shared/bookmarked link with ?ref= still shows up.
-        Promise.resolve(supabase.rpc('claim_referral', { p_referrer_id: refParam })).catch(() => {
-          // Silent fail — see comment above
-        })
-      }
-
       // Send welcome SMS — fire and forget, don't block registration completion.
       // Sourced from userData.user.phone (already fetched above, and always
       // populated for a phone-OTP-verified session) rather than the `phone`

@@ -246,24 +246,10 @@ export default function Explore() {
       // the app (VoteCard, ResultsCard, Conversation, Activity's party
       // share, Party, InviteFriendCard) already did correctly.
       //
-      // claim_share() now fires AFTER starting the share call, not
-      // before (2026-11-08) — confirmed via Aidan's device that calling
-      // it first was itself breaking navigator.share() (VoteCard's and
-      // InviteFriendCard's identical buttons started working the instant
-      // that call was removed/disabled; this call site was still broken
-      // with it left in). navigator.share()'s call itself must be the
-      // very first thing that happens in the handler for whatever the
-      // browser's activation check here requires; claim_share() still
-      // fires unconditionally and doesn't block or wait on the share
-      // outcome, so "credit on click regardless of completion" (migration
-      // 108) is unaffected by moving it a few lines later.
+      // navigator.share() must also be the first thing this handler
+      // does — see VoteCard.jsx's shareQuestion() comment.
       try {
-        const sharePromise = navigator.share(shareData)
-        // Promise.resolve(...) wrap: see InviteFriendCard.jsx's invite()
-        // comment -- .rpc() with no params returns a bare thenable
-        // that doesn't implement .catch() in this build.
-        Promise.resolve(supabase.rpc('claim_share')).catch(() => {})
-        await sharePromise
+        await navigator.share(shareData)
       } catch (err) {
         // AbortError = user cancelled, not a real error.
         if (err?.name !== 'AbortError') {

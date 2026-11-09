@@ -140,7 +140,6 @@ async function openIntegrityInfo() {
       commentMaxed: (data?.comment_count || 0) >= 10,
       consistent: (data?.distinct_vote_days || 0) >= 7,
       sustained: (data?.distinct_vote_months || 0) >= 3,
-      shared: (data?.verified_referral_count || 0) >= 1,
       compared: (data?.verified_comparison_count || 0) >= 1,
     })
   }
@@ -560,7 +559,6 @@ async function openIntegrityInfo() {
                   { label: 'Interact more', done: integrityStatus.commentMaxed, started: integrityStatus.commentStarted },
                   { label: 'Be consistent', done: integrityStatus.consistent, started: integrityStatus.consistent },
                   { label: 'Stay active over time', done: integrityStatus.sustained, started: integrityStatus.sustained },
-                  { label: 'Share senseUS', done: integrityStatus.shared, started: integrityStatus.shared },
                   { label: 'Compare with a friend', done: integrityStatus.compared, started: integrityStatus.compared },
                 ].map(item => (
                   <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
