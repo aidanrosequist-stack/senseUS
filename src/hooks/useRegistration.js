@@ -9,6 +9,29 @@ const ANONYMOUS_NAMES = [
   'Avery K.', 'Rowan L.', 'Sage D.', 'River C.', 'Phoenix J.',
   'Amara T.', 'Rohan B.', 'Lena W.', 'Mateo R.', 'Kai M.'
 ]
+
+// Where to send someone once they're signed in: back to the shared
+// question they came from (/register?from=q&q=<n>), otherwise the feed.
+function postSignInDestination() {
+  const params = new URLSearchParams(window.location.search)
+  const questionNumber = params.get('q')
+  if (params.get('from') === 'q' && questionNumber) return `/q/${questionNumber}`
+  return null
+}
+
+// Returning users (2026-11-09): this page is where "Join" on a shared
+// link lands, so people who already have an account end up here too --
+// especially in in-app browsers (Facebook, Instagram), which never share
+// a sign-in with the phone's normal browser. Verifying a phone number
+// that already has a profile now signs them straight in, same as the
+// Log in page, instead of walking them through sign-up again. That old
+// path re-sent the welcome text, re-ran the phone-line check, and
+// overwrote their saved name, birth year, country and display choice
+// (including a brand-new random anonymous name) with whatever they typed.
+function sendReturningUserIn() {
+  window.location.replace(postSignInDestination() || '/vote')
+}
+
 export function useRegistration() {
   const [phone, setPhone] = useState('')
   const [redirectTo, setRedirectTo] = useState(null)
@@ -29,6 +52,9 @@ useEffect(() => {
       if (!profile) {
         if (user.phone) setPhone(`+${user.phone}`)
         setStep('details')
+      } else {
+        // Already signed in with a finished account: nothing to sign up for.
+        sendReturningUserIn()
       }
     }
     checkExistingSession()
@@ -62,6 +88,20 @@ useEffect(() => {
       if (verifyError || !data.session) {
         setError(verifyError?.message || 'Incorrect code. Please try again.')
       } else {
+        // Existing account? Sign them straight in (see sendReturningUserIn).
+        // If this lookup itself fails, fall through to the details step:
+        // completeRegistration() never overwrites an existing profile, so
+        // the worst case is the old, slower path, not lost data.
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', data.session.user.id)
+          .maybeSingle()
+        if (existingProfile) {
+          sendReturningUserIn()
+          return
+        }
+
         // Fire-and-forget — never blocks registration on Lookup latency
         // or failure. See check-line-type/index.ts and migration
         // 010_voip_weight_withholding.sql for what this does.
@@ -112,7 +152,11 @@ useEffect(() => {
         anonName = `${base} ${suffix}`
       }
 
-      const { error: insertError } = await supabase.from('profiles').upsert({
+      // insert, not upsert: this step only ever creates a profile. If one
+      // already exists (a returning user who got here some other way),
+      // the insert fails on the duplicate id and we sign them in instead,
+      // leaving their saved details untouched.
+      const { error: insertError } = await supabase.from('profiles').insert({
         id: userData.user.id,
         first_name: firstName,
         last_initial: lastInitial,
@@ -123,6 +167,10 @@ useEffect(() => {
       })
 
       if (insertError) {
+        if (insertError.code === '23505') {
+          sendReturningUserIn()
+          return
+        }
         setError(insertError.message)
         return
       }
@@ -142,13 +190,9 @@ useEffect(() => {
         // Silent fail — welcome SMS failure shouldn't break registration
       })
 
-      // Check if user came from a shared comment link
-      const params = new URLSearchParams(window.location.search)
-      const fromQ = params.get('from') === 'q'
-      const questionNumber = params.get('q')
-      if (fromQ && questionNumber) {
-        setRedirectTo(`/q/${questionNumber}`)
-      }
+      // Check if user came from a shared question link
+      const destination = postSignInDestination()
+      if (destination) setRedirectTo(destination)
 
       setStep('done')
     } catch (err) {
