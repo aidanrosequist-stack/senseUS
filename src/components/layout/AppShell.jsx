@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Header, { HEADER_HEIGHT_PX } from './Header'
 import BottomNav, { BOTTOM_NAV_HEIGHT_PX } from './BottomNav'
+import InstallPrompt from '../ui/InstallPrompt'
 
 // Shared chrome for every logged-in app page (Vote, Explore, Activity,
 // Profile, Conversation, Compare, MakeUpMyMind, Notifications).
@@ -95,6 +96,7 @@ export default function AppShell() {
       >
         <Outlet />
       </main>
+      <InstallPrompt />
       <BottomNav />
     </>
   )
