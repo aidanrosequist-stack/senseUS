@@ -11,18 +11,20 @@ import OnboardingAnimation from '../components/ui/OnboardingAnimation'
 import TurnstileWidget from '../components/ui/TurnstileWidget'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import ConfettiBurst from '../components/ui/ConfettiBurst'
+import { ALLOWED_COUNTRY_CODES, MAIN_COUNTRIES, EUROPEAN_COUNTRIES, isAllowedCountry } from '../lib/countries'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
 
 // Auto-detects a default country from the browser's locale (e.g. "en-US" -> "US").
 // Falls back to "US" if the locale doesn't include a region, since that's the
-// most common case for senseUS's initial audience.
+// most common case for senseUS's initial audience, or if the region isn't one
+// senseUS is open to (the phone field only offers those).
 function getDefaultCountryFromLocale() {
   try {
     const locale = navigator.language || navigator.languages?.[0] || 'en-US'
     const parts = locale.split('-')
-    const region = parts[1]
-    return region ? region.toUpperCase() : 'US'
+    const region = parts[1]?.toUpperCase()
+    return region && isAllowedCountry(region) ? region : 'US'
   } catch {
     return 'US'
   }
@@ -156,6 +158,7 @@ if (checkingStatus) {
             <div className="senseus-phone-input" style={{ marginTop: '6px' }}>
               <PhoneInput
                 defaultCountry={defaultPhoneCountry}
+                countries={ALLOWED_COUNTRY_CODES}
                 value={phone}
                 onChange={(value) => setPhone(value || '')}
                 onCountryChange={(c) => setPhoneCountry(c || defaultPhoneCountry)}
@@ -313,37 +316,14 @@ if (checkingStatus) {
                   style={{ display: 'block', width: '100%', marginTop: '6px', border: '1px solid #D1D5DB', borderRadius: '8px', padding: '10px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'Merriweather, serif' }}
                 >
                   <option value="">Select your country...</option>
-                  <option value="US">United States</option>
-                  <option value="CA">Canada</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="AU">Australia</option>
-                  <option value="DE">Germany</option>
-                  <option value="FR">France</option>
-                  <option value="JP">Japan</option>
-                  <option value="BR">Brazil</option>
-                  <option value="IN">India</option>
-                  <option value="MX">Mexico</option>
-                  <option value="ZA">South Africa</option>
-                  <option value="NG">Nigeria</option>
-                  <option value="KE">Kenya</option>
-                  <option value="EG">Egypt</option>
-                  <option value="AR">Argentina</option>
-                  <option value="CL">Chile</option>
-                  <option value="CO">Colombia</option>
-                  <option value="ES">Spain</option>
-                  <option value="IT">Italy</option>
-                  <option value="NL">Netherlands</option>
-                  <option value="SE">Sweden</option>
-                  <option value="NO">Norway</option>
-                  <option value="DK">Denmark</option>
-                  <option value="FI">Finland</option>
-                  <option value="PL">Poland</option>
-                  <option value="PT">Portugal</option>
-                  <option value="NZ">New Zealand</option>
-                  <option value="SG">Singapore</option>
-                  <option value="KR">South Korea</option>
-                  <option value="PH">Philippines</option>
-                  <option value="OTHER">Other</option>
+                  {MAIN_COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>{c.name}</option>
+                  ))}
+                  <optgroup label="Europe">
+                    {EUROPEAN_COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>{c.name}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </label>
 

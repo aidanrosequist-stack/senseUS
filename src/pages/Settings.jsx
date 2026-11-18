@@ -8,21 +8,18 @@ import { useAuth } from '../hooks/useAuth'
 import { checkDisplayText } from '../lib/moderation'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import Toggle from '../components/ui/Toggle'
+import {
+  ALLOWED_COUNTRY_CODES,
+  MAIN_COUNTRIES,
+  EUROPEAN_COUNTRIES,
+  NOT_AVAILABLE_MESSAGE,
+  countryName,
+  isAllowedCountry,
+  phoneNumberCountry,
+} from '../lib/countries'
 
 const AVATAR_OPTIONS = ['🌿', '🌊', '🔥', '⚡', '🌙', '☀️', '🌱', '🍃', '🦋', '🌸', '🎯', '🧭', '🔮', '🌍', '💡', '🎨', '🏔️', '🌺', '🦅', '✨']
 
-const COUNTRIES = [
-  { code: 'US', name: 'United States' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'AU', name: 'Australia' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'BR', name: 'Brazil' },
-  { code: 'IN', name: 'India' },
-  { code: 'MX', name: 'Mexico' },
-]
 
 function Section({ title, children }) {
   return (
@@ -143,6 +140,12 @@ function maskPhone(phone) {
 
   async function sendPhoneChangeOtp() {
     if (!newPhone) return
+    // Same countries as sign-up (src/lib/countries.js), so changing your
+    // number can't be used to move an account onto one from elsewhere.
+    if (!isAllowedCountry(phoneNumberCountry(newPhone))) {
+      setPhoneChangeError(NOT_AVAILABLE_MESSAGE)
+      return
+    }
     setPhoneChangeLoading(true)
     setPhoneChangeError(null)
     const { error } = await supabase.auth.updateUser({ phone: newPhone })
@@ -427,7 +430,8 @@ function maskPhone(phone) {
                 </p>
                 <div className="senseus-phone-input" style={{ marginBottom: '10px' }}>
                   <PhoneInput
-                    defaultCountry={profile?.country_code || 'US'}
+                    defaultCountry={isAllowedCountry(profile?.country_code) ? profile.country_code : 'US'}
+                    countries={ALLOWED_COUNTRY_CODES}
                     value={newPhone}
                     onChange={(value) => setNewPhone(value || '')}
                     placeholder="Enter new phone number"
@@ -500,9 +504,20 @@ function maskPhone(phone) {
             style={{ fontSize: '13px', color: '#1A1A1A', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '4px 8px', fontFamily: 'Merriweather, serif', background: 'white' }}
           >
             <option value="">Select country</option>
-            {COUNTRIES.map((c) => (
+            {/* An account created before the 2026-11-18 country list still
+                sees its saved country here, but can only switch to one on
+                the current list (see src/lib/countries.js). */}
+            {profile?.country_code && !isAllowedCountry(profile.country_code) && (
+              <option value={profile.country_code} disabled>{countryName(profile.country_code)}</option>
+            )}
+            {MAIN_COUNTRIES.map((c) => (
               <option key={c.code} value={c.code}>{c.name}</option>
             ))}
+            <optgroup label="Europe">
+              {EUROPEAN_COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </optgroup>
           </select>
         </Row>
         {profile?.country_code === 'US' && (

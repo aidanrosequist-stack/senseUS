@@ -1,6 +1,7 @@
 import { sendOtpCode, verifyOtpCode } from '../lib/otpAuth'
 import { supabase } from '../lib/supabase'
 import { checkDisplayText } from '../lib/moderation'
+import { isAllowedCountry, phoneNumberCountry, NOT_AVAILABLE_MESSAGE } from '../lib/countries'
 import { useState, useEffect } from 'react'
 
 const ANONYMOUS_NAMES = [
@@ -61,6 +62,15 @@ useEffect(() => {
   }, [])
 
   async function sendCode(captchaToken) {
+    // Only numbers from countries senseUS is open to (src/lib/countries.js).
+    // Twilio's Geo Permissions are the real gate; this just explains it
+    // up front instead of leaving people waiting for a code that never
+    // comes. Log-in is deliberately not restricted, so no existing
+    // account is ever locked out.
+    if (!isAllowedCountry(phoneNumberCountry(phone))) {
+      setError(NOT_AVAILABLE_MESSAGE)
+      return false
+    }
     setLoading(true)
     setError(null)
     try {
