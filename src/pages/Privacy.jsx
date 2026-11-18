@@ -71,7 +71,7 @@ export default function Privacy() {
             {
               title: '3.2 Optional Information',
               bullets: [
-                'Country of residence — stored as a two-letter country code. This is your country of residence, not citizenship. You may decline to provide this.',
+                'Country of residence — stored as a two-letter country code. This is your country of residence, not citizenship. senseUS is currently open to residents of the US, Canada, the UK, Australia, New Zealand and Europe. Each vote records the country you had chosen when you cast it, and whether that country matches the country your phone number belongs to (which we work out from your phone number at the time; neither your number nor its country is stored with your vote, only a yes/no match). This lets country-level results distinguish verified respondents. Nobody is excluded either way.',
                 'Avatar — an emoji character selected from a preset list.',
                 'Bio — an optional one-line text description shown on your profile.',
               ]

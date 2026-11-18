@@ -76,8 +76,11 @@ export function countryName(code) {
 
 // Territories that share a dialing code with an allowed country. Their
 // numbers count as the parent country's: many ordinary UK mobile numbers,
-// for instance, resolve to Guernsey, Jersey or the Isle of Man.
+// for instance, resolve to Guernsey, Jersey or the Isle of Man, and US
+// territories have their own +1 area codes. Mirrored in the database by
+// phone_number_country() (migration 114); keep the two in sync.
 const SHARED_CODE_TERRITORIES = {
+  PR: 'US', VI: 'US', GU: 'US', MP: 'US', AS: 'US', // +1
   GG: 'GB', JE: 'GB', IM: 'GB', // +44
   AX: 'FI', // +358
   SJ: 'NO', // +47

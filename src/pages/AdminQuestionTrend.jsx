@@ -33,6 +33,8 @@ import {
 import { jsPDF } from "jspdf";
 import "jspdf-autotable"; // side-effect import: patches doc.autoTable(...) onto jsPDF's prototype
 import * as XLSX from "xlsx";
+import AdminCountryResults from "./AdminCountryResults";
+import { VERIFIED_EXPLANATION, countryLabel, fetchCountryResults } from "../lib/countryResults";
 
 // Same palette Activity.jsx uses for the 4 vote choices (VOTE_COLORS), so
 // a stance reads the same color here as it does on the voting UI itself.
@@ -404,7 +406,8 @@ export default function AdminQuestionTrend({ supabase }) {
       if (tallies[v.choice] !== undefined) tallies[v.choice] += 1;
     });
     const totalVotes = (voteRows || []).length;
-    return { tallies, totalVotes, commentCount: commentCount || 0, flaggedCount: flaggedCount || 0 };
+    const countryRows = await fetchCountryResults(supabase, questionId, asOf);
+    return { tallies, totalVotes, commentCount: commentCount || 0, flaggedCount: flaggedCount || 0, countryRows };
   }
 
   async function exportQuestionReport() {
@@ -434,6 +437,30 @@ export default function AdminQuestionTrend({ supabase }) {
   function questionFileBase(question, range) {
     const numberPart = question.question_number != null ? `q${question.question_number}` : question.id.slice(0, 8);
     return `senseus-${numberPart}${rangeFileSuffix(range)}`;
+  }
+
+  // "By Country" sheet: every respondent and verified-only, side by side,
+  // so a B2B report can lead with the verified figures.
+  function countryResultsSheet(countryRows) {
+    const header = [
+      "Country", "Respondents", "Verified respondents",
+      "Yes", "Leaning yes", "Leaning no", "No", "Yes side %",
+      "Verified yes", "Verified leaning yes", "Verified leaning no", "Verified no", "Verified yes side %",
+    ];
+    const body = countryRows.map((r) => [
+      countryLabel(r.country_code), r.respondents, r.verified_respondents,
+      r.yes_count, r.ly_count, r.ln_count, r.no_count, r.pct_yes_side ?? "",
+      r.verified_yes_count, r.verified_ly_count, r.verified_ln_count, r.verified_no_count, r.verified_pct_yes_side ?? "",
+    ]);
+    const sheet = XLSX.utils.aoa_to_sheet([
+      header,
+      ...body,
+      [],
+      [VERIFIED_EXPLANATION],
+      ["Yes side % = yes + leaning yes as a share of all four stances, integrity-weighted."],
+    ]);
+    sheet["!cols"] = [{ wch: 20 }, ...header.slice(1).map(() => ({ wch: 14 }))];
+    return sheet;
   }
 
   function exportQuestionXlsx(question, snapshots, extras, range) {
@@ -497,6 +524,7 @@ export default function AdminQuestionTrend({ supabase }) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
     XLSX.utils.book_append_sheet(workbook, historySheet, "Daily History");
+    XLSX.utils.book_append_sheet(workbook, countryResultsSheet(extras.countryRows), "By Country");
     XLSX.writeFile(workbook, `${questionFileBase(question, range)}.xlsx`);
   }
 
@@ -599,6 +627,31 @@ export default function AdminQuestionTrend({ supabase }) {
     doc.setFontSize(9);
     doc.setTextColor(60, 60, 60);
     doc.text(`Total comments: ${extras.commentCount}  (${extras.flaggedCount} flagged)`, margin, afterTableY);
+
+    const countryRows = extras.countryRows.filter((r) => r.respondents > 0);
+    if (countryRows.length > 0) {
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text("Results by country", margin, afterTableY + 10);
+      doc.autoTable({
+        startY: afterTableY + 13,
+        margin: { left: margin, right: margin },
+        head: [["Country", "Respondents", "Verified", "Yes side (all)", "Yes side (verified)"]],
+        body: countryRows.map((r) => [
+          countryLabel(r.country_code),
+          r.respondents,
+          r.verified_respondents,
+          r.pct_yes_side == null ? "—" : `${r.pct_yes_side}%`,
+          r.verified_pct_yes_side == null ? "—" : `${r.verified_pct_yes_side}%`,
+        ]),
+        styles: { fontSize: 9, font },
+        headStyles: { fillColor: [45, 61, 202], font, fontStyle: "bold" },
+        theme: "striped",
+      });
+      doc.setFontSize(7);
+      doc.setTextColor(140, 140, 140);
+      doc.text(VERIFIED_EXPLANATION, margin, doc.lastAutoTable.finalY + 5);
+    }
 
     doc.setFontSize(7);
     doc.setTextColor(160, 160, 160);
@@ -834,6 +887,8 @@ export default function AdminQuestionTrend({ supabase }) {
               </LineChart>
             </ResponsiveContainer>
           )}
+
+          <AdminCountryResults supabase={supabase} question={trendQuestion} />
         </div>
       )}
     </div>
